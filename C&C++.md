@@ -291,3 +291,199 @@ int main() {
 //}
 ```
 
+# 6. 指针
+
+## 6.1 指针定义和使用
+
+指针变量定义：数据类型* 指针变量名
+
+```C++
+int a = 10;
+
+// 指针变量的定义和赋值
+int* p = &a;
+
+cout << "&a = " << &a << endl;	// 打印a的地址
+cout << "p= " << p << endl;		// 打印指针变量p，其值等于a的地址
+
+// 指针变量的使用
+cout << "*p = " << *p << endl;	// 对p进行解引用，其值为10
+
+cout << "修改*p的值为100" << endl;
+*p = 100;
+cout << "*p = " << *p << endl;	// 对p解引用，相当于对该地址保存的值赋值
+cout << "a = " << a << endl;	// 变量a和*p的值也随之改变
+```
+
+指针占用内存大小
+
+```C++
+// 指针保存内存地址
+// 32位系统占用4个字节，64位系统占用8个字节
+cout << "指针占用内存大小： " << sizeof(p) << endl;
+cout << "指针占用内存大小： " << sizeof(int*) << endl;
+cout << "指针占用内存大小： " << sizeof(float*) << endl;
+```
+
+## 6.2 空指针&野指针
+
+空指针
+
+```C++
+// 空指针:指针变量指向内存中编号为0~255的空间
+// 用途：初始化指针变量
+// 注意：空指针指向的内存是不可以访问的
+int* p1 = NULL;
+//*p1 = 100;	// 不可以修改空指针地址的内容，报错
+//cout << *p1 << endl;	// 同样也报错
+```
+
+野指针
+
+```C++
+// 野指针：指向非法内存空间
+int* p2 = (int*)0x11010120;
+cout << *p2 << endl;	// 不允许访问，程序报错
+```
+
+## 6.3 指针和数组
+
+```C++
+int arr[5] = { 1,2,3,4,5 };
+int* p = arr;
+cout << *p << endl;		// arr[0]
+
+// 注意指针的+1，是增加sizeof(指针类型)
+// 例如这里增加了sizeof(4)，相当于把指针从arr[0]的首地址移动到尾地址
+// 也就是arr[1]的首地址，通过p++,就可以访问到arr[1]了
+p++;
+cout << *p << endl;		// 再次解引用时，p已经指向了arr[1]
+
+double arr2[5] = { 1.1,2.2,3.3,4.4,5.5 };
+double* p2 = arr2;
+cout << *p2 << endl;	// arr2[0]
+
+// 同样的，对于double类型的指针，++操作相当于地址增加了sizeof(double)
+// 相当于指针从arr2[0]的首地址移动到arr2[0]的尾地址
+// 也就是arr2[1]的首地址，通过p2++，就可以访问到arr2[1]了
+p2++;
+cout << *p2 << endl;	// arr2[1]
+```
+
+## 6.4 函数传递地址
+
+通过传递地址，可以实现地址解引用内容的更改
+
+```C++
+void swap(int* p1, int* p2)
+{
+	int temp = *p1;
+	*p1 = *p2;
+	*p2 = temp;
+}
+
+int main() {
+	int a = 10;
+	int b = 20;
+	swap(&a, &b);
+	cout << "a = " << a << endl;	// a = 20
+	cout << "b = " << b << endl;	// b = 10
+
+	system("pause");
+	return 0;
+}
+```
+
+# 7. 结构体
+
+## 7.1 结构体的定义和使用
+
+```c++
+// 结构体定义
+struct Student
+{
+	string name;
+	int age;
+	int score;
+}s3; // 创建结构体变量方法3
+
+int main() {
+	// 创建结构体变量的三种方法
+	
+	// 1. struct 结构体名 变量名
+	struct Student s1;
+	// Student s1; 创建时，struct是可以省略的
+	s1.name = "张三";	// 结构体变量通过"."访问成员
+	s1.age = 18;
+	s1.score = 100;
+
+
+	// 2. struct 结构体名 变量名 = {成员1值，成员2值...}
+	Student s2 = { "李四", 19, 80 };
+
+	// 3. 在定义结构体时顺便创建变量
+	s3.name = "王五";
+	s3.age = 20;
+	s3.score = 60;
+
+	system("pause");
+	return 0;
+}
+```
+
+## 7.2 结构体指针
+
+```C++
+struct Student
+{
+	string name;
+	int age;
+	int score;
+};
+
+void printStu1(Student stu)
+{
+	stu.name = "cryolin";
+	cout << "printStu1 " << stu.name << endl;
+}
+
+void printStu2(Student* stu)
+{
+	stu->name = "cryolin";
+	// 结构体指针，通过"->"访问成员
+	cout << "printStu2 " << stu->name << endl;
+}
+
+int main() {
+	Student stu = { "colin", 18, 750 };
+	Student* p = &stu;
+
+	// 直接传入结构体对象到函数，是无法修改结构体的内容的
+	printStu1(stu);
+	cout << "stu.name : " << stu.name << endl;	// 打印"colin"
+
+	// 传入stu地址，可以修改结构体内容
+	printStu2(p);
+	cout << "stu.name : " << stu.name << endl;	// 打印"cryolin
+
+	system("pause");
+	return 0;
+}
+```
+
+## 7.3 结构体使用const的场景
+
+```C++
+// 结构体重使用const的场景：
+// 1. 直接传入结构体，会复制全部结构体内容到栈，增大内存占用
+// 2. 所以一般使用结构体指针传入
+// 3. 但结构体指针传入后，向函数暴露了结构体写入的能力
+// 4. 对于不想让函数修改结构体的场景，可以通过在结构体指针前加const的方法
+void printStu3(const Student* stu)
+{
+	// 加入const之后，对stu传参内容的修改会报错
+	// stu->name = "cryolin";
+	cout << "printStu3 " << stu->name << endl;
+}
+```
+
