@@ -487,3 +487,126 @@ void printStu3(const Student* stu)
 }
 ```
 
+# 8. C++内存分配
+
+## 8.1 内存的静态分配与动态分配
+
+**静态内存分配**：静态内存分配是在程序编译或者运行过程中，按事先规定的大小分配内存空间的分配方式，他的前提的必须事先知道所需内存空间的大小
+
+**动态内存分配**：按输入信息的大小分配所需要的内存单元，特点是按需分配。
+
+程序内存空间分为三个部分：
+
+1. 静态存储区：全局变量，静态变量
+2. 动态存储区：栈、堆
+3. 程序区：存放程序语句
+
+```C++
+int g_a = 10;
+static int s_g_a = 10;
+const int c_g_a = 10;
+
+int main()
+{
+	int l_a = 10;
+	static int s_l_a = 10;
+	const int c_l_a = 10;
+
+	/*
+	普通局部变量的地址0078FE5C
+	普通全局变量的地址00DBC000
+	静态局部变量的地址00DBC008
+	静态全局变量的地址00DBC004
+	const全局常量的地址00DB9B44
+	const局部常量的地址0078FE50
+	*/
+	cout << "普通局部变量的地址" << &l_a << endl;
+	cout << "普通全局变量的地址" << &g_a << endl;
+	cout << "静态局部变量的地址" << &s_l_a << endl;
+	cout << "静态全局变量的地址" << &s_g_a << endl;
+	cout << "const全局常量的地址" << &c_g_a << endl;
+	cout << "const局部常量的地址" << &c_l_a << endl;
+
+	// 静态分配的有：全局变量和静态变量
+
+	system("pause");
+	return 0;
+}
+```
+
+## 8.2 栈
+
+方法入参、局部变量和返回地址会保存在栈中，程序员无需关注其声明周期。
+
+不要将局部变量的地址作为返回值返回，因为程序会在函数返回后回收栈中的内存。
+
+例如：如下打印：
+
+```C++
+int* getInt()
+{
+	int a = 10;
+	return &a;
+}
+
+int main()
+{
+	int* a = getInt();
+
+	// 10			第一行打印10
+	// 2084673928	第二行打印时，内存已被回收
+	cout << *a << endl;
+	cout << *a << endl;
+
+	system("pause");
+	return 0;
+}
+```
+
+## 8.3 堆与new关键字
+
+堆中的对象程序员需关注其声明周期并手动释放，可通过new关键字主动在堆内存中创建对象，delete关键字释放其内存。
+
+```C++
+int* getInt()
+{
+	// new关键字创建int对象，调用int对象的构造函数
+	// 返回指向new的对象类型的指针
+	int* a = new int(10);
+	return a;
+}
+
+int* getIntArray()
+{
+	// 通过new关键字创建int数组，返回指向数组首地址的指针
+	int* array = new int[10];
+	for (int i = 0; i < 10; i++)
+	{
+		array[i] = 100 + i;
+	}
+	return array;
+}
+
+int main()
+{
+	int* a = getInt();
+
+	cout << *a << endl;
+	cout << *a << endl;
+
+	// 通过delete函数，释放a的内存，相当于调用了int的析构函数
+	// 执行完delete之后，无法再通过*a解引用
+	delete a;
+
+	int* array = getIntArray();
+	cout << array[0] << endl;
+	cout << array[1] << endl;
+
+	// 对于数组，要通过delete[]释放内存，否则只能释放第0个位置的内存
+	delete[] array;
+
+	system("pause");
+	return 0;
+}
+```
+
