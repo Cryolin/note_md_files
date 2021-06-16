@@ -346,7 +346,33 @@ int* p2 = (int*)0x11010120;
 cout << *p2 << endl;	// 不允许访问，程序报错
 ```
 
-## 6.3 指针和数组
+## 6.3 const修饰指针
+
+```C++
+	int a = 10;
+	int b = 20;
+
+	// const修饰int*，代表这个指针指向的值不能修改
+	// 可以理解为*p不能修改
+	const int* p1 = &a;
+	//*p1 = 20;	// 报错，*p1不能修改
+	a = 20;		// a本身还是可以修改的
+	p1 = &b;	// p1的指针也是可以修改的
+
+	// const修饰p，代表这个指针不能修改
+	// 可以理解为p不能修改
+	int* const p2 = &a;
+	*p2 = 20;	// *p2可以修改
+	//p2 = &b;	// 报错，p2不可修改
+
+	// const同时修饰int*和p，代表指针以及指针指向的值都不可修改
+	const int* const p3 = &a;
+	//*p3 = 30;	// 报错，*p3不可修改
+	//p3 = &b;	// 报错，p3不可修改
+
+```
+
+## 6.4 指针和数组
 
 ```C++
 int arr[5] = { 1,2,3,4,5 };
@@ -370,7 +396,7 @@ p2++;
 cout << *p2 << endl;	// arr2[1]
 ```
 
-## 6.4 函数传递地址
+## 6.5 函数传递地址
 
 通过传递地址，可以实现地址解引用内容的更改
 
@@ -604,6 +630,146 @@ int main()
 
 	// 对于数组，要通过delete[]释放内存，否则只能释放第0个位置的内存
 	delete[] array;
+
+	system("pause");
+	return 0;
+}
+```
+
+# 9. 引用
+
+## 9.1 引用基本用法
+
+```C++
+	int a = 10;
+	int b = 20;
+
+	// 数据类型& 引用变量名 = 变量名
+	// 创建a的引用，命名为c，相当于给变量a创建了个别名c
+	int& c = a;
+	//int& c;	// 引用必须在定义时赋值，本行报错
+	
+	// 对引用的修改，会影响引用和原变量
+	c = 100;
+	cout << "a = " << a << endl;	// a = 100
+	cout << "c = " << c << endl;	// c = 100
+
+	// 引用被创建为a的别名后，就不能修改为b的别名
+	// 下面的代码是赋值，并非将c修改为b的引用
+	c = b;
+```
+
+## 9.2 引用作为函数参数
+
+```c++
+// 直接传入，无法修改
+void swap01(int a, int b)
+{
+	int temp = a;
+	a = b;
+	b = temp;
+}
+
+// 通过指针，可以修改
+void swap02(int* a, int* b)
+{
+	int temp = *a;
+	*a = *b;
+	*b = temp;
+}
+
+// 通过引用，可以修改
+void swap03(int& a, int& b)
+{
+	int temp = a;
+	a = b;
+	b = temp;
+}
+
+
+int main()
+{
+	int a = 10;
+	int b = 20;
+
+	//swap01(a, b);
+	//swap02(&a, &b);
+	swap03(a, b);
+	
+	cout << "a = " << a << endl;	// a = 100
+	cout << "b = " << b << endl;	// c = 100
+
+
+	system("pause");
+	return 0;
+}
+```
+
+## 9.3 引用做函数返回值
+
+```C++
+// 不要直接返回局部变量的引用
+// 编译器会清理其内存
+int& test01()
+{
+	int a = 10;
+	return a;
+}
+
+int& test02()
+{
+	static int a = 10;
+	return a;
+}
+
+int test03()
+{
+	return 10;
+}
+
+int main()
+{
+	int& a = test01();
+	cout << "a = " << a << endl;	// a = 10
+	cout << "a = " << a << endl;	// 内存被清理
+
+	int& b = test02();
+	cout << "b = " << b << endl;	// a = 10
+	cout << "b = " << b << endl;	// a = 10
+
+	// 当函数的返回值是引用时，可以作为左值
+	test02() = 1000;
+	cout << "test02() = " << test02() << endl;
+	cout << "b = " << b << endl;
+
+	// 返回值不是引用的函数无法作为左值
+	// test03() = 1000;
+
+	system("pause");
+	return 0;
+}
+```
+
+## 9.4 引用的本质
+
+```C++
+// 发现是引用，转换为int* const ref = &a
+void func(int& ref)
+{
+	// ref是引用，转换为*ref = 100
+	ref = 100;
+}
+
+int main()
+{
+	int a = 10;
+
+	// 发现是引用，自动转换为int* const ref = &a
+	// ref指向的地址不可修改，也说明为什么引用不可修改
+	int& ref = a;
+
+	// ref是引用，自动转换为*ref = 20;
+	ref = 20;
 
 	system("pause");
 	return 0;
