@@ -776,3 +776,201 @@ int main()
 }
 ```
 
+## 9.5 const修饰引用
+
+```C++
+void printValue(const int& a)
+{
+	// 与const修饰指针一样，对于不想被函数修改的引用，作为传参时
+	// 可以通过const修饰避免修改，如下代码报错
+	//a = 1000;
+
+	cout << "a = " << a << endl;
+}
+
+int main()
+{
+	int a = 10;
+
+	// 引用无法直接指向数值，如下代码报错
+	// int& b = 10;
+
+	// 但被const修饰的引用可以直接指向数值
+	// 如下代码实际上相当于指向了一个临时变量：
+	// int temp = 10;
+	// const int& b = temp;
+	const int& b = 10;
+
+	printValue(a);
+
+	system("pause");
+	return 0;
+}
+```
+
+# 10. 函数高级
+
+## 10.1 函数的默认参数
+
+```C++
+int addNum01(int a, int b, int c)
+{
+	return a + b + c;
+}
+
+// 可以给函数默认值，语法：
+// 函数返回值 函数名(参数 = 参数值)
+// 有默认值的传参需位于右方
+int addNum02(int a, int b = 30, int c = 30)
+{
+	return a + b + c;
+}
+
+// 如下代码报错，有默认值得传参需位于右方
+//int addNum03(int a, int b = 30, int c)
+//{
+//	return a + b + c;
+//}
+
+
+// 如下代码报错，函数的声明和定义只能有一处有默认值
+// 否则编译器不知道应选择哪个
+//int addNum04(int a, int b = 30, int c = 30);
+//int addNum04(int a, int b = 30, int c = 30)
+//{
+//	return a + b + c;
+//}
+
+int main()
+{
+	int a = 10;
+	int b = 20;
+	int c = 30;
+
+	// 60
+	cout << "addNum01(a, b, c) = " << addNum01(a, b, c) << endl;
+
+	// 有默认值的部分可以缺省，如下返回70
+	cout << "addNum02(a) = " << addNum02(a) << endl;	
+
+	// 返回40
+	cout << "addNum02(a, 0) = " << addNum02(a, 0) << endl;
+
+	// 优先传入的值而非默认值，返回60
+	cout << "addNum02(a, b, c) = " << addNum02(a, b, c) << endl;
+
+	system("pause");
+	return 0;
+}
+```
+
+## 10.2 函数的占位参数
+
+```c++
+// 占位参数，只有数据类型，无变量名
+void printNum(int a, int)
+{
+	cout << "a = " << a  << " in printNum() " << endl;
+}
+
+// 占位参数也可以有默认参数
+void printNum02(int a, int = 10)
+{
+	cout << "a = " << a << " in printNum02" << endl;
+}
+
+int main()
+{
+	int a = 10;
+
+	// 传参时，占位参数也必须传值
+	printNum(a, 10);
+	// 如下代码，不给占位参数传值，报错
+	//printNum(a);
+
+	// 对于有默认参数的占位参数，可以不给占位参数传值
+	printNum02(a);
+
+	system("pause");
+	return 0;
+}
+```
+
+## 10.3 函数重载
+
+```C++
+// C++函数重载方式与java基本一致，通过函数参数重载，不能通过返回值重载
+void func();
+void func(int a);
+void func(double a);
+void func(int a, double b);
+void func(double a, int b);
+//int func();	// 不能通过返回值重载
+
+int main()
+{
+	system("pause");
+	return 0;
+}
+```
+
+## 10.4 重载与引用
+
+```C++
+// 如下两个函数是可以重载的
+void func(int& a)
+{
+	cout << "func(int& a)" << endl;
+}
+
+void func(const int& a)
+{
+	cout << "func(const int& a)" << endl;
+}
+
+int main()
+{
+	int a = 10;
+
+	// 传入变量时，执行func(int& a)
+	func(a);
+
+	// 传入常量时，执行func(const int& a)
+	// 假如执行func(int& a)，int& a = 10是非法的
+	func(10);
+
+	// const常量，执行func(const int& a)
+	const int b = 20;
+	func(b);
+
+	system("pause");
+	return 0;
+}
+```
+
+## 10.5 重载与默认参数
+
+```C++
+void func(int a)
+{
+	cout << "func(int a)" << endl;
+}
+
+void func(int a, int b = 10)
+{
+	cout << "func(int a, int b)" << endl;
+}
+
+int main()
+{
+	int a = 10;
+
+	// 如下代码报错，因为编译器不知道选择哪个方法执行
+	// 所以当有函数重载时，尽可能不要设置默认参数
+	//func(10);
+
+	system("pause");
+	return 0;
+}
+```
+
