@@ -974,3 +974,135 @@ int main()
 }
 ```
 
+# 11. 类和对象
+
+
+
+## 11.1 简单示例
+
+与java类似，注意差别：
+
+1. 类的定义需要有访问权限
+2. 类的定义末尾需要有分号
+3. 对象的创建无需new关键字
+
+```C++
+// 定义一个类
+// 语法： class 类名{访问权限: 属性/行为};
+class Student
+{
+// 访问权限
+public:
+
+	// C++中叫成员变量
+	string name;
+
+	// C++中叫成员函数
+	void introduceSelf()
+	{
+		cout << "我叫： " << name << endl;
+	}
+};
+
+int main()
+{
+	// 实例化类无需new关键字
+	Student john;
+	john.name = "john";
+	john.introduceSelf();
+
+	system("pause");
+	return 0;
+}
+```
+
+## 11.2 访问权限
+
+```c++
+class Student
+{
+// 访问权限
+// public权限，类内部类外部均可访问
+public:
+	string name;
+
+	void introduceSelf()
+	{
+		cout << "我叫： " << name << endl;
+	}
+
+// protected访问权限，本类和子类可以访问
+protected:
+	string car;
+
+// private访问权限，仅本类可以访问
+private:
+	string password;
+};
+
+int main()
+{
+	Student john;
+	john.name = "john";
+	john.introduceSelf();
+
+	//john.car = "benz"; // car是protected的成员，外部无法访问
+	//john.password = "123456";	// password是private的成员，外部无法访问
+
+	system("pause");
+	return 0;
+}
+```
+
+## 11.3 struct与class的区别
+
+```C++
+class Clazz
+{
+	// class中的成员默认是private的
+	int a;
+};
+
+struct struct_test
+{
+	// struct中的成员默认是public的
+	int a;
+
+	void func()
+	{
+		cout << "struct中可以定义函数" << endl;
+	}
+
+protected:
+	int b;
+
+private:
+	int c;
+
+	void func02()
+	{
+		cout << "struct中，可以给成员函数或者成员变量设置访问权限" << endl;
+	}
+};
+
+int main()
+{
+	struct_test s1;
+	s1.a = 10;
+	s1.func();
+
+	// struct也可以跟class一样，配置protected和private的成员
+	// 如下两个成员变量或成员函数，因为不是public的，所以无法访问，报错
+	//s1.b = 20;
+	//s1.c = 30;
+	//s1.func02();
+
+	Clazz c1;
+	// class中的成员默认是private的，如下代码报错
+	//c1.a = 10;
+
+	system("pause");
+	return 0;
+}
+```
+
