@@ -21,6 +21,92 @@ int main() {
 }
 ```
 
+## 1.2 #define重定义
+
+C++中，多次define选择最后一次
+
+```C++
+// define01.h
+#include <iostream>;
+
+using namespace std;
+
+#define MAX 10
+#define MAX 20
+#define MAX 30
+```
+
+```C++
+// define01.cpp
+#include "define01.h"
+
+#define MAX 40
+
+// 最近的一次是40,故打印40
+
+int main() {
+	cout << "MAX = " << MAX << endl;
+	system("pause");
+	return 0;
+}
+```
+
+如果调整下顺序：
+
+```C++
+// define01.cpp
+#define MAX 40
+#include "define01.h"
+
+// 最近的一次是30,故打印30
+
+int main() {
+	cout << "MAX = " << MAX << endl;
+	system("pause");
+	return 0;
+}
+```
+
+重复定义，会有如下编译告警：
+
+------
+
+*1>D:\git\C_plus_demo\1. C++基础编程\define01.h(7,1): warning C4005: “MAX”: 宏重定义
+1>D:\git\C_plus_demo\1. C++基础编程\define01.h(6): message : 参见“MAX”的前一个定义*
+
+------
+
+重定义给编译器制造了额外的工作，开发中要尽可能避免。
+
+## 1.3 避免重复包含
+
+有些头文件不可避免的会在多个文件中include，在程序预处理阶段，如果多次include同一个头文件，会增加预处理器的检查负担。
+
+为避免上述问题，有两种方式：
+
+### 1.3.1 使用#pragma once
+
+在头文件开头添加#pragma once，编译器会保证同一个头文件只include一次
+
+但这种写法不兼容一些老版本
+
+```c++
+// define02.h
+#pragma once
+#define MIN = 0;
+```
+
+### 1.3.2 使用#ifndef
+
+兼容性更好的写法，但是缺点是每次都得想一个宏的名字作为开关
+
+```C++
+#ifndef SWITCH
+#define SWITCH "on"
+	// 执行要执行的声明、定义语句
+#endif
+```
+
 # 2. 数据类型
 
 ## 2.1 sizeof关键字
@@ -1103,6 +1189,45 @@ int main()
 
 	system("pause");
 	return 0;
+}
+```
+
+## 11.4 工程中的常用写法
+
+在C++项目中，一个类通常拆分到.h和.cpp两个文件中，前者用于声明，后者用于定义，语法如下：
+
+```c++
+// Point.h
+// 防止被多次include(多次include会导致多次编译头文件)
+#pragma once
+#include <iostream>
+
+using namespace std;
+
+class Point
+{
+public:
+	void setX(int x);
+	void setY(int y);
+
+private:
+	int m_x;
+	int m_y;
+};
+```
+
+```C++
+#include "Point.h"
+
+// Point::表示这是Point类的成员函数的定义
+void Point::setX(int x)
+{
+	m_x = x;
+}
+
+void Point::setY(int y)
+{
+	m_y = y;
 }
 ```
 
