@@ -1060,7 +1060,7 @@ int main()
 }
 ```
 
-# 11. 类和对象
+# 11. 类和对象基础
 
 
 
@@ -1382,6 +1382,806 @@ int main()
 	test();
 
 	// return 0;执行之前，调用析构函数
+
+	system("pause");
+	return 0;
+}
+```
+
+## 11.7 拷贝构造函数的调用时机
+
+先说明下C++中函数返回的时候做的事情：
+
+先在新的地址上创建一个返回值得拷贝，然后回收函数里的局部返回值变量，最后退出函数。
+
+例如，对于返回结构体与普通int类型的函数：
+
+```C++
+#include <iostream>
+
+using namespace std;
+
+struct structTest 
+{
+	int a;
+};
+
+structTest test01()
+{
+	structTest s1 = { 10 };
+	cout << "struct s1 的地址： " << (int)&s1 << endl;
+
+	return s1;
+}
+
+int test03()
+{
+	int a = 1;
+	cout << "a 的地址： " << (int)&a << endl;
+	return a;
+}
+
+int main()
+{
+	structTest s2 = test01();
+	cout << "struct s2 的地址： " << (int)&s2 << endl;
+
+	int b = test03();
+	cout << "b 的地址： " << (int)&b << endl;
+
+	system("pause");
+	return 0;
+}
+```
+
+打印结果：（可以看到地址不同）
+
+```
+struct s1 的地址： -1003489340
+struct s2 的地址： -1003489052
+a 的地址： -1003489340
+b 的地址： -1003489020
+```
+
+下面说明下拷贝构造函数的三个调用时机：
+
+1、 用于对象复制，可以参考11.6节 中拷贝构造函数的调用，用于将指定对象中的属性复制到新创建的对象中，不再举例。
+
+2、 函数传参通过类接收的场景
+
+3、 函数返回值是类对象的场景
+
+场景2举例：
+
+```C++
+#include <iostream>
+
+using namespace std;
+
+class Person
+{
+public:
+	Person()
+	{
+		cout << "Person 默认构造函数" << endl;
+	}
+
+	Person(const Person& p)
+	{
+		cout << "Person 拷贝构造函数" << endl;
+	}
+
+	~Person()
+	{
+		cout << "Person 析构函数" << endl;
+	}
+};
+
+void test01(Person p)
+{
+}
+
+int main()
+{
+	Person p;
+	// 注意这里test01()是直接接收Person对象的（而不是通过引用）
+	// 相当于执行了Person p = p，这是之前讲过的隐式转换法调用构造函数
+	// 故在执行test01(p)时，调用了一次拷贝构造函数
+	test01(p);
+
+	system("pause");
+	return 0;
+}
+```
+
+场景2打印：可以看到执行了一次拷贝构造函数
+
+```
+Person 默认构造函数
+Person 拷贝构造函数
+Person 析构函数
+```
+
+场景3举例：
+
+```C++
+#include <iostream>
+
+using namespace std;
+
+class Person
+{
+public:
+	Person()
+	{
+		cout << "Person 默认构造函数" << endl;
+	}
+
+	Person(const Person& p)
+	{
+		cout << "Person 拷贝构造函数" << endl;
+	}
+
+	~Person()
+	{
+		cout << "Person 析构函数" << endl;
+	}
+};
+
+Person test02()
+{
+	Person p1;
+	cout << "Person p1 的地址： " << (int)&p1 << endl;
+
+	return p1;
+}
+
+int main()
+{
+	Person p2 = test02();
+	cout << "Person p2 的地址： " << (int)&p2 << endl;
+
+	system("pause");
+	return 0;
+}
+```
+
+场景3打印：可以看到执行了拷贝构造函数
+
+```C++
+Person 默认构造函数
+Person p1 的地址： 1771764356
+Person 拷贝构造函数
+Person 析构函数
+Person p2 的地址： 1771764676
+```
+
+## 11.8 构造函数的调用规则
+
+默认情况下，C++编译器至少给一个类三个构造函数：
+
+1. 默认构造函数（无参，函数体为空）
+2. 默认析构函数（无参，函数体为空）
+3. 默认拷贝构造函数，对属性值进行浅拷贝
+
+构造函数 调用规则如下：
+
+- 如果用户定义有参构造函数，c++不在提供默认无参构造，但是会提供默认拷贝构造
+- 如果用户定义拷贝构造函数，c++不再提供默认无参构造
+
+```C++
+#include <iostream>
+
+using namespace std;
+
+class Person
+{
+public:
+	int age;
+};
+
+class Book
+{
+public:
+	Book(string bookName)
+	{
+		this->bookName = bookName;
+	}
+private:
+	string bookName;
+};
+
+class Student
+{
+public:
+	Student(const Student& student)
+	{
+		name = student.name;
+	}
+private:
+	string name;
+};
+
+int main()
+{
+	int age = 10;
+
+	Person p1;	// 编译器默认创建无参构造函数
+	p1.age = 10;
+	Person p2(p1);	// 编译器会默认创建拷贝构造函数
+
+	string bookName = "Harry Potter";
+	Book book1 = bookName;
+	// Book book2;	// 如果主动定义了有参构造函数，那么编译器就不会帮我们定义默认的构造函数，左侧报错
+	Book book3 = {book1}; // 编译器还是会帮我们创建默认的拷贝构造函数的
+
+	//Student john;	// 同样的，如果主动定义了拷贝构造函数，那么编译器不会帮我们定义默认的构造函数，左侧报错
+
+	system("pause");
+	return 0;
+}
+```
+
+## 11.9 深拷贝与浅拷贝
+
+先看一个类的成员变量是指针的例子，思考下会打印什么：
+
+```c++
+#include <iostream>
+
+using namespace std;
+
+class Person
+{
+public:
+	Person(string name, int age)
+	{
+		this->name = name;
+		this->age = &age;
+	}
+
+	~Person()
+	{
+	}
+
+	string name;
+	int* age;
+};
+
+void test()
+{
+	Person p1 = { "john", 18 };
+	Person p2 = p1;
+	p1.name = "xixi";
+	*p1.age = 20;
+
+	cout << "p1的名字：" << p1.name << " p1的年龄：" << *p1.age << endl;
+	cout << "p2的名字：" << p2.name << " p2的年龄：" << *p2.age << endl;
+}
+
+int main()
+{
+	test();
+	system("pause");
+	return 0;
+}
+```
+
+打印结果：
+
+```
+p1的名字：xixi p1的年龄：20
+p2的名字：john p2的年龄：20
+```
+
+**如果该指针对应的成员变量，如果是指向堆空间的，由于编译器不会帮我们主动施放，所以需要在析构函数中施放该内存空间***
+
+但是，写了析构函数后，如下代码执行过程中报错：*C++核心编程.exe 已触发了一个断点。*
+
+```C++
+#include <iostream>
+
+using namespace std;
+
+// 浅拷贝执行报错的例子
+class Person
+{
+public:
+	Person(string name, int age)
+	{
+		this->name = name;
+
+		// 指向堆空间
+		this->age = new int(age);
+	}
+
+	~Person()
+	{
+		// 通过析构函数回收内存
+		if (age != NULL)
+		{
+			delete age;
+
+			// 置为NULL，避免野指针
+			age = NULL;
+		}
+	}
+
+	string name;
+	int* age;
+};
+
+void test()
+{
+	Person p1 = { "john", 18 };
+	Person p2(p1);
+
+	cout << "p1的名字：" << p1.name << " p1的年龄：" << *p1.age << endl;
+	cout << "p2的名字：" << p2.name << " p2的年龄：" << *p2.age << endl;
+}
+
+int main()
+{
+	test();
+	system("pause");
+	return 0;
+}
+```
+
+上述代码执行报错的原因在于，C++默认创建的拷贝构造函数，只是简单地进行了复制。当两个对象有指向同一块堆空间的成员时，如果一个对象先析构回收了该空间，另一个对象析构时就会报错。
+
+例如对于上面的代码，编译器默认给实现的拷贝构造函数如下：
+
+```C++
+	Person(const Person& p)
+	{
+		name = p.name;
+		age = p.age;
+	}
+```
+
+可以通过**深拷贝**解决上述问题，**当有开辟在堆区的成员变量时，一定要自己提供拷贝构造函数，避免浅拷贝的问题**
+
+```C++
+	Person(const Person& p)
+	{
+		cout << "执行拷贝构造函数" << endl;
+		name = p.name;
+		age = new int(*p.age);
+	}
+```
+
+最终代码&执行结果：
+
+```C++
+#include <iostream>
+
+using namespace std;
+
+// 浅拷贝执行报错的例子
+class Person
+{
+public:
+	Person(string name, int age)
+	{
+		cout << "执行有参构造函数" << endl;
+		this->name = name;
+
+		// 指向堆空间
+		this->age = new int(age);
+	}
+
+	Person(const Person& p)
+	{
+		cout << "执行拷贝构造函数" << endl;
+		name = p.name;
+		age = new int(*p.age);
+	}
+
+	~Person()
+	{
+		cout << "执行析构" << endl;
+		// 通过析构函数回收内存
+		if (age != NULL)
+		{
+			delete age;
+
+			// 置为NULL，避免野指针
+			age = NULL;
+		}
+	}
+
+	string name;
+	int* age;
+};
+
+void test()
+{
+	Person p1 = { "john", 18 };
+	Person p2(p1);
+
+	cout << "p1的名字：" << p1.name << " p1的年龄：" << *p1.age << endl;
+	cout << "p2的名字：" << p2.name << " p2的年龄：" << *p2.age << endl;
+}
+
+int main()
+{
+	test();
+	system("pause");
+	return 0;
+}
+```
+
+```
+执行有参构造函数
+执行拷贝构造函数
+p1的名字：john p1的年龄：18
+p2的名字：john p2的年龄：18
+执行析构
+执行析构
+```
+
+*注：关于析构的顺序，后创建的会先析构*
+
+## 11.10 初始化列表
+
+C++提供了初始化列表语法，用来初始化属性
+
+**语法：**`构造函数()：属性1(值1),属性2（值2）... {}`
+
+```C++
+#include <iostream>
+
+using namespace std;
+
+class Person
+{
+public:
+	//// 传统初始化方法
+	//Person(int a, int b, int c)
+	//{
+	//	this->a = a;
+	//	this->b = b;
+	//	this->c = c;
+	//}
+
+	// 通过初始化列表
+	Person(int a, int b, int c) : a(a), b(b), c(c)
+	{
+		cout << "执行其他逻辑" << endl;
+		// this->a = 30;	// 这里可以覆盖前面的初始化结果
+	}
+	
+	// 可以只针对部分变量进行初始化
+	Person(int a, int b) : a(a), b(b) {}
+
+	// 也可以这么初始化，但只能传固定值
+	Person() :a(10), b(20), c(30) {};
+	int a;
+	int b;
+	int c;
+};
+
+int main()
+{
+	Person p1 = Person(10, 20, 30);
+
+	Person p2 = Person(10, 20);
+	// c未初始化，打印结果：p2.c-858993460
+	cout << "p2.c" << p2.c << endl;	
+
+	system("pause");
+	return 0;
+}
+```
+
+从概念上来讲，构造函数的执行可以分为两个阶段：**初始化阶段**和**计算阶段**
+
+初始化阶段优先执行初始化列表里的代码，对于不在初始化列表中的代码，会采用默认赋值，string默认为空，int等默认不赋值。
+
+**对于类中的对象，如果没有在初始化列表，会使用默认的空参构造函数初始化。**
+
+例如下面的代码，会执行Phone类默认的空参构造函数
+
+```C++
+#include <iostream>
+
+using namespace std;
+
+// 类对象作为类成员时，初始化阶段默认调用空参构造函数
+class Phone
+{
+public:
+	Phone() 
+	{
+		cout << "Phone默认构造函数" << endl;
+	}
+	string phoneName;
+};
+
+class Person
+{
+public:
+	string name;
+	Phone phone;
+};
+
+int main()
+{
+	Person p1;
+	cout << "p1.name " << p1.name << "  ." << endl;
+	cout << "p1.phone.phoneName " << p1.phone.phoneName << "  ." << endl;
+
+	system("pause");
+	return 0;
+}
+```
+
+打印结果：
+
+```
+Phone默认构造函数
+p1.name   .
+p1.phone.phoneName   .
+```
+
+假如Phone类没有定义无参构造函数，代码会报错：
+
+```c++
+#include <iostream>
+
+using namespace std;
+
+// 没有默认空参构造函数，本文件编译报错
+class Phone
+{
+public:
+	Phone(string phoneName)
+	{
+		cout << "Phone有参构造函数" << endl;
+	}
+	string phoneName;
+};
+
+class Person
+{
+public:
+	Person(string name, Phone phone)
+	{
+		// 报错：“类Phone不存在默认构造函数”
+	}
+	string name;
+	Phone phone;
+};
+
+int main()
+{
+	system("pause");
+	return 0;
+}
+```
+
+
+
+所以得出结论：**类对象作为类成员时，如果没有默认构造函数，一定要通过初始化列表的方式，初始化该成员**
+
+具体做法参考11.11节
+
+## 11.11 类对象作为类成员
+
+A类作为B类的成员，且通过初始化列表的方式初始化时，A类和B类的构造函数执行顺序如何？
+
+```C++
+#include <iostream>
+
+using namespace std;
+
+class Phone
+{
+public:
+	Phone(string phoneName)
+	{
+		cout << "Phone构造函数" << endl;
+		this->phoneName = phoneName;
+	}
+
+	Phone(string phoneName, int phoneAge)
+	{
+		cout << "Phone构造函数" << endl;
+		this->phoneName = phoneName;
+		this->phoneAge = phoneAge;
+	}
+
+	~Phone()
+	{
+		cout << "Phone析构函数" << endl;
+	}
+
+	string phoneName;
+	int phoneAge;
+};
+
+class Person
+{
+public:
+	// 普通的写法，直接把Phone对象传过来
+	// 但这种写法必须手动创建一个Phone对象传进来才行
+	Person(string name, Phone phone) :name(name), phone(phone) {}
+
+	// 下面的写法可以不手动创建一个Phone对象
+	// 利用初始化列表，初始化Phone对象
+	// phone(phoneName)相当于执行了如下代码：即是一次隐式转换法创建对象的过程
+	// phone = phoneName
+	Person(string name, string phoneName) :name(name), phone(phoneName) 
+	{
+		cout << "Person构造函数" << endl;
+	}
+
+	// 初始化块也可以传入多个参数，相当于：
+	// phone = {phoneName, phoneAge}
+	Person(string name, string phoneName, int phoneAge) :name(name), phone(phoneName, phoneAge) 
+	{
+		cout << "Person构造函数" << endl;
+	}
+
+	~Person()
+	{
+		cout << "Person析构函数" << endl;
+	}
+
+	Phone phone;
+	string name;
+};
+
+void test()
+{
+	Person p1("john", "HuaWei");
+	cout << p1.name << "\t购买了\t" << p1.phone.phoneName << "手机" << endl;
+
+	Person p2("Tom", "XiaoMi", 2);
+	cout << p2.name << "\t购买了\t" << p2.phone.phoneName << "手机, 已经使用了\t" << p2.phone.phoneAge << "年了" << endl;
+}
+
+int main()
+{
+	test();
+	system("pause");
+	return 0;
+}
+```
+
+打印结果：可以看到Phone作为Person的成员，先于Person创建。然后根据C++的规则，先创建的后析构。
+
+```
+Phone构造函数
+Person构造函数
+john    购买了  HuaWei手机
+Phone构造函数
+Person构造函数
+Tom     购买了  XiaoMi手机, 已经使用了  2年了
+Person析构函数
+Phone析构函数
+Person析构函数
+Phone析构函数
+```
+
+## 11.12 静态成员
+
+静态成员就是在成员变量和成员函数前加上关键字static，称为静态成员
+
+静态成员分为：
+
+- 静态成员变量
+  - 所有对象共享同一份数据
+  - 在编译阶段分配内存
+  - 类内声明，类外初始化
+- 静态成员函数
+  - 所有对象共享同一个函数
+  - 静态成员函数只能访问静态成员变量
+
+静态成员变量示例：
+
+```C++
+#include <iostream>
+
+using namespace std;
+
+class Person
+{
+
+public:
+
+	static int m_A; //静态成员变量
+
+	//静态成员变量特点：
+	//1 在编译阶段分配内存
+	//2 类内声明，类外初始化
+	//3 所有对象共享同一份数据
+
+private:
+	static int m_B; //静态成员变量也是有访问权限的
+};
+int Person::m_A = 10;
+int Person::m_B = 10;
+
+void test01()
+{
+	//静态成员变量两种访问方式
+
+	//1、通过对象
+	Person p1;
+	p1.m_A = 100;
+	cout << "p1.m_A = " << p1.m_A << endl;
+
+	Person p2;
+	p2.m_A = 200;
+	cout << "p1.m_A = " << p1.m_A << endl; //共享同一份数据
+	cout << "p2.m_A = " << p2.m_A << endl;
+
+	//2、通过类名
+	cout << "m_A = " << Person::m_A << endl;
+
+	//cout << "m_B = " << Person::m_B << endl; //私有权限访问不到
+}
+
+int main() {
+	test01();
+
+	system("pause");
+	return 0;
+}
+
+```
+
+静态成员函数举例
+
+```C++
+#include <iostream>
+
+using namespace std;
+
+class Person
+{
+public:
+	//静态成员函数特点：
+	//1 程序共享一个函数
+	//2 静态成员函数只能访问静态成员变量
+
+	static void func()
+	{
+		cout << "func调用" << endl;
+		m_A = 100;
+		//m_B = 100; //错误，不可以访问非静态成员变量
+	}
+
+	static int m_A; //静态成员变量
+	int m_B;
+private:
+
+	//静态成员函数也是有访问权限的
+	static void func2()
+	{
+		cout << "func2调用" << endl;
+	}
+};
+int Person::m_A = 10;
+
+void test01()
+{
+	//静态成员变量两种访问方式
+
+	//1、通过对象
+	Person p1;
+	p1.func();
+
+	//2、通过类名
+	Person::func();
+
+	//Person::func2(); //私有权限访问不到
+}
+
+int main() {
+	test01();
 
 	system("pause");
 	return 0;
