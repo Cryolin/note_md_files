@@ -137,7 +137,7 @@ int main() {
 }
 ```
 
-![image-20210606200714945](D:\文档\md文件\images\image-20210606200714945.png)
+![image-20210606200714945](.\images\image-20210606200714945.png)
 
 ## 2.2 字符串
 
@@ -207,7 +207,7 @@ a > b ? a : b = 4;
 【与java的区别】C++中存在就近原则，如下写法不会报错
 
 ```C++
-// C++中如下写法不会报错，根据就近原则，i是内存for循环的值。
+// C++中如下写法不会报错，根据就近原则，i是内部for循环的值。
 for (int i = 0; i < 5; i++) {
 	for (int i = 10; i < 12; i++) {
 		cout << i << endl;
@@ -255,7 +255,7 @@ cout << end(arr) - begin(arr) << endl;
 
 ```C++
 int arr4[2];
-cout << arr4[0] << endl; // 未初始化，打印地址
+cout << arr4[0] << endl; // 未初始化，打印当前内存的内容（不可预估）
 
 int arr5[2] = {};
 cout << arr5[0] << endl; // 使用0填充，打印0
@@ -311,7 +311,6 @@ int max(int a, int b);
 int max(int a, int b); // 可以重复声明，但没必要
 
 int main() {
-
 	system("pause");
 	return 0;
 }
@@ -517,7 +516,7 @@ struct Student
 	string name;
 	int age;
 	int score;
-}s3; // 创建结构体变量方法3
+} s3; // 创建结构体变量方法3
 
 int main() {
 	// 创建结构体变量的三种方法
@@ -528,7 +527,6 @@ int main() {
 	s1.name = "张三";	// 结构体变量通过"."访问成员
 	s1.age = 18;
 	s1.score = 100;
-
 
 	// 2. struct 结构体名 变量名 = {成员1值，成员2值...}
 	Student s2 = { "李四", 19, 80 };
@@ -586,7 +584,7 @@ int main() {
 ## 7.3 结构体使用const的场景
 
 ```C++
-// 结构体重使用const的场景：
+// 结构体中使用const的场景：
 // 1. 直接传入结构体，会复制全部结构体内容到栈，增大内存占用
 // 2. 所以一般使用结构体指针传入
 // 3. 但结构体指针传入后，向函数暴露了结构体写入的能力
@@ -785,7 +783,6 @@ int main()
 	cout << "a = " << a << endl;	// a = 100
 	cout << "b = " << b << endl;	// c = 100
 
-
 	system("pause");
 	return 0;
 }
@@ -869,7 +866,7 @@ void printValue(const int& a)
 {
 	// 与const修饰指针一样，对于不想被函数修改的引用，作为传参时
 	// 可以通过const修饰避免修改，如下代码报错
-	//a = 1000;
+	// a = 1000;
 
 	cout << "a = " << a << endl;
 }
@@ -1217,6 +1214,7 @@ private:
 ```
 
 ```C++
+// Point.cpp
 #include "Point.h"
 
 // Point::表示这是Point类的成员函数的定义
@@ -1251,7 +1249,7 @@ public:
 	}
 
 	// 语法： ~类名(){}
-	// 空参西沟函数
+	// 空参析构函数
 	// 不可以重载
 	// 必须配置成public的，否则无法访问，无法销毁
 	~Person()
@@ -1348,7 +1346,7 @@ void test()
 	Person p3("lilei", 18);
 	Person p4(p2);	// 括号法调用拷贝构造函数
 
-	// 注意1：调用无参构造方法不能加括号，编译器会认为是函数声明
+	// 注意1：调用无参构造函数不能加括号，编译器会认为是函数声明
 	// 下面写法会被认为是声明，并非无参构造函数
 	Person p5();
 
@@ -1674,7 +1672,7 @@ p1的名字：xixi p1的年龄：20
 p2的名字：john p2的年龄：20
 ```
 
-**如果该指针对应的成员变量，如果是指向堆空间的，由于编译器不会帮我们主动施放，所以需要在析构函数中施放该内存空间***
+**如果该指针对应的成员变量，是指向堆空间的，由于编译器不会帮我们主动施放，所以需要在析构函数中施放该内存空间***
 
 但是，写了析构函数后，如下代码执行过程中报错：*C++核心编程.exe 已触发了一个断点。*
 
@@ -2182,6 +2180,894 @@ void test01()
 
 int main() {
 	test01();
+
+	system("pause");
+	return 0;
+}
+```
+
+## 11.13 sizeof对象
+
+```C++
+class Person1
+{
+};
+
+class Person2
+{
+public:
+	int age;
+	static string name;
+	void setAge()
+	{
+	}
+	static void setName()
+	{
+	}
+};
+
+int main() {
+
+	// 空的类对象，sizeof返回1
+	Person1 p1;
+	cout << "sizeof(p1): " << sizeof(p1) << endl;
+	
+	// 静态成员变量、静态成员函数、普通成员函数，都不在对象中
+	// sizeof仅包含普通成员变量，此处为int，sizeof(p2)返回4
+	Person2 p2;
+	cout << "sizeof(p2): " << sizeof(p2) << endl;
+
+	system("pause");
+	return 0;
+}
+```
+
+## 11.14 this关键字
+
+this默认创建，是一个指向本对象的指针，主要用途有：
+
+1. 用于区分传参
+2. 用于实现链式调用
+
+```C++
+class Person
+{
+public:
+	Person(int age)
+	{
+		// this用法01,用于区分重名的形参与成员变量
+		this->age = age;
+	}
+
+	Person& addAge(int num)
+	{
+		age += num;
+		// this的用法02，用于链式调用
+		return *this;
+	}
+
+	int age;
+};
+
+int main() {
+	Person p(10);
+	cout << "p.age: " << p.age << endl;
+
+	p.addAge(2).addAge(2).addAge(2);
+	cout << "p.age: " << p.age << endl;
+
+	system("pause");
+	return 0;
+}
+```
+
+## 11.15 空指针访问成员函数
+
+C++中，指向对象的空指针是可以直接访问成员函数的，是否报空指针需要看该成员函数中是否用到了this。
+
+```C++
+class Person
+{
+public:
+	void showPerson()
+	{
+		cout << "show Person" << endl;
+	}
+
+	void showPersonAge()
+	{
+		// age相当于this->age,当this为NULL时报错
+		cout << "show Person age" << age << endl;
+	}
+
+	int age;
+};
+
+int main() {
+	// 创建一个空指针，指向类型为Person
+	Person* p = NULL;
+
+	// showPerson()不涉及this，可正常执行
+	p->showPerson();
+
+	// showPersonAge()用到了Person的成员变量,报异常
+	// p->showPersonAge();
+
+	system("pause");
+	return 0;
+}
+```
+
+## 11.16 常函数与常对象
+
+**常函数：**
+
+- 成员函数后加const后我们称这个函数为常函数
+- 常函数内不可以修改成员属性
+- 成员属性声明时加关键字mutable后，在常函数中依然可以修改
+
+**常对象：**
+
+- 声明对象前加const称该对象为常对象
+- 常对象只能调用常函数
+
+```
+class Person
+{
+public:
+	// 常函数，注意const的位置
+	void showName() const
+	{
+		// 常函数不可修改成员变量，如下代码报错
+		// age = 10;
+
+		// mutable关键字修饰的成员变量可以修改
+		name = "lilei";
+		cout << "name is " << name << endl;
+	}
+
+	void changeAge()
+	{
+		// 普通成员函数可以修改成员变量
+		// 一个类中，常函数与普通成员函数可以同时存在
+		age = 10;
+	}
+
+	mutable string name;
+	int age;
+};
+
+int main() {
+	Person p1 = Person();
+	p1.showName();
+	p1.changeAge();
+
+	// 创建对象时，前面加上const，表示这是一个常对象
+	const Person p2;
+	// 常对象只能调用常函数
+	p2.showName();
+	// 常对象不能调用非常函数，如下代码报错
+	// p2.changeAge();
+	// 常变量的内容不可以修改，如下代码报错
+	// p2.age = 10;
+	// 常对象可以修改mutable修饰的成员变量
+	p2.name = "hanmeimei";
+
+	system("pause");
+	return 0;
+}
+```
+
+常函数常对象的本质：
+
+this实际上是一个不可变的指向对象的指针，例如对于Person类的对象：
+
+**this 等效于 Person* const this**
+
+	// 常函数和常对象的本质：
+	// 普通对象的this：Person* const this
+	// 常对象的this：const Person* const this   作用范围，整个对象
+	// 常函数的this：const Person* const this   作用范围，仅常函数
+
+# 12. 友元
+
+友元的目的就是让一个函数或者类 访问另一个类中私有成员
+
+友元的关键字为 friend
+
+友元的三种实现
+
+- 全局函数做友元
+- 类做友元
+- 成员函数做友元
+
+## 12.1 全局函数做友元
+
+```C++
+#include <iostream>
+
+using namespace std;
+
+class Person
+{
+	// 如下两个函数可以访问Person的非public内容
+	friend void getAge(Person& person);
+	friend void getAge2(Person* person);
+public:
+	Person(int age)
+	{
+		this->age = age;
+	}
+private:
+	int age;
+};
+
+void getAge(Person& person)
+{
+	cout << "person.age: " << person.age << endl;
+}
+
+void getAge2(Person* person)
+{
+	cout << "person.age: " << person->age << endl;
+}
+
+int main() {
+	Person p(10);
+	getAge(p);
+	getAge2(&p);
+
+	system("pause");
+	return 0;
+}
+```
+
+## 12.2 类做友元
+
+```C++
+#include <iostream>
+
+using namespace std;
+
+// 由于Student需要使用Teacher类作为友元，所以Teacher提前声明
+class Teacher;
+class Student
+{
+	// Teacher类是Student类的友元，可以访问Student类的非public内容
+	friend class Teacher;
+public:
+	Student(int age)
+	{
+		this->age = age;
+	}
+private:
+	int age;
+};
+
+class Teacher
+{
+public:
+	void getAge(Student& student)
+	{
+		cout << "student的年龄： " << student.age << endl;
+	}
+
+	void getAge2(Student* student)
+	{
+		cout << "student的年龄： " << student->age << endl;
+	}
+};
+
+
+int main() {
+	Teacher t;
+	Student s(10);
+	t.getAge(s);
+	t.getAge2(&s);
+
+	system("pause");
+	return 0;
+}
+```
+
+## 12.3 成员函数做友元
+
+说明本节之前，先看个可能犯的错误：**“使用了未定义的类型”**
+
+当某个函数定义时，用到了某个尚未定义的类，会报此错误，例如：
+
+```C++
+// 仅做了个空声明
+class Teacher;
+class Student
+{
+public:
+	// 这里不会报错，没有用到Teacher的构造函数或者成员函数
+	Student(Teacher& teacher)
+	{
+	}
+
+	Teacher& showMyTeacher(Teacher& teacher)
+	{
+		// 传参和返回值使用引用，不会调用构造函数，不报错
+	}
+
+	//void showMyTeacher()
+	//{
+	//	// 这里显示调用了Teacher的构造函数，但尚未定义，报错
+	//	Teacher t;
+	//}
+
+	//Teacher getTeacher(Teacher& teacher)
+	//{
+	//	// 直接返回Teacher，会调用Teacher的构造函数，报错
+	//	return teacher;
+	//}
+
+	//void showMyTeacher(Teacher teacher)
+	//{
+	//	// 直接传teacher，同样会调用Teacher的构造函数，报错
+	//}
+};
+
+class Teacher
+{
+};
+
+int main() {
+	system("pause");
+	return 0;
+}
+```
+
+改成如下写法，补充下相关的声明后，不再报错：
+
+```C++
+#include <iostream>
+
+using namespace std;
+
+// 声明下空参构造函数
+class Teacher
+{
+public:
+	Teacher();
+};
+class Student
+{
+public:
+	Student(Teacher& teacher)
+	{
+	}
+
+	Teacher& showMyTeacher(Teacher& teacher)
+	{
+	}
+
+	void showMyTeacher()
+	{
+		Teacher t;
+	}
+
+	Teacher getTeacher(Teacher& teacher)
+	{
+		return teacher;
+	}
+
+	void showMyTeacher(Teacher teacher)
+	{
+	}
+};
+
+Teacher::Teacher()
+{
+}
+
+int main() {
+	system("pause");
+	return 0;
+}
+```
+
+总结下：
+
+**尽可能使用引用或指针用于传参或返回值**
+
+**注意声明的顺序，注意隐藏的构造函数调用**
+
+下面看一个成员函数做友元的例子：
+
+```C++
+#include <iostream>
+
+using namespace std;
+
+class Student;
+class Teacher
+{
+public:
+	int getAge(Student& student);
+	int getAge2(Student* student);
+};
+
+class Student
+{
+	// Teacher的getAge成员函数作为Student的友元，可以访问非public的内容
+	friend int Teacher::getAge(Student& student);
+private:
+	int age;
+};
+
+int Teacher::getAge(Student& student)
+{
+	return student.age;
+}
+
+//int Teacher::getAge2(Student* student)
+//{
+//	// 无法获取到age
+//	return student->age;
+//}
+
+int main() {
+	system("pause");
+	return 0;
+}
+```
+
+# 13. 运算符重载
+
+运算符重载概念：对已有的运算符重新进行定义，赋予其另一种功能，以适应不同的数据类型
+
+> 总结1：对于内置的数据类型的表达式的的运算符是不可能改变的
+
+> 总结2：不要滥用运算符重载
+
+a，b分别代表两个对象，如下三列是等效的。
+
+| a+b       | a.operator+(b)    | operator+(a, b)     |
+| --------- | ----------------- | ------------------- |
+| cout << a | 不推荐            | operator<<(cout, a) |
+| ++a       | a.operator++()    | operator++(a)       |
+| a++       | a.operator++(int) | operator++(a, int)  |
+| a = b     | a.operator=(b)    | 不支持              |
+|           |                   |                     |
+|           |                   |                     |
+
+
+
+## 13.1 加号运算符重载
+
+```C++
+#include <iostream>
+
+using namespace std;
+
+// 加号运算符重载
+class WeightCal
+{
+	friend void test();
+	friend WeightCal operator+(WeightCal w1, WeightCal w2);
+public:
+	WeightCal() {}
+
+	WeightCal(int weight)
+	{
+		this->weight = weight;
+	}
+
+	// 加号运算符重载方法01：使用成员函数
+	// 需要链式调用，返回值不能是void
+	// 返回一个新的副本，返回值不能是引用或指针
+	WeightCal operator+(const WeightCal& weightCal)
+	{
+		WeightCal temp;
+		temp.weight = weightCal.weight + weight;
+		return temp;
+	}
+private:
+	int weight;
+};
+
+// 加号运算符重载方法02：使用全局函数
+WeightCal operator+(const WeightCal w1, const WeightCal w2)
+{
+	WeightCal temp;
+	temp.weight = w1.weight + w2.weight;
+	return temp;
+}
+
+void test()
+{
+	WeightCal w1(100);
+	WeightCal w2(200);
+	WeightCal w3 = w1 + w2;
+	cout << "w3.weight ：" << w3.weight << endl;
+}
+
+int main() {
+	test();
+
+	system("pause");
+	return 0;
+}
+```
+
+## 13.2 左移运算符重载
+
+```C++
+#include <iostream>
+
+using namespace std;
+
+// 左移运算符重载
+// 目标：通过cout << 将Person类的name成员变量打印到控制台
+class Person
+{
+	friend ostream& operator<<(ostream& out, Person p);
+public:
+	Person(string name)
+	{
+		this->name = name;
+	}
+
+	// 成员函数的方式，只能实现 p << cout，无法实现 cout << p
+	//ostream& operator<<(ostream& out)
+	//{
+	//	out << name;
+	//	return out;
+	//}
+
+private:
+	string name;
+};
+
+// 注意返回值，这里返回同一个out对象，使用引用
+ostream& operator<<(ostream& out, Person p)
+{
+	out << p.name;
+	return out;
+}
+
+int main() {
+	Person p("lilei");
+	cout << p << endl;
+
+	system("pause");
+	return 0;
+}
+```
+
+## 13.3 递增运算符重载
+
+前置递增运算符重载：
+
+```C++
+#include <iostream>
+
+using namespace std;
+
+// 递增运算符重载（前置递增）
+// 目标：实现一个自定义的类封装int，每次递增2，并实现前置递增与后置递增
+class MyInteger
+{
+	friend ostream& operator<<(ostream& cout, MyInteger integer);
+	friend MyInteger& operator++(MyInteger& integer);
+public:
+	MyInteger(int integer)
+	{
+		this->integer = integer;
+	}
+
+	// 前置递增运算符重载01：使用成员函数
+	//MyInteger& operator++()
+	//{
+	//	integer += 2;
+	//	return *this;
+	//}
+private:
+	int integer;
+};
+
+// 前置递增运算符重载02：使用全局函数
+MyInteger& operator++(MyInteger& integer)
+{
+	integer.integer += 2;
+	return integer;
+}
+
+ostream& operator<<(ostream& cout, MyInteger integer)
+{
+	cout << integer.integer;
+	return cout;
+}
+
+int main() {
+	MyInteger integer(10);
+	++(++integer);
+
+	// 打印14
+	cout << "integer : " << integer << endl;
+
+	system("pause");
+	return 0;
+}
+```
+
+后置递增运算符重载：
+
+```C++
+#include <iostream>
+
+using namespace std;
+
+// 递增运算符重载（后置递增）
+class MyInteger
+{
+	friend ostream& operator<<(ostream& cout, MyInteger integer);
+	friend MyInteger operator++(MyInteger& integer, int);
+public:
+	MyInteger(int integer)
+	{
+		this->integer = integer;
+	}
+
+	// 后置递增运算符重载01：使用成员函数
+	// 注意返回值，后置递增需要返回一个临时的值，故不能用引用或指针
+	// 编译器通过占位参数判断是后置递增，且只能传int
+	//MyInteger operator++(int)
+	//{
+	//	MyInteger temp(integer);
+	//	integer += 2;
+	//	return temp;
+	//}
+private:
+	int integer;
+};
+
+// 后置递增运算符重载02：使用全局函数
+MyInteger operator++(MyInteger& integer, int)
+{
+	MyInteger temp(integer.integer);
+	integer.integer += 2;
+	return temp;
+}
+
+ostream& operator<<(ostream& cout, MyInteger integer)
+{
+	cout << integer.integer;
+	return cout;
+}
+
+int main() {
+	MyInteger integer(10);
+
+	// 打印10
+	cout << "integer : " << integer++ << endl;
+	// 打印12
+	cout << "integer : " << integer++ << endl;
+
+	system("pause");
+	return 0;
+}
+```
+
+
+
+## 13.4 赋值运算符重载
+
+普通的用法：
+
+```C++
+#include <iostream>
+
+using namespace std;
+
+// 赋值运算符重载
+class Person
+{
+public:
+	Person(int age)
+	{
+		this->age = age;
+	}
+
+	Person& operator=(const Person& person)
+	{
+		age = person.age;
+		return *this;
+	}
+
+	int age;
+};
+
+int main() {
+	Person p1(10);
+	Person p2(20);
+	Person p3(30);
+
+	p3 = p2 = p1;
+
+	cout << "p1.age : " << p1.age << endl;
+	cout << "p2.age : " << p2.age << endl;
+	cout << "p3.age : " << p3.age << endl;
+
+	system("pause");
+	return 0;
+}
+```
+
+```
+p1.age : 10
+p2.age : 10
+p3.age : 10
+```
+
+当类的成员在堆空间创建时，11.9节讲过，如果调用拷贝构造函数存在浅拷贝的问题，故需要覆盖默认的拷贝构造，采用深拷贝的方式。
+
+同样的问题也存在与赋值运算符的场景，例如如下代码同样存在浅拷贝的问题：
+
+```C++
+#include <iostream>
+
+using namespace std;
+
+// 赋值运算符重载
+class Person
+{
+public:
+	Person(int age)
+	{
+		this->age = new int(age);
+	}
+
+	~Person()
+	{
+		if (age != NULL)
+		{
+			delete age;
+			age = NULL;
+		}
+	}
+
+	int* age;
+};
+
+int main() {
+	Person p1(10);
+	Person p2(20);
+
+	// 赋值操作，执行时报异常
+	p2 = p1;
+
+	system("pause");
+	return 0;
+}
+```
+
+通过赋值运算符重载，引入深拷贝解决本问题：
+
+```C++
+#include <iostream>
+
+using namespace std;
+
+// 赋值运算符重载：解决浅拷贝问题
+class Person
+{
+public:
+	Person(int age)
+	{
+		this->age = new int(age);
+	}
+
+	~Person()
+	{
+		if (age != NULL)
+		{
+			delete age;
+			age = NULL;
+		}
+	}
+
+	// 赋值运算符重载01：使用成员函数
+	Person& operator=(Person& p)
+	{
+		// 深拷贝
+		age = new int(*p.age);
+		return *this;
+	}
+
+	int* age;
+};
+
+// 赋值运算符重载必须为成员函数，不能是全局函数
+// 如下代码报错
+//Person& operator=(Person& p1, Person& p2)
+//{
+//}
+
+int main() {
+	Person p1(10);
+	Person p2(20);
+
+	// 赋值操作，执行时报异常
+	p2 = p1;
+
+	system("pause");
+	return 0;
+}
+```
+
+## 13.5 关系运算符重载
+
+```C++
+#include <iostream>
+
+using namespace std;
+
+// 关系运算符重载
+class Person
+{
+public:
+	Person(int age)
+	{
+		this->age = age;
+	}
+
+	bool operator==(const Person& p)
+	{
+		return age == p.age;
+	}
+
+	int age;
+};
+
+int main() {
+	Person p1(10);
+	Person p2(20);
+	bool flag = p1 == p2;
+	if (p1 == p2)
+	{
+		cout << "p1 == p2" << endl;
+	}
+	else
+	{
+		cout << "p1 != p2" << endl;
+	}
+
+	system("pause");
+	return 0;
+}
+```
+
+## 13.6 函数调用运算符重载
+
+- 函数调用运算符 () 也可以重载
+- 由于重载后使用的方式非常像函数的调用，因此称为**仿函数**
+- 仿函数没有固定写法，非常灵活
+
+```C++
+#include <iostream>
+
+using namespace std;
+
+// 函数调用运算符重载
+class Person
+{
+public:
+	void operator()(string text)
+	{
+		cout << text << endl;
+	}
+};
+
+int main() {
+	Person p;
+	p("Hello World");
+
+	// 直接通过匿名对象调用也是可以的
+	Person()("Hello World");
 
 	system("pause");
 	return 0;
