@@ -3074,3 +3074,1018 @@ int main() {
 }
 ```
 
+# 14. 继承
+
+## 14.1 继承的基本语法
+
+```C++
+#include <iostream>
+
+using namespace std;
+
+class Father
+{
+public:
+	void speak()
+	{
+		cout << "hello" << endl;
+	}
+};
+
+// 继承的基本语法：class 子类类名 : 继承方式 父类类名
+class Son : public Father
+{
+public:
+	void study()
+	{
+		cout << "I'm studying" << endl;
+	}
+};
+
+int main() {
+	Son son;
+	son.speak();
+	son.study();
+
+	system("pause");
+	return 0;
+}
+```
+
+## 14.2 继承方式
+
+| 继承方式\父类成员权限 | public    | protected | private  |
+| --------------------- | --------- | --------- | -------- |
+| public                | public    | protected | 无法继承 |
+| protected             | protected | protected | 无法继承 |
+| private               | private   | private   | 无法继承 |
+
+## 14.3 继承的对象模型
+
+如下代码的类Son，占用多少字节？
+
+```C++
+#include <iostream>
+
+using namespace std;
+
+class Father
+{
+public:
+	int a;
+protected:
+	int b;
+private:
+	int c;
+};
+
+class Son : public Father
+{
+private:
+	int d;
+};
+
+int main() {
+	// 打印结果：16
+	cout << "sizeof(son)" << sizeof(Son) << endl;
+
+	system("pause");
+	return 0;
+}
+```
+
+说明父类private的成员也会被子类继承下来。
+
+如何查看对象模型？
+
+1. 开始菜单，找到"Developer PowerShell for VS 2019"并打开
+2. 定位到当前cpp对应位置
+3. 输入如下命令
+
+```
+cl /d1 reportSingleClassLayout类名 所属的文件名
+```
+
+结果如下，证明了刚才的观点
+
+```
+PS D:\git\C_plus_demo\2. C++核心编程> cl /d1 reportSingleClassLayoutSon '.\48. 继承中的对象模型.cpp'
+用于 x86 的 Microsoft (R) C/C++ 优化编译器 19.29.30037 版
+版权所有(C) Microsoft Corporation。保留所有权利。
+
+48. 继承中的对象模型.cpp
+
+class Son       size(16):
+        +---
+ 0      | +--- (base class Father)
+ 0      | | a
+ 4      | | b
+ 8      | | c
+        | +---
+12      | d
+        +---
+```
+
+## 14.4 继承中构造与析构的顺序
+
+父类先构造，子类先析构
+
+```C++
+#include <iostream>
+
+using namespace std;
+
+class Father
+{
+public:
+	Father()
+	{
+		cout << "父类构造函数" << endl;
+	}
+
+	~Father()
+	{
+		cout << "父类析构函数" << endl;
+	}
+};
+
+class Son : public Father
+{
+public:
+	Son()
+	{
+		cout << "子类构造函数" << endl;
+	}
+
+	~Son()
+	{
+		cout << "子类析构函数" << endl;
+	}
+};
+
+void test01()
+{
+	Son son;
+}
+
+int main() {
+	test01();
+
+	system("pause");
+	return 0;
+}
+```
+
+```
+父类构造函数
+子类构造函数
+子类析构函数
+父类析构函数
+```
+
+## 14.5 继承中同名成员的访问
+
+子类中的同名成员，直接访问即可
+
+父类中的同名成员，通过父类类名::访问
+
+```C++
+#include <iostream>
+
+using namespace std;
+
+class Father
+{
+public:
+	Father()
+	{
+		age = 30;
+	}
+	void speak()
+	{
+		cout << "I'm father" << endl;
+	}
+
+	int age;
+};
+
+class Son : public Father
+{
+public:
+	Son()
+	{
+		age = 10;
+	}
+	void speak()
+	{
+		cout << "I'm son" << endl;
+	}
+	int age;
+};
+
+void test01()
+{
+	Son son;
+
+	son.age;
+	// 父类成员变量，通过类名::访问
+	son.Father::age;
+
+	son.speak();
+	// 父类成员函数，通过类名::访问
+	son.Father::speak();
+}
+
+int main() {
+	test01();
+
+	system("pause");
+	return 0;
+}
+```
+
+## 14.6 继承同名静态成员的访问
+
+分为通过对象访问和通过类名访问两种方式：
+
+```C++
+#include <iostream>
+
+using namespace std;
+
+class Father
+{
+public:
+	static void speak()
+	{
+		cout << "I'm father" << endl;
+	}
+
+	static int age;
+};
+
+class Son : public Father
+{
+public:
+	static void speak()
+	{
+		cout << "I'm son" << endl;
+	}
+	static int age;
+};
+
+int Father::age = 30;
+int Son::age = 10;
+
+void test01()
+{
+	Son son;
+
+	son.age;
+	// 访问父类静态成员变量
+	// 通过对象访问
+	son.Father::age;
+	// 通过类名访问
+	Son::Father::age;
+
+	son.speak();
+	// 访问父类静态成员函数
+	// 通过对象访问
+	son.Father::speak();
+	// 通过类名访问
+	Son::Father::speak();
+}
+
+int main() {
+	test01();
+
+	system("pause");
+	return 0;
+}
+```
+
+## 14.7 多继承
+
+C++可以多继承，实际开发中不推荐使用。
+
+```C++
+#include <iostream>
+
+using namespace std;
+
+class Father1
+{
+public:
+	int a;
+	int b;
+};
+
+class Father2
+{
+public:
+	int a;
+	int c;
+};
+
+// 多继承语法
+class Son : public Father1, public Father2
+{
+};
+
+void test()
+{
+	Son son;
+
+	// 多继承时，多个父类如果有重名成员，需要通过作用域指明
+	// son.a;
+
+	son.Father1::a;
+	son.Father2::a;
+}
+
+int main() {
+	test();
+
+	system("pause");
+	return 0;
+}
+```
+
+## 14.8 菱形继承
+
+菱形继承的问题：
+
+```C++
+#include <iostream>
+
+using namespace std;
+
+class Father
+{
+public:
+    int a;
+};
+
+class Son1 : public Father
+{
+};
+
+class Son2 : public Father
+{
+};
+
+class GrandSon : public Son1, public Son2
+{
+};
+
+void test()
+{
+	GrandSon gs;
+	// 菱形继承，子类继承了两份数据，如下代码报错
+	//gs.a = 10;
+
+	// 必须显示地指明是哪个父类的数据，但实际上不需要两份
+	gs.Son1::a = 10;
+	gs.Son2::a = 20;
+}
+
+int main() {
+	test();
+
+	system("pause");
+	return 0;
+}
+```
+
+打印GrandSon的结构：
+
+```C++
+PS D:\git\C_plus_demo\2. C++核心编程> cl /d1 reportSingleClassLayoutGrandSon '.\53. 菱形继承01.cpp'
+用于 x86 的 Microsoft (R) C/C++ 优化编译器 19.29.30037 版
+版权所有(C) Microsoft Corporation。保留所有权利。
+
+53. 菱形继承01.cpp
+
+class GrandSon  size(8):
+        +---
+ 0      | +--- (base class Son1)
+ 0      | | +--- (base class Father)
+ 0      | | | a
+        | | +---
+        | +---
+ 4      | +--- (base class Son2)
+ 4      | | +--- (base class Father)
+ 4      | | | a
+        | | +---
+        | +---
+        +---
+```
+
+可通过虚继承解决菱形继承的问题
+
+```C++
+#include <iostream>
+
+using namespace std;
+
+class Father
+{
+public:
+	int a;
+};
+
+class Son1 : virtual public Father
+{
+};
+
+class Son2 : virtual public Father
+{
+};
+
+class GrandSon : public Son1, public Son2
+{
+};
+
+void test()
+{
+	GrandSon gs;
+	// 采用虚继承后，不存在不明确的问题
+	gs.a = 10;
+}
+
+int main() {
+	test();
+
+	system("pause");
+	return 0;
+}
+```
+
+打印GrandSon，Son1中保存4字节的vbptr（virtual base pointer虚基类指针），指向下面Son1的虚基类表（vbtable），vbtable有8个字节的偏移量，正好指向GrandSon中的a。Son2同理。
+
+```
+PS D:\git\C_plus_demo\2. C++核心编程> cl /d1 reportSingleClassLayoutGrandSon '.\54. 菱形继承02.cpp'
+用于 x86 的 Microsoft (R) C/C++ 优化编译器 19.29.30037 版
+版权所有(C) Microsoft Corporation。保留所有权利。
+
+54. 菱形继承02.cpp
+
+class GrandSon  size(12):
+        +---
+ 0      | +--- (base class Son1)
+ 0      | | {vbptr}
+        | +---
+ 4      | +--- (base class Son2)
+ 4      | | {vbptr}
+        | +---
+        +---
+        +--- (virtual base Father)
+ 8      | a
+        +---
+
+GrandSon::$vbtable@Son1@:
+ 0      | 0
+ 1      | 8 (GrandSond(Son1+0)Father)
+
+GrandSon::$vbtable@Son2@:
+ 0      | 0
+ 1      | 4 (GrandSond(Son2+0)Father)
+vbi:       class  offset o.vbptr  o.vbte fVtorDisp
+          Father       8       0       4 0
+```
+
+# 15. 多态
+
+C++通过派生类与虚函数实现多态，对象运行时绑定
+
+多态出现的几个条件：
+
+1. 有继承关系
+2. 子类重写父类的虚函数
+3. 父类指针或父类引用接受子类对象
+
+## 15.1 多态举例
+
+```C++
+#include <iostream>
+
+using namespace std;
+
+class Animal
+{
+public:
+	virtual void speak()
+	{
+		cout << "动物叫" << endl;
+	}
+};
+
+class Dog : public Animal
+{
+public:
+	void speak()
+	{
+		cout << "汪汪汪" << endl;
+	}
+};
+
+// 多态条件：父类引用接收子类对象
+void test(Animal& animal)
+{
+	animal.speak();
+}
+
+// 多态条件：父类指针接收子类对象
+void test(Animal* animal)
+{
+	animal->speak();
+}
+
+int main() {
+	Dog dog;
+	test(dog);
+	test(&dog);
+
+	system("pause");
+	return 0;
+}
+```
+
+```
+汪汪汪
+汪汪汪
+```
+
+打印下Dog的对象结构，可以看到父类中保存的是一个指向vftable（虚函数表）的指针（vfptr），该表中保存了实际要执行的函数。例如如果子类重写了，就是Dog::speak()，否则是Animal::speak()
+
+```
+PS D:\git\C_plus_demo\2. C++核心编程> cl /d1 reportSingleClassLayoutDog '.\55. 多态举例.cpp'
+用于 x86 的 Microsoft (R) C/C++ 优化编译器 19.29.30037 版
+版权所有(C) Microsoft Corporation。保留所有权利。
+
+55. 多态举例.cpp
+
+class Dog       size(4):
+        +---
+ 0      | +--- (base class Animal)
+ 0      | | {vfptr}
+        | +---
+        +---
+
+Dog::$vftable@:
+        | &Dog_meta
+        |  0
+ 0      | &Dog::speak
+```
+
+
+
+## 15.2 纯虚函数和抽象类
+
+在多态中，通常父类中虚函数的实现是毫无意义的，主要都是调用子类重写的内容
+
+因此可以将虚函数改为**纯虚函数**
+
+纯虚函数语法：`virtual 返回值类型 函数名 （参数列表）= 0 ;`
+
+当类中有了纯虚函数，这个类也称为抽象类
+
+**抽象类特点**：
+
+- 无法实例化对象
+- 子类必须重写抽象类中的纯虚函数，否则也属于抽象类
+
+```C++
+#include <iostream>
+
+using namespace std;
+
+class Animal
+{
+public:
+	// 纯虚函数语法，有纯虚函数的类是抽象类，无法实例化对象
+	virtual void speak() = 0;
+};
+
+class Dog : public Animal
+{
+public:
+	// 父类中存在纯虚函数，子类需重写，否则子类也是抽象类
+	void speak()
+	{
+		cout << "汪汪汪" << endl;
+	}
+};
+
+int main() {
+	// Animal是抽象类，无法实例化对象，如下代码报错
+	//Animal animal;
+
+	system("pause");
+	return 0;
+}
+```
+
+## 15.3 虚析构和纯虚析构
+
+什么时候需要虚析构/纯虚析构？
+
+同时满足：
+
+1. 对象是创在在堆区的（new），需要释放
+2. 对象涉及多态
+
+上面两条满足时，只会调用父类的析构函数，不会调用子类的，例如：
+
+```C++
+#include <iostream>
+
+using namespace std;
+
+class Animal
+{
+public:
+	Animal()
+	{
+		cout << "父类构造函数" << endl;
+	}
+
+	~Animal()
+	{
+		cout << "父类析构函数" << endl;
+	}
+
+	virtual void speak() = 0;
+};
+
+class Dog : public Animal
+{
+public:
+	Dog()
+	{
+		cout << "子类构造函数" << endl;
+		name = new string("Jack");
+	}
+
+	// 父类中存在纯虚函数，子类需重写，否则子类也是抽象类
+	void speak()
+	{
+		cout << "汪汪汪" << endl;
+	}
+
+	~Dog()
+	{
+		cout << "子类析构函数" << endl;
+		if (name != NULL)
+		{
+			delete name;
+			name = NULL;
+		}
+	}
+	string* name;
+};
+
+void test()
+{
+	Animal* animal = new Dog();
+	animal->speak();
+	delete animal;
+}
+
+int main() {
+	test();
+
+	system("pause");
+	return 0;
+}
+```
+
+打印（可以看到子类析构函数并未调用，导致name无法释放）：
+
+```
+父类构造函数
+子类构造函数
+汪汪汪
+父类析构函数
+```
+
+可以通过虚析构函数解决该问题，在父类的虚析构函数前加上virtual
+
+```C++
+#include <iostream>
+
+using namespace std;
+
+class Animal
+{
+public:
+	Animal()
+	{
+        cout << "父类构造函数" << endl;
+	}
+
+	virtual ~Animal()
+	{
+        cout << "父类析构函数" << endl;
+	}
+};
+
+class Dog : public Animal
+{
+public:
+	Dog()
+	{
+		cout << "子类构造函数" << endl;
+		name = new string("Jack");
+	}
+
+	~Dog()
+	{
+		cout << "子类析构函数" << endl;
+		if (name != NULL)
+		{
+			delete name;
+			name = NULL;
+		}
+	}
+	string* name;
+};
+
+void test()
+{
+	Animal* animal = new Dog();
+	delete animal;
+}
+
+int main() {
+	test();
+
+	system("pause");
+	return 0;
+}
+```
+
+```
+父类构造函数
+子类构造函数
+子类析构函数
+父类析构函数
+```
+
+同样的，虚析构也有纯虚析构，有纯虚析构的类也是抽象类。但与普通的纯虚函数不同的是，纯虚析构函数必须在类外定义，否则执行报错。
+
+```C++
+#include <iostream>
+
+using namespace std;
+
+class Animal
+{
+public:
+	Animal()
+	{
+		cout << "父类构造函数" << endl;
+	}
+
+	// 纯虚析构
+	virtual ~Animal() = 0;
+};
+
+// 纯虚析构函数必须在外面定义，不能等到子类再定义，如下代码是必要的
+Animal::~Animal() {}
+
+class Dog : public Animal
+{
+public:
+	Dog()
+	{
+		cout << "子类构造函数" << endl;
+		name = new string("Jack");
+	}
+
+	~Dog()
+	{
+		cout << "子类析构函数" << endl;
+		if (name != NULL)
+		{
+			delete name;
+			name = NULL;
+		}
+	}
+	string* name;
+};
+
+void test()
+{
+	Animal* animal = new Dog();
+	delete animal;
+}
+
+int main() {
+	test();
+
+	system("pause");
+	return 0;
+}
+```
+
+# 16. 文件操作
+
+C++中进行文件操作需要包含头文件 < fstream >
+
+文件类型分为两种：
+
+1. **文本文件** - 文件以文本的**ASCII码**形式存储在计算机中
+2. **二进制文件** - 文件以文本的**二进制**形式存储在计算机中，用户一般不能直接读懂它们
+
+操作文件的三大类:
+
+1. ofstream：写操作
+2. ifstream： 读操作
+3. fstream ： 读写操作
+
+文件打开方式：
+
+| 打开方式    | 解释                       |
+| ----------- | -------------------------- |
+| ios::in     | 为读文件而打开文件         |
+| ios::out    | 为写文件而打开文件         |
+| ios::ate    | 初始位置：文件尾           |
+| ios::app    | 追加方式写文件             |
+| ios::trunc  | 如果文件存在先删除，再创建 |
+| ios::binary | 二进制方式                 |
+
+**注意：** 文件打开方式可以配合使用，利用|操作符
+
+**例如：**用二进制方式写文件 `ios::binary | ios:: out`
+
+## 16.1 写文件（文本文件）
+
+```C++
+#include <iostream>
+// 1、包含头文件
+#include <fstream>
+
+using namespace std;
+
+int main() {
+	// 2、创建流对象
+	ofstream ofs;
+	// 3、打开文件
+	ofs.open("test.txt", ios::out);
+	// 4、写数据
+	ofs << "hello world";
+	// 5、关闭文件
+	ofs.close();
+
+	system("pause");
+	return 0;
+}
+```
+
+## 16.2 读文件（文本文件）
+
+```C++
+#include <iostream>
+#include <fstream>
+
+using namespace std;
+
+int main() {
+	ifstream ifs;
+	ifs.open("test.txt", ios::in);
+	if (!ifs.is_open())
+	{
+		cout << "文件打开失败" << endl;
+		system("pause");
+		return 0;
+	}
+
+	//第一种方式
+	//char buf[1024] = { 0 };
+	//while (ifs >> buf)
+	//{
+	//	cout << buf << endl;
+	//}
+
+	//第二种
+	//char buf[1024] = { 0 };
+	//while (ifs.getline(buf,sizeof(buf)))
+	//{
+	//	cout << buf << endl;
+	//}
+
+	//第三种
+	//string buf;
+	//while (getline(ifs, buf))
+	//{
+	//	cout << buf << endl;
+	//}
+
+	char c;
+	while ((c = ifs.get()) != EOF)
+	{
+		cout << c;
+	}
+	
+	ifs.close();
+
+	system("pause");
+	return 0;
+}
+```
+
+## 16.3 写文件（二进制文件）
+
+```C++
+#include <iostream>
+#include <fstream>
+
+using namespace std;
+
+class Person
+{
+public:
+	int age;
+	char name[64];
+};
+
+void test()
+{
+	ofstream ofs;
+	ofs.open("testBinary.txt", ios::out | ios::binary);
+	
+	Person person = {10, "张三"};
+
+	ofs.write((const char*)&person, sizeof(person));
+
+	ofs.close();
+}
+
+int main() {
+	test();
+
+	system("pause");
+	return 0;
+}
+```
+
+## 16.4 读文件（二进制文件）
+
+```C++
+#include <iostream>
+#include <fstream>
+
+using namespace std;
+
+class Person
+{
+public:
+	int age;
+	char name[64];
+};
+
+void test()
+{
+	ifstream ifs("testBinary.txt", ios::in | ios::binary);
+	if (!ifs.is_open())
+	{
+		cout << "文件打开失败" << endl;
+		return;
+	}
+	Person p;
+	ifs.read((char*)&p, sizeof(p));
+	cout << p.name << p.age << endl;
+	ifs.close();
+}
+
+int main() {
+	test();
+
+	system("pause");
+	return 0;
+}
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
