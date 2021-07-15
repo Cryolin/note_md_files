@@ -261,6 +261,16 @@ int arr5[2] = {};
 cout << arr5[0] << endl; // 使用0填充，打印0
 ```
 
+注意C++中数组是不可以赋值的，如下代码报错
+
+```C++
+	int arr1[1] = {};
+	int arr2[1] = {};
+	//arr1 = arr2;	// 报错，表达式必须是可修改的左值
+```
+
+
+
 ## 4.2 二维数组
 
 二维数组定义方式
@@ -299,6 +309,48 @@ for (int i = 0; i < sizeof(arr8) / sizeof(arr8[0]); i++)
 	cout << endl;
 }
 ```
+
+## 4.3 数组作为函数参数
+
+有三种方法可以将数组传递给函数，但实质上都是传一个指针
+
+```C++
+#include <iostream>
+using namespace std;
+
+// 1、指针接收
+void func1(int* arr)
+{
+	cout << arr << endl;
+}
+
+// 2、未定义大小的数组接收
+void func2(int arr[])
+{
+	cout << arr << endl;
+}
+
+// 3、定义大小的数组接收
+// 就函数而言，数组的长度是无关紧要的，因为 C++ 不会对形式参数执行边界检查。
+void func3(int arr[10])
+{
+	cout << arr << endl;
+}
+
+int main() {
+
+	int arr[2] = {};
+
+	func1(arr);	// 000000972C92F758
+	func2(arr);	// 000000972C92F758
+	func3(arr);	// 000000972C92F758
+	
+	system("pause");
+	return 0;
+}
+```
+
+
 
 # 5. 函数
 
@@ -4067,25 +4119,349 @@ int main() {
 }
 ```
 
+# 17. 模板
+
+模板即C++中的泛型，分为函数模板与类模板两种
+
+## 17.1 函数模板语法
+
+```
+template<typename T>
+函数声明或定义
+
+或
+
+template<class T>
+函数声明或定义
+```
+
+**解释：**
+
+template — 声明创建模板
+
+typename — 表面其后面的符号是一种数据类型，可以用class代替
+
+T — 通用的数据类型，名称可以替换，通常为大写字母
+
+**使用函数模板的两种方式**
+
+1. 自动类型推导
+2. 显示指定类型
+
+注意事项：
+
+1. 使用自动类型推导时，必须是可以确定的数据类型
+2. 函数模板在不确定时，无法执行
+
+```C++
+#include <iostream>
+
+using namespace std;
+
+// 函数模板01
+template<typename T>
+void func()
+{
+	cout << sizeof(T) << endl;
+}
+
+// 函数模板02
+template<class T>
+void mySwap(T& a, T& b)
+{
+	T temp = a;
+	a = b;
+	b = temp;
+}
+
+void test01()
+{
+	int a = 10;
+	int b = 20;
+	char c = 'c';
+	// 函数模板的使用方式一：自动类型推导
+	mySwap(a, b);
+	// 函数模板的使用方式二：显示指定类型
+	mySwap<int>(a, b);
+
+	// 函数模板必须可以推导出T的数据类型，如下代码报错
+	//mySwap(a, c);
+	// 同样报错
+	//mySwap<char>(a, c);
+}
+
+void test02()
+{
+	func<char>();
+
+	// 函数模板在不确定时，无法执行，如下代码报错
+	//func();
+}
+
+int main() {
+	test01();
+	test02();
+
+	system("pause");
+	return 0;
+}
+```
 
 
 
+## 17.2 函数模板与隐式类型转换
+
+先了解下C++中的隐式类型转换：
+
+```C++
+#include <iostream>
+
+using namespace std;
+
+// C++隐式类型转换的说明
+class Animal
+{
+public:
+	virtual void speak() = 0;
+};
+
+class Cat : public Animal
+{
+public:
+	void speak()
+	{
+		cout << "miao miao" << endl;
+	}
+};
+
+// 隐式类型转换01：多态
+void test01(Animal& animal)
+{
+	animal.speak();
+}
+
+// 隐式类型转换02：编译器自动将数据进行了转换
+void test02(int i)
+{
+	cout << i << endl;
+
+	int a = 10;
+	double b = 1.0;
+	a + b; // int自动转化为double
+}
+
+int main() {
+
+	Cat cat;
+	test01(cat);
+
+	// 传参是char类型，自动转换为int类型
+	test02('c');
+
+	system("pause");
+	return 0;
+}
+```
 
 
 
+```C++
+#include <iostream>
 
+using namespace std;
 
+// 普通函数
+int add01(int a, int b)
+{
+	return a + b;
+}
 
+// 函数模板
+template<typename T>
+T add02(T a, T b)
+{
+	return a + b;
+}
 
+int main() {
 
+	int a = 10;
+	int b = 20;
+	char c = 'c';
+	
+	// 普通函数可发生隐式类型转换，char自动转换为int
+	add01(a, b);
+	add01(a, c);
 
+	add02(a, b);
 
+	// 使用函数模板时，如果使用自动类型推导，不会发生隐式类型转换
+	// 如下代码报错，因为编译器不知道T到底是int还是char
+	//add02(a, c);
 
+	// 使用函数模板时，如果显示指定类型，可以发生隐式类型转换
+	add02<int>(a, c);
+	add02<char>(a, c);
 
+	system("pause");
+	return 0;
+}
+```
 
+多态相关的隐式类型转换同理：
 
+```C++
+#include <iostream>
 
+using namespace std;
 
+class Animal
+{
+};
 
+class Cat : public Animal
+{
+};
 
+void test01(Animal& a, Animal& b)
+{
+}
+
+template<typename T>
+void test02(T& a, T& b)
+{
+}
+
+int main() {
+	Cat cat1;
+	Cat cat2;
+	Animal animal;
+
+	// 普通函数可以发生多态（隐式类型转换）
+	test01(cat1, cat2);
+	test01(cat1, animal);
+
+	test02(cat1, cat2);
+
+	// 使用函数模板时，如果使用自动类型推导，不会发生多态（隐式类型转换）
+	// 如下代码报错，编译器不知道T是Cat还是Animal
+	//test02(cat1, animal);
+
+	// 使用函数模板时，如果使用显示指定类型，可以发生多态（隐式类型转换）
+	test02<Animal>(cat1, animal);
+
+	system("pause");
+	return 0;
+}
+```
+
+## 17.3 普通函数与函数模板的调用规则
+
+```C++
+#include <iostream>
+
+using namespace std;
+
+//普通函数与函数模板调用规则
+void myPrint(int a, int b)
+{
+	cout << "调用的普通函数" << endl;
+}
+
+template<typename T>
+void myPrint(T a, T b)
+{
+	cout << "调用的模板" << endl;
+}
+
+template<typename T>
+void myPrint(T a, T b, T c)
+{
+	cout << "调用重载的模板" << endl;
+}
+
+void test01()
+{
+	//1、如果函数模板和普通函数都可以实现，优先调用普通函数
+	int a = 10;
+	int b = 20;
+	myPrint(a, b); //调用普通函数
+
+	//2、可以通过空模板参数列表来强制调用函数模板
+	myPrint<>(a, b); //调用函数模板
+
+	//3、函数模板也可以发生重载
+	int c = 30;
+	myPrint(a, b, c); //调用重载的函数模板
+
+	//4、 如果函数模板可以产生更好的匹配,优先调用函数模板
+	char c1 = 'a';
+	char c2 = 'b';
+	myPrint(c1, c2); //调用函数模板
+}
+
+int main() {
+	test01();
+
+	system("pause");
+	return 0;
+}
+```
+
+## 17.4 模板的局限性
+
+通过函数模板具体化实现函数模板对类型T的重载
+
+```C++
+#include <iostream>
+
+using namespace std;
+
+class Person
+{
+public:
+	Person(int age)
+	{
+		this->age = age;
+	}
+	int age;
+};
+
+// 模板局限性示例2：传入Person对象时，是无法进行大小判断比较的
+template<typename T>
+const T& getMax(const T& a, const T& b)
+{
+	return a > b ? a : b;
+}
+
+// 为进行＞判断，可以通过运算符重载实现
+//bool operator>(const Person& p1, const Person& p2)
+//{
+//	return p1.age > p2.age;
+//}
+
+// 此处介绍另一种方法，通过函数模板具体化实现
+// 相应的，还有类模板具体化，会在下面章节介绍
+// 具体语法：template<>实现函数模板针对T具体类型的重载
+template<> const Person& getMax(const Person& a, const Person& b)
+{
+	return a.age > b.age ? a : b;
+}
+
+ostream& operator<< (ostream& os, const Person& person)
+{
+	os << person.age;
+	return os;
+}
+
+int main() {
+
+	Person p = Person(10);
+	Person p2 = Person(5);
+	cout << getMax(p, p2) << endl;
+
+	system("pause");
+	return 0;
+}
+```
 
