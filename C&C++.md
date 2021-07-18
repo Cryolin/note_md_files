@@ -4427,7 +4427,7 @@ public:
 	int age;
 };
 
-// 模板局限性示例2：传入Person对象时，是无法进行大小判断比较的
+// 模板局限性示例：传入Person对象时，是无法进行大小判断比较的
 template<typename T>
 const T& getMax(const T& a, const T& b)
 {

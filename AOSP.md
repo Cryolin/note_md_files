@@ -60,7 +60,79 @@ repo是谷歌为有效管理安卓代码而开发的使用python语言、基于g
 
 repo依赖的python版本是2.x，推荐2.7
 
-# 3. Binder
+# 3. Android编译
+
+# 4. 系统启动系列
+
+## 4.1 启动流程
+
+![android-boot](.\images\android-boot.jpg)
+
+**图解：** Android系统启动过程由上图从下往上的一个过程是由Boot Loader引导开机，然后依次进入 -> `Kernel` -> `Native` -> `Framework` -> `App`，接来下简要说说每个过程：
+
+Loader层：
+
+- Boot ROM: 当手机处于关机状态时，长按Power键开机，引导芯片开始从固化在`ROM`里的预设代码开始执行，然后加载引导程序到`RAM`；
+- Boot Loader：这是启动Android系统之前的引导程序，主要是检查RAM，初始化硬件参数等功能。
+
+Kernel层：
+
+- 启动Kernel的swapper进程(pid=0)：该进程又称为idle进程, 系统初始化过程Kernel由无到有开创的第一个进程, 用于初始化进程管理、内存管理，加载Display,Camera Driver，Binder Driver等相关工作；
+- 启动kthreadd进程（pid=2）：是Linux系统的内核进程，会创建内核工作线程kworkder，软中断线程ksoftirqd，thermal等内核守护进程。`kthreadd进程是所有内核进程的鼻祖`。
+
+native层：
+
+​			启动init进程(pid=1),是Linux系统的用户进程，`init进程是所有用户进程的鼻祖`。
+
+- init进程会孵化出ueventd、logd、healthd、installd、adbd、lmkd等用户守护进程；
+- init进程还启动`servicemanager`(binder服务管家)、`bootanim`(开机动画)等重要服务
+- init进程孵化出Zygote进程，Zygote进程是Android系统的第一个Java进程(即虚拟机进程)，`Zygote是所有Java进程的父进程`，Zygote进程本身是由init进程孵化而来的。
+
+Framework层：
+
+- Zygote进程，是由init进程通过解析init.rc文件后fork生成的，Zygote进程主要包含：
+  - 加载ZygoteInit类，注册Zygote Socket服务端套接字
+  - 加载虚拟机
+  - 提前加载类preloadClasses
+  - 提前加载资源preloadResources
+- System Server进程，是由Zygote进程fork而来，`System Server是Zygote孵化的第一个进程`，System Server负责启动和管理整个Java framework，包含ActivityManager，WindowManager，PackageManager，PowerManager等服务。
+- Media Server进程，是由init进程fork而来，负责启动和管理整个C++ framework，包含AudioFlinger，Camera Service等服务。
+
+APP层：
+
+- Zygote进程孵化出的第一个App进程是Launcher，这是用户看到的桌面App；
+- Zygote进程还会创建Browser，Phone，Email等App进程，每个App至少运行在一个进程上。
+- 所有的App进程都是由Zygote进程fork生成的。
+
+Syscall && JNI
+
+- Native与Kernel之间有一层系统调用(SysCall)层，见[Linux系统调用(Syscall)原理](http://gityuan.com/2016/05/21/syscall/);
+- Java层与Native(C/C++)层之间的纽带JNI，见[Android JNI原理分析](http://gityuan.com/2016/05/28/android-jni/)。
+
+## 4.2 核心进程汇总
+
+![android-booting](.\images\android-booting.jpg)
+
+| 序号 | 进程               | 入口类路径                                        | 主方法                | 概述                                                         |
+| ---- | ------------------ | ------------------------------------------------- | --------------------- | ------------------------------------------------------------ |
+| 1    | init进程           | /system/core/init/Init.cpp                        | Init.main()           | Linux系统中用户空间的第一个进程                              |
+| 2    | zygote进程         | frameworks/base/cmds<br>/app_process/App_main.cpp | App_main.main()       | 所有Java进程的父进程                                         |
+| 3    | system_server进程  |                                                   | SystemServer.main()   | 系统各大服务的载体                                           |
+| 4    | app_process进程    |                                                   | RuntimeInit.main()    | 通过/system/bin/app_process启动的进程，且后面跟的参数不带–zygote，即并非启动zygote进程。 比如常见的有通过adb shell方式来执行am,pm等命令，便是这种方式。 |
+| 5    | app进程            |                                                   | ActivityThread.main() | 通过Process.start启动App进程                                 |
+| 6    | servicemanager进程 |                                                   |                       | binder服务的大管家, 守护进程循环运行在binder_loop            |
+
+## 4.3 init进程
+
+## 4.4 servicemanager进程
+
+## 4.5 zygote进程
+
+## 4.6 systemserver进程
+
+# 5. JNI
+
+# 6. Binder
 
 ## Q1：什么是Binder？
 
@@ -110,8 +182,6 @@ A：Binder是android中主要的IPC方式，通过mmap实现一次拷贝，比So
 
 **从上面的总结可以引出mmap，两次拷贝的模型中，用户态和内核态的虚拟地址空间，分别映射到不同的物理地址。假如可以让二者映射到同一块物理地址，是否就可以避免二次拷贝，使二者去同一块物理内存寻址呢？**
 
-
-
 下面正式介绍mmap
 
 **mmap是Linux提供的一种内存映射的方法，它将一个文件（或物理内存）映射到进程的地址空间中（既可以映射到用户地址空间，也可以映射到内核地址空间），实现文件磁盘地址和进程虚拟地址空间中一段虚拟地址的对应关系**
@@ -130,3 +200,8 @@ A：Binder是android中主要的IPC方式，通过mmap实现一次拷贝，比So
 
 ## Q4：介绍下一次完整的Binder IPC通信的过程？
 
+# 7. 系统启动系列
+
+
+
+每个
