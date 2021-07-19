@@ -115,7 +115,7 @@ Syscall && JNI
 
 | 序号 | 进程               | 入口类路径                                        | 主方法                | 概述                                                         |
 | ---- | ------------------ | ------------------------------------------------- | --------------------- | ------------------------------------------------------------ |
-| 1    | init进程           | /system/core/init/Init.cpp                        | Init.main()           | Linux系统中用户空间的第一个进程                              |
+| 1    | init进程           | /system/core/init/main.cpp                        | main.main()           | Linux系统中用户空间的第一个进程                              |
 | 2    | zygote进程         | frameworks/base/cmds<br>/app_process/App_main.cpp | App_main.main()       | 所有Java进程的父进程                                         |
 | 3    | system_server进程  |                                                   | SystemServer.main()   | 系统各大服务的载体                                           |
 | 4    | app_process进程    |                                                   | RuntimeInit.main()    | 通过/system/bin/app_process启动的进程，且后面跟的参数不带–zygote，即并非启动zygote进程。 比如常见的有通过adb shell方式来执行am,pm等命令，便是这种方式。 |
@@ -123,6 +123,8 @@ Syscall && JNI
 | 6    | servicemanager进程 |                                                   |                       | binder服务的大管家, 守护进程循环运行在binder_loop            |
 
 ## 4.3 init进程
+
+
 
 ## 4.4 servicemanager进程
 
@@ -200,8 +202,4 @@ A：Binder是android中主要的IPC方式，通过mmap实现一次拷贝，比So
 
 ## Q4：介绍下一次完整的Binder IPC通信的过程？
 
-# 7. 系统启动系列
-
-
-
-每个
+## 
