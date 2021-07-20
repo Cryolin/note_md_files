@@ -21,7 +21,7 @@ int main() {
 }
 ```
 
-## 1.2 #define重定义
+## 1.2 #define宏定义
 
 C++中，多次define选择最后一次
 
@@ -4467,4 +4467,136 @@ int main() {
 
 # 18. main函数传参
 
+C++可以没有传参，如果有传参，格式如下
+
+```C++
+#include <iostream>
+
+using namespace std;
+
+// argc代表参数个数
+// char** argv,等同于 char* argv[],是一个字符串数组
+// argv[0] 为exe文件的路径
+// argv[1] 为第1个参数，以此类推
+int main(int argc, char** argv)
+{
+	for (int i = 0; i < argc; i++)
+	{
+		cout << "第" << i << "个参数是：" << argv[i] << endl;
+	}
+	system("pause");
+}
+```
+
+可以通过在cmd窗口，在exe可执行文件后，紧跟参数的方式传入参数，例如：
+
+```
+D:\git\C_plus_demo\4. C++实用编程\Debug>"4. C++实用编程.exe" a b c
+第0个参数是：4. C++实用编程.exe
+第1个参数是：a
+第2个参数是：b
+第3个参数是：c
+请按任意键继续. . .
+```
+
 # 19. 预处理命令
+
+预处理命令，以#开头，代表**编译之前**进行的处理。C/C++的预处理命令包含三种
+
+1. 宏定义
+2. 文件包含
+3. 条件编译
+
+## 19.1 宏定义
+
+针对1.2节进行拓展，#define分为无参数宏和带参数宏
+
+```C++
+#include <iostream>
+using namespace std;
+
+// 宏定义
+// 无参数宏
+#define PI 3.14
+#define M "abc"
+
+// 有参数宏，注意不等同于函数
+#define f(x) x*x + 3*x
+// 可以通过分号执行多条语句，但不建议这么做
+#define Sum(a,b,c) a=b*c; b=c*a; a=b*c
+
+void testDefine()
+{
+	//PI：3.14
+	//MyStr：abc
+	//3 * f(2)18
+	//a = 54
+	//b = 18
+	//c = 3
+	cout << "PI：" << PI << endl;
+	cout << "MyStr：" << M << endl; 
+
+	// 如下代码只是做了替换，并不是值传递：3*2*2 + 3*2
+	cout << "3 * f(2)" << 3 * f(2) << endl;
+
+	int a = 1;
+	int b = 2;
+	int c = 3;
+	Sum(a, b, c);
+	cout << "a = " << a << endl;
+	cout << "b = " << b << endl;
+	cout << "c = " << c << endl;
+}
+
+int main()
+{
+	testDefine();
+
+
+	system("pause");
+}
+```
+
+
+
+## 19.2 文件包含
+
+#include有两种形式：
+
+```C++
+// 到配置路径找
+#include <stdio.h>
+
+// 从当前目录开始找，没有找到则从配置路径开始找
+#include "stdio.h"
+```
+
+文件包含允许嵌套，例如文件A包含了文件B，文件B又包含了文件C，最终文件B和文件C都会被引入A文件。
+
+## 19.3 条件编译
+
+分为#if系列和#ifdef系列，后者见1.3.2节
+
+```C++
+#include <iostream>
+using namespace std;
+
+#define debug 0
+#define beta 1
+#define status 0
+
+int main()
+{
+// if,elif,else后的判断条件必须是define的宏定义，或者直接指定清楚值
+// 如果是变量，或者const开头的常量，预处理的时候是不知道执行时的值得，只能使用默认值
+#if (b == debug)
+	cout << "程序调试中" << endl;
+#elif (b == beta)
+	cout << "程序测试中" << endl;
+#else
+	cout << "欢迎使用正式版本" << endl;
+#endif
+	system("pause");
+}
+```
+
