@@ -4600,3 +4600,182 @@ int main()
 }
 ```
 
+# 20. string.h
+
+学习下string.h的常用函数
+
+## 20.1 strcmp()
+
+语法/原型：
+
+```C
+int strcmp(const char* stri1，const char* str2);
+```
+
+参数 str1 和 str2 是参与比较的两个字符串，不能是string，必须是char*。
+
+strcmp() 会根据 ASCII 编码依次比较 str1 和 str2 的每一个字符，直到出现不到的字符，或者到达字符串末尾（遇见`\0`）。
+
+返回值：
+
+- 如果返回值 < 0，则表示 str1 小于 str2。
+- 如果返回值 > 0，则表示 str2 小于 str1。
+- 如果返回值 = 0，则表示 str1 等于 str2。
+
+```C++
+#include <iostream>
+using namespace std;
+
+void testStrcmp()
+{
+	char str1[] = "abc";
+	char str2[] = "abc";
+	// 合法，打印 0
+	cout << strcmp(str1, str2) << endl;
+
+	// 合法，打印 -1
+	cout << strcmp("abc", "abcd") << endl;
+
+	// 合法，打印 1
+	cout << strcmp("ab", "aab") << endl;
+
+	string str3 = "abc";
+	// 不合法，报错，传参不能是string
+	//cout << strcmp(str3, str2) << endl;
+
+	// 可通过strcmp判断字符串是否相等
+	if (!strcmp(str1, str2))
+	{
+		cout << "字符串相等" << endl;
+	}
+	else
+	{
+		cout << "字符串不相等" << endl;
+	}
+}
+
+int main()
+{
+	testStrcmp();
+
+	system("pause");
+}
+```
+
+# 21. 命名空间
+
+命名空间可以确定变量、类、枚举等的范围，可以避免命名冲突。
+
+语法：
+
+```C++
+// 定义命名空间
+namespace 命名空间名称
+{
+	变量、类、枚举、结构体等
+}
+
+// 使用命名空间
+using namespace 命名空间名称;
+```
+
+使用示例：
+
+```C++
+#include <iostream>
+using namespace std;
+
+namespace A
+{
+	// 变量
+	int num;
+	// 结构体
+	struct student
+	{
+		string name;
+		int age;
+	};
+	// 类
+	class Teacher
+	{
+	public :
+		Teacher(string name, int age)
+		{
+			this->name = name;
+			this->age = age;
+		}
+	private:
+		string name;
+		int age;
+	};
+	void func()
+	{
+		cout << "method func in namespace A" << endl;
+	}
+
+	enum SEASON
+	{
+		SPRING, SUMMER, AUTUMN, WINTER
+	};
+
+	// namespace可以嵌套
+	namespace A_inner
+	{
+		int level;
+	}
+}
+
+namespace B
+{
+	// 变量
+	int num;
+	// 结构体
+	struct student
+	{
+		string name;
+		int age;
+	};
+	// 类
+	class Teacher
+	{
+	public:
+		Teacher(string name, int age)
+		{
+			this->name = name;
+			this->age = age;
+		}
+	private:
+		string name;
+		int age;
+	};
+	void func()
+	{
+		cout << "method func in namespace B" << endl;
+	}
+
+	// namespace可以嵌套
+	namespace A_inner
+	{
+		int level;
+	}
+}
+
+// 使用命名空间，可以使用多个
+using namespace A;
+using namespace B;
+
+int main()
+{
+	// 报错，不清楚是A的还是B的
+	//func();
+
+	// 不报错，SEASON是命名空间A特有的
+	SEASON;
+
+	// 通过作用域运算符找到指定命名空间的变量
+	A::A_inner::level = 10;
+
+	system("pause");
+}
+```
+
