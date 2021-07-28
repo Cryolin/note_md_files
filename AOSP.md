@@ -116,7 +116,7 @@ Syscall && JNI
 | 序号 | 进程               | 入口类路径                                        | 主方法                | 概述                                                         |
 | ---- | ------------------ | ------------------------------------------------- | --------------------- | ------------------------------------------------------------ |
 | 1    | init进程           | /system/core/init/main.cpp                        | main.main()           | Linux系统中用户空间的第一个进程                              |
-| 2    | zygote进程         | frameworks/base/cmds<br>/app_process/App_main.cpp | App_main.main()       | 所有Java进程的父进程                                         |
+| 2    | zygote进程         | frameworks/base/cmds<br>/app_process/app_main.cpp | App_main.main()       | 所有Java进程的父进程                                         |
 | 3    | system_server进程  |                                                   | SystemServer.main()   | 系统各大服务的载体                                           |
 | 4    | app_process进程    |                                                   | RuntimeInit.main()    | 通过/system/bin/app_process启动的进程，且后面跟的参数不带–zygote，即并非启动zygote进程。 比如常见的有通过adb shell方式来执行am,pm等命令，便是这种方式。 |
 | 5    | app进程            |                                                   | ActivityThread.main() | 通过Process.start启动App进程                                 |
@@ -124,11 +124,37 @@ Syscall && JNI
 
 ## 4.3 init进程
 
+https://blog.csdn.net/yiranfeng/article/details/103549394
 
+补充：
+
+1. Android7.0后，init.rc进行了拆分，每个服务都有自己的rc文件，他们基本上都被加载到/system/etc/init，/vendor/etc/init, /odm/etc/init等目录，等init.rc解析完成后，会来解析这些目录中的rc文件，用来执行相关的动作。例如，音频相关的audioserver.rc位于/system/etc/init目录下。
 
 ## 4.4 servicemanager进程
 
 ## 4.5 zygote进程
+
+https://blog.csdn.net/yiranfeng/article/details/103549872
+
+补充：
+
+1. zygote的rc文件中，配置了socket信息：
+
+   ```
+   /system/core/rootdir/init.zygote64_32.rc
+   
+   service zygote /system/bin/app_process64 -Xzygote /system/bin --zygote --start-system-server --socket-name=zygote
+   	// 创建一个名为dev/socket/zygote，类型为stream，权限为660的socket
+   	// 注意这里的/system/bin/app_process64是设备中可执行文件的路径，对应的源码并非这个位置
+   	socket zygote stream 660 root system
+   
+   service zygote_secondary /system/bin/app_process32 -Xzygote /system/bin --zygote --socket-name=zygote_secondary --enable-lazy-preload
+   
+   	// 创建一个名为dev/socket/zygote_secondary，类型为stream，权限为660的socket
+   	socket zygote_secondary stream 660 root system
+   ```
+   
+2. zygote代码中的启动入口位于frameworks\base\cmds\app_process\app_main.cpp
 
 ## 4.6 systemserver进程
 
@@ -203,3 +229,6 @@ A：Binder是android中主要的IPC方式，通过mmap实现一次拷贝，比So
 ## Q4：介绍下一次完整的Binder IPC通信的过程？
 
 ## 
+
+# 7. 音频框架
+

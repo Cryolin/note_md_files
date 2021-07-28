@@ -3606,6 +3606,76 @@ vbi:       class  offset o.vbptr  o.vbte fVtorDisp
           Father       8       0       4 0
 ```
 
+## 14.9 子类调用父类构造函数
+
+子类可以继承父类所有的成员变量和成员方法，但不继承父类的构造方法）。因此，在创建子类对象时，为了初始化从父类继承来的数据成员，系统需要调用其父类的构造方法。
+
+1. 如果子类没有定义构造函数，则调用父类的默认构造方法。
+2. 在创建子类对象时候，如果子类的构造函数没有显示调用父类的构造函数，则会调用父类的默认构造函数。
+3. 在创建子类对象时候，如果子类的构造函数没有显示调用父类的构造函数 且父类只定义了自己的有参构造函数，则会出错（如果父类只有有参数的构造方法，则子类必须显示调用此带参构造方法）。
+4. 如果子类调用父类带参数的构造方法，需要用初始化列表的方式。
+
+```C++
+#include <iostream>
+using namespace std;
+
+class Father
+{
+public:
+	Father()
+	{
+		cout << "Father 无参构造函数" << endl;
+	}
+
+	Father(string name)
+	{
+		cout << "Father 有参构造函数" << endl;
+		this->name = name;
+	}
+
+	string name;
+};
+
+class Son : public Father
+{
+public:
+	// 调用父类构造函数
+	Son() : Father(), age(10)
+	{
+		cout << "Son 无参构造函数" << endl;
+	}
+
+	// 调用父类有参构造函数
+	Son(string name) : Father(name), age(10)
+	{
+		cout << "Son 有参构造函数" << endl;
+	}
+	int age;
+};
+
+void test()
+{
+	Son son;
+	Son son2("Tom");
+}
+
+int main()
+{
+	test();
+
+	system("pause");
+}
+```
+
+```
+Father 无参构造函数
+Son 无参构造函数
+Father 有参构造函数
+Son 有参构造函数
+```
+
+
+
 # 15. 多态
 
 C++通过派生类与虚函数实现多态，对象运行时绑定
