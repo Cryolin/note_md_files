@@ -116,7 +116,7 @@ Syscall && JNI
 | 序号 | 进程               | 入口类路径                                        | 主方法                | 概述                                                         |
 | ---- | ------------------ | ------------------------------------------------- | --------------------- | ------------------------------------------------------------ |
 | 1    | init进程           | /system/core/init/main.cpp                        | main.main()           | Linux系统中用户空间的第一个进程                              |
-| 2    | zygote进程         | frameworks/base/cmds<br>/app_process/app_main.cpp | App_main.main()       | 所有Java进程的父进程                                         |
+| 2    | zygote进程         | frameworks/base/cmds<br>/app_process/app_main.cpp | app_main.main()       | 所有Java进程的父进程                                         |
 | 3    | system_server进程  |                                                   | SystemServer.main()   | 系统各大服务的载体                                           |
 | 4    | app_process进程    |                                                   | RuntimeInit.main()    | 通过/system/bin/app_process启动的进程，且后面跟的参数不带–zygote，即并非启动zygote进程。 比如常见的有通过adb shell方式来执行am,pm等命令，便是这种方式。 |
 | 5    | app进程            |                                                   | ActivityThread.main() | 通过Process.start启动App进程                                 |
@@ -136,25 +136,130 @@ https://blog.csdn.net/yiranfeng/article/details/103549394
 
 https://blog.csdn.net/yiranfeng/article/details/103549872
 
+![image-20210801201927790](.\images\image-20210801201927790.png)
+
 补充：
 
-1. zygote的rc文件中，配置了socket信息：
+1. zygote的rc文件中，配置了socket信息：同时，根据rc文件不同，可能启动多个zygote进程
 
    ```
    /system/core/rootdir/init.zygote64_32.rc
    
+   // 启动zygote进程
    service zygote /system/bin/app_process64 -Xzygote /system/bin --zygote --start-system-server --socket-name=zygote
    	// 创建一个名为dev/socket/zygote，类型为stream，权限为660的socket
    	// 注意这里的/system/bin/app_process64是设备中可执行文件的路径，对应的源码并非这个位置
    	socket zygote stream 660 root system
    
+   // 启动zygote_secondary进程
    service zygote_secondary /system/bin/app_process32 -Xzygote /system/bin --zygote --socket-name=zygote_secondary --enable-lazy-preload
    
    	// 创建一个名为dev/socket/zygote_secondary，类型为stream，权限为660的socket
    	socket zygote_secondary stream 660 root system
    ```
    
-2. zygote代码中的启动入口位于frameworks\base\cmds\app_process\app_main.cpp
+2. 关于AndroidRuntime::startReg(JNIEnv* env)函数
+
+   ```C++
+   // frameworks/base/core/jni/AndroidRuntime.cpp
+   /*static*/ int AndroidRuntime::startReg(JNIEnv* env)
+   {
+       ATRACE_NAME("RegisterAndroidNatives");
+       /*
+        * This hook causes all future threads created in this process to be
+        * attached to the JavaVM.  (This needs to go away in favor of JNI
+        * Attach calls.)
+        */
+       androidSetCreateThreadFunc((android_create_thread_fn) javaCreateThreadEtc);
+   
+       ALOGV("--- registering native functions ---\n");
+   
+       /*
+        * Every "register" function calls one or more things that return
+        * a local reference (e.g. FindClass).  Because we haven't really
+        * started the VM yet, they're all getting stored in the base frame
+        * and never released.  Use Push/Pop to manage the storage.
+        */
+       env->PushLocalFrame(200);
+   
+       // 
+       if (register_jni_procs(gRegJNI, NELEM(gRegJNI), env) < 0) {
+           env->PopLocalFrame(NULL);
+           return -1;
+       }
+       env->PopLocalFrame(NULL);
+   
+       //createJavaThread("fubar", quickTest, (void*) "hello");
+   
+       return 0;
+   }
+   ```
+
+   register_jni_procs()函数相关的几个定义：
+
+   ```C++
+   // frameworks/base/core/jni/AndroidRuntime.cpp
+   #ifdef NDEBUG
+       #define REG_JNI(name)      { name }
+       struct RegJNIRec {
+           int (*mProc)(JNIEnv*);
+       };
+   #else
+       #define REG_JNI(name)      { name, #name }
+       struct RegJNIRec {
+           int (*mProc)(JNIEnv*);
+           const char* mName;
+       };
+   #endif
+   
+   typedef void (*RegJAMProc)();
+   
+   static int register_jni_procs(const RegJNIRec array[], size_t count, JNIEnv* env)
+   {
+       for (size_t i = 0; i < count; i++) {
+           if (array[i].mProc(env) < 0) {
+   #ifndef NDEBUG
+               ALOGD("----------!!! %s failed to load\n", array[i].mName);
+   #endif
+               return -1;
+           }
+       }
+       return 0;
+   }
+   
+   static const RegJNIRec gRegJNI[] = {
+           REG_JNI(register_com_android_internal_os_RuntimeInit),
+           REG_JNI(register_com_android_internal_os_ZygoteInit_nativeZygoteInit),
+           REG_JNI(register_android_os_SystemClock),
+           REG_JNI(register_android_util_EventLog),
+       ...
+   }
+   ```
+
+   相当于依次执行gRegJNI数组中的函数指针中的函数，以register_com_android_internal_os_RuntimeInit为例：
+
+   ```C++
+   // frameworks/base/core/jni/AndroidRuntime.cpp
+   int register_com_android_internal_os_RuntimeInit(JNIEnv* env)
+   {
+       // JNINativeMethod记录了java方法与native函数的映射关系
+       // 关于JNI详细的说明见对应章节
+       const JNINativeMethod methods[] = {
+               {"nativeFinishInit", "()V",
+                (void*)com_android_internal_os_RuntimeInit_nativeFinishInit},
+               {"nativeSetExitWithoutCleanup", "(Z)V",
+                (void*)com_android_internal_os_RuntimeInit_nativeSetExitWithoutCleanup},
+       };
+       
+       // AndroidRuntime::jniRegisterNativeMethods实现JNI注册
+       return jniRegisterNativeMethods(env, "com/android/internal/os/RuntimeInit",
+           methods, NELEM(methods));
+   }
+   ```
+
+3. 关于ZygoteInit.main()函数
+
+   
 
 ## 4.6 systemserver进程
 

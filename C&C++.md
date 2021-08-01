@@ -557,18 +557,177 @@ int main() {
 }
 ```
 
+## 6.6 函数指针
+
+Android中zygote进程加载JNI的代码示例：
+
+```C++
+#include <iostream>
+using namespace std;
+
+// 函数指针01，android zogote进程注册JNI的代码分析
+// 具体位置：frameworks/base/core/jni/AndroidRuntime.cpp
+
+// REG_JNI宏定义，用大括号包起来，用于给下面的结构体初始化赋值
+// name前面加井号，代表取宏参数的字符串
+#define REG_JNI(name) { name, #name } 
+
+// 这个结构体包含一个函数指针和一个字符串
+// 可以通过  结构体变量.mProc()  的方式，使用结构体中的函数指针
+struct myType {
+    void(*mProc)();
+    const char* mName;
+};
+
+void print() {
+    printf("hello,world\n");
+}
+
+// 结构体数组
+const myType gRegJNI[] = {
+    // 与宏定义替换之后，可以给myType初始化
+    // 初始化后，把  print  函数赋值给函数指针
+    REG_JNI(print),
+};
+
+void register_jni_procs(const myType arrays[], size_t count)
+{
+    // 打印结果：
+    // hello world
+    // print
+    for (size_t i = 0; i < count; i++)
+    {
+        arrays[i].mProc();
+        cout << arrays[i].mName << endl;
+    }
+}
+
+int main() {
+    register_jni_procs(gRegJNI, 1);
+    system("pause");
+    return 0;
+}
+```
+
+函数指针的定义：
+
+```
+函数返回值类型 (* 指针变量名) (函数参数列表);
+```
+
+“函数返回值类型”表示该指针变量可以指向具有什么返回值类型的函数；“函数参数列表”表示该指针变量可以指向具有什么参数列表的函数。这个参数列表中只需要写函数的参数类型即可。
+
+```C++
+#include <iostream>
+using namespace std;
+
+int Max(int, int);
+int main(void)
+{
+	// 定义一个函数指针
+	int(*p)(int, int);  
+	int a = 10;
+	int b = 20;
+
+	// 把函数Max赋给指针变量p, 使p指向Max函数
+	p = Max;
+
+	//通过函数指针调用Max函数
+	int c = (*p)(a, b);
+
+	cout << "c = (*p)(a, b)  : " << c << endl;
+	system("pause");
+	return 0;
+}
+int Max(int x, int y)  //定义Max函数
+{
+	return x > y ? x : y;
+}
+```
+
+访问结构体、结构体指针、结构体引用中的函数指针，对象、对象指针、对象引用中的函数指针同理
+
+```c++
+#include <iostream>
+using namespace std;
+
+struct student
+{
+	int (*max)(int, int);
+	string name;
+};
+
+int Max(int x, int y)
+{
+	return x > y ? x : y;
+}
+
+// 访问结构体中的函数指针
+void test01()
+{
+	student s1 = {};
+	s1.name = "str";
+	s1.max = Max;
+	int max = s1.max(10, 20);
+
+	cout << "s1.max(10,20) : " << max << endl;
+}
+
+// 访问结构体指针中的函数指针
+void test02()
+{
+	student s = {};
+	student* sp = &s;
+	sp->name = "zhangsan";
+	sp->max = Max;
+	int max = sp->max(10, 20);
+
+	cout << "s.max(10,20) : " << max << endl;
+}
+
+// 访问结构体引用中的函数指针
+void test03()
+{
+	student s = {};
+	student& s1 = s;
+	s1.name = "lisi";
+	s1.max = Max;
+	int max = s1.max(10, 20);
+
+	cout << "s1.max(10,20) : " << max << endl;
+}
+
+int main(void)
+{
+	//test01();
+
+	//test02();
+
+	test03();
+
+	system("pause");
+	return 0;
+}
+```
+
+
+
 # 7. 结构体
 
 ## 7.1 结构体的定义和使用
 
 ```c++
+#include <iostream>
+
+using namespace std;
+
 // 结构体定义
 struct Student
 {
 	string name;
 	int age;
 	int score;
-} s3; // 创建结构体变量方法3
+}s6; // 创建结构体变量方法3
 
 int main() {
 	// 创建结构体变量的三种方法
@@ -580,13 +739,19 @@ int main() {
 	s1.age = 18;
 	s1.score = 100;
 
+
 	// 2. struct 结构体名 变量名 = {成员1值，成员2值...}
 	Student s2 = { "李四", 19, 80 };
 
+	// 可以只初始化部分内容，但必须按定义的顺序初始化，如下s5的方式报错
+	Student s3 = { "12" };
+	Student s4 = { "sf", 20 };
+	//Student s5 = { 30 };
+
 	// 3. 在定义结构体时顺便创建变量
-	s3.name = "王五";
-	s3.age = 20;
-	s3.score = 60;
+	s6.name = "王五";
+	s6.age = 20;
+	s6.score = 60;
 
 	system("pause");
 	return 0;
@@ -4627,7 +4792,13 @@ int main()
 }
 ```
 
+​	宏定义中#的作用：把宏参数转化为字符串
 
+```C++
+#define STR(s)		#s
+STR(vck);	// 输出字符串"vck"
+STR(123);  	//输出为字符串“123”
+```
 
 ## 19.2 文件包含
 
