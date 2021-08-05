@@ -1003,6 +1003,73 @@ int main()
 }
 ```
 
+## 8.4 malloc和free
+
+C语言中，可以通过malloc开辟内存，free释放内存
+
+```C
+#include <iostream>
+using namespace std;
+
+void test01()
+{
+	// 直接在栈区开辟大数组，报Stack Overflow，如下代码报错
+	//int arr[10 * 1024 * 1024];
+
+	// 通过malloc函数堆空间开辟内存，返回内存的首地址
+	// 返回值类型是void*，可以强转为任意指针
+	int* arr = (int*) malloc(10 * 1024 * 1024 * sizeof(int));
+
+	// 开辟完内存后，可以直接作为int数组写入
+	arr[0] = 1;
+	arr[1] = 2;
+
+	// 使用完后记得调用free释放内存空间
+	free(arr);
+
+	// 请注意，如下方式定义的int指针是不能作为数组使用的，未进行数组初始化
+	//int* arr2;
+	//arr2[1] = 10;
+
+	// 这样是可以的
+	int* arr3 = new int[10];
+	arr3[1] = 1;
+	delete[] arr3;
+}
+
+// 
+void test02()
+{
+	int a = 1;
+
+	// 变量不能直接用作数组初始化，如下代码报错
+	//int arr[a];
+
+	// 如果想通过变量初始化数组大小，可以使用new关键字在堆区创建
+	int* arr = new int[a];
+	arr[0] = 1;
+	delete[] arr;
+
+	// 当然，malloc也是可以的
+	int* arr2 = (int*)malloc(sizeof(int)*a);
+	arr2[0] = 1;
+	// 使用完后记得调用free释放内存空间
+	free(arr2);
+}
+
+int main(void)
+{
+	test01();
+
+	test02();
+
+	system("pause");
+	return 0;
+}
+```
+
+
+
 # 9. 引用
 
 ## 9.1 引用基本用法
@@ -4440,7 +4507,7 @@ template<class T>
 
 template — 声明创建模板
 
-typename — 表面其后面的符号是一种数据类型，可以用class代替
+typename — 表明其后面的符号是一种数据类型，可以用class代替
 
 T — 通用的数据类型，名称可以替换，通常为大写字母
 
@@ -4585,7 +4652,6 @@ T add02(T a, T b)
 }
 
 int main() {
-
 	int a = 10;
 	int b = 20;
 	char c = 'c';
