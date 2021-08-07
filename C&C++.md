@@ -139,32 +139,11 @@ int main() {
 
 ![image-20210606200714945](.\images\image-20210606200714945.png)
 
-## 2.2 字符串
-
-```C++
-#include <iostream>
-using namespace std;
-
-// C++支持两种字符串
-int main() {
-	// 1、C语言风格字符串
-	char str1[] = "Hello World";
-	cout << str1 << endl;
-
-	// 2、C++风格字符串
-	string str2 = "Hello World";
-	cout << str2 << endl;
-
-	system("pause");
-	return 0;
-}
-```
-
-## 2.3 布尔型
+## 2.2 布尔型
 
 C++中，布尔型的关键字是bool
 
-## 2.4 数据输入输出
+## 2.3 数据输入输出
 
 通过cin和cout进行数据输入输出
 
@@ -778,7 +757,7 @@ int main(void)
 
 
 
-# 7. 结构体
+# 7. 结构体&联合体&枚举
 
 ## 7.1 结构体的定义和使用
 
@@ -879,6 +858,112 @@ void printStu3(const Student* stu)
 	cout << "printStu3 " << stu->name << endl;
 }
 ```
+
+## 7.4 联合体
+
+联合体与结构体的区别是，联合体只能给一个成员赋值：
+
+```C++
+#include <iostream>
+using namespace std;
+
+union student
+{
+	char name[10];
+	int age;
+};
+
+int main()
+{
+	student stu;
+	strcpy(stu.name, "abc");
+	// 只有name
+	cout << stu.name << stu.age << endl;
+
+	stu.age = 10;
+	// name被覆盖，只有age
+	cout << stu.name << stu.age << endl;
+
+	// sizeof联合体，选取最大的成员的长度，如果不能整除基本数据类型，向上取整
+	// 例如student最大成员长度为10,但另一个成员是int，10不能整除4，需要与int对齐
+	// 故sizeof(stu) 为12
+	cout << sizeof(stu) << endl;
+
+	system("pause");
+}
+```
+
+## 7.5 枚举
+
+```C++
+#include <iostream>
+using namespace std;
+
+enum COLOR_A
+{
+	RED,YELLOW,BLUE
+};
+
+enum COLOR_B
+{
+	RED_B = 10, YELLOW_B, BLUE_B
+};
+
+enum COLOR_C
+{
+	RED_C = 10, YELLOW_C = 13, BLUE_C
+};
+
+void test01()
+{
+	COLOR_A color1 = RED;
+	COLOR_A color2 = YELLOW;
+	COLOR_A color3 = BLUE;
+
+	// 打印0,1,2
+	cout << color1 << endl;
+	cout << color2 << endl;
+	cout << color3 << endl;
+	cout << endl;
+}
+
+void test02()
+{
+	COLOR_B color1 = RED_B;
+	COLOR_B color2 = YELLOW_B;
+	COLOR_B color3 = BLUE_B;
+
+	// 打印10,11,12
+	cout << color1 << endl;
+	cout << color2 << endl;
+	cout << color3 << endl;
+	cout << endl;
+}
+
+void test03()
+{
+	COLOR_C color1 = RED_C;
+	COLOR_C color2 = YELLOW_C;
+	COLOR_C color3 = BLUE_C;
+
+	// 打印10,13,14
+	cout << color1 << endl;
+	cout << color2 << endl;
+	cout << color3 << endl;
+	cout << endl;
+}
+
+int main()
+{
+	test01();
+	test02();
+	test03();
+
+	system("pause");
+}
+```
+
+
 
 # 8. C++内存分配
 
@@ -1021,11 +1106,19 @@ void test01()
 	int* arr = (int*) malloc(10 * 1024 * 1024 * sizeof(int));
 
 	// 开辟完内存后，可以直接作为int数组写入
-	arr[0] = 1;
-	arr[1] = 2;
+	// 可能开辟失败，要判空
+	if (arr)	// 等效于 if (arr != NULL)
+	{
+		arr[0] = 1;
+		arr[1] = 2;
+	}
 
 	// 使用完后记得调用free释放内存空间
-	free(arr);
+	if (arr)
+	{
+		free(arr);
+		arr = NULL;
+	}
 
 	// 请注意，如下方式定义的int指针是不能作为数组使用的，未进行数组初始化
 	//int* arr2;
@@ -1052,14 +1145,96 @@ void test02()
 
 	// 当然，malloc也是可以的
 	int* arr2 = (int*)malloc(sizeof(int)*a);
-	arr2[0] = 1;
+	if (arr2)
+	{
+		arr2[0] = 1;
+	}
 	// 使用完后记得调用free释放内存空间
-	free(arr2);
+	if (arr2)
+	{
+		free(arr2);
+	}
 }
 
 int main(void)
 {
 	test01();
+
+	test02();
+
+	system("pause");
+	return 0;
+}
+```
+
+## 8.5 realloc
+
+realloc用于重新开辟内存。默认情况下，新内存和老内存反馈同一个指针地址。当新开辟内存空间不连续时，会返回一个新的指针地址，把老内存的内容copy过去，并free老内存。realloc可能存在开辟失败的情况，返回NULL。
+
+```c
+#include <iostream>
+using namespace std;
+
+void test01()
+{
+	int num_old = 2;
+	int* arr_old = (int*)malloc(sizeof(int) * num_old);
+	if (arr_old)
+	{
+		for (int i = 0; i < num_old; i++)
+		{
+			arr_old[i] = i;
+		}
+	}
+	cout << "old 首地址： " << arr_old << endl;
+
+	int num_new = 3;
+	int* arr_new = (int*)realloc(arr_old, sizeof(int) * num_new);
+	if (arr_new)
+	{
+		// old的部分会被直接copy过来，没有必要从0重新赋值了
+		for (int i = num_old; i < num_new; i++)
+		{
+			arr_new[i] = i;
+		}
+	}
+	cout << "new 首地址： " << arr_new << endl;
+	// old首地址与new首地址可能相同，也可能不同，也可能因开辟失败为NULL
+
+	for (int i = 0; i < num_new; i++)
+	{
+		cout << "arr_new[i] = " << arr_new[i] << endl;
+	}
+
+	// 仅释放新的就可以了
+	if (arr_new)
+	{
+		free(arr_new);
+	}
+}
+
+void test02()
+{
+	int num_old = 2;
+	int* arr_old = (int*)malloc(sizeof(int) * num_old);
+	arr_old[0] = 0;
+	arr_old[1] = 1;
+
+	// realloc的长度可以小于旧的，会把后面的内存释放掉
+	int* arr_new = (int*)realloc(arr_old, sizeof(int) * 1);
+	cout << arr_new[0] << endl;
+	cout << arr_new[1] << endl;
+
+	// 虽然arr_new[1] 不报错，但是该内存已经被释放了
+	// 0
+	// - 33686019
+
+	free(arr_new);
+}
+
+int main(void)
+{
+	//test01();
 
 	test02();
 
@@ -4973,11 +5148,74 @@ int main()
 }
 ```
 
-# 20. string.h
+# 20. 字符串
 
-学习下string.h的常用函数
+学习下字符串以及string.h的常用函数
 
-## 20.1 strcmp()
+## 20.1 字符串
+
+```C++
+#include <iostream>
+using namespace std;
+
+// C++支持两种字符串
+int main() {
+	// 1、C语言风格字符串
+	char str1[] = "Hello World";
+	cout << str1 << endl;
+
+	// 2、C++风格字符串
+	string str2 = "Hello World";
+	cout << str2 << endl;
+
+	system("pause");
+	return 0;
+}
+```
+
+## 20.2 获取字符串长度
+
+```C++
+#include <iostream>
+using namespace std;
+
+int getLength(char* str)
+{
+	// 如下方式不对，sizeof(str)的值不准确
+	//return sizeof(str) / sizeof(str[0]);
+
+	// 正确的返回字符串长度的方法：循环读取char，直到读到\0
+	int length = 0;
+	while (*str != '\0')
+	{
+		length++;
+		str++;
+	}
+	return length;
+}
+
+int main()
+{
+	char str1[] = "abc";
+	char str2[] = { 'a','b','c','\0' };
+
+	// 字符串以\0标识结尾，str1等价于str2，strlen均返回3
+	cout << "str1的长度 ： " << strlen(str1) << endl;
+	cout << "str2的长度 ： " << strlen(str2) << endl;
+
+	// 但如果采用数组长度的计算方法，计算出来的结果为4,
+	// 所以针对char数组形式的字符串，不要用此方法计算长度
+	cout << "str1的长度 ： " << sizeof(str1) / sizeof(str1[0]) << endl;
+	cout << "str2的长度 ： " << sizeof(str1) / sizeof(str1[0]) << endl;
+
+	// 如果把char数组指针传到函数，是计算不出
+	cout << "字符串长度： " << getLength(str1) << endl;
+
+	system("pause");
+}
+```
+
+## 20.3 字符串比较
 
 语法/原型：
 
@@ -5034,6 +5272,188 @@ int main()
 	system("pause");
 }
 ```
+
+## 20.4 字符串转换
+
+```C++
+#include <iostream>
+using namespace std;
+
+int main()
+{
+	// 1. 通过aoti将字符串强转为int
+	char str1[] = "12";
+	cout << atoi(str1) << endl;	//12
+
+	char str2[] = "12xxx";
+	cout << atoi(str2) << endl;	//12
+
+	char str3[] = "xxx12xxx";
+	cout << atoi(str3) << endl;	//0		无法转换，返回默认值0
+
+	// 2. 通过aotf将字符串强转为float
+	char str4[] = "12.5";
+	cout << atof(str4) << endl;	//12.5
+
+	char str5[] = "12.5xxx";
+	cout << atof(str5) << endl;	//12.5
+
+	char str6[] = "xxx12.5xxx";
+	cout << atof(str6) << endl;	//0		无法转换，返回默认值0
+
+	system("pause");
+}
+```
+
+## 20.5 字符串查找
+
+```c++
+#include <iostream>
+using namespace std;
+
+char str1[] = "I'm Chinese";
+char str2[] = "nes";
+char str3[] = "abc";
+
+// 字符串查找
+void test01()
+{
+	char* pos = strstr(str1, str2);
+
+	// 返回子串在父串的第一次出现的指针位置
+	// 如下打印会从父串的指针位置打印到结尾'\0'
+	// nese
+	cout << pos << endl;
+
+	// 不包含时，返回NULL
+	char* pos2 = strstr(str1, str3);
+}
+
+// 返回子串在父串中第一次出现的index，通过指针相减实现
+int getSubStrIndex()
+{
+	char* pos = strstr(str1, str2);
+	return pos - str1;
+}
+
+int main()
+{
+	test01();
+
+	cout << getSubStrIndex() << endl;;
+
+	system("pause");
+}
+```
+
+## 20.6 字符串拼接
+
+```C++
+#include <iostream>
+using namespace std;
+
+char str1[] = "I'm ";
+char str2[] = "Chinese";
+
+// 字符串拼接
+void test01()
+{
+	char* str3 = strcat(str1, str2);
+
+	// I'm Chinese
+	cout << str3 << endl;
+}
+
+int main()
+{
+	test01();
+
+	system("pause");
+}
+```
+
+## 20.7 字符串复制
+
+```C++
+#include <iostream>
+using namespace std;
+
+// 字符串复制
+void test01()
+{
+	// 把str2中的内容复制到str1中，str1的长度至少要是4,小于4会执行报错
+	char str1[4];
+	char str2[] = "abc";
+	strcpy(str1, str2);
+	cout << "str1 : " << str1 << endl;
+	cout << "str2 : " << str2 << endl;
+}
+
+int main()
+{
+	test01();
+
+	system("pause");
+}
+```
+
+## 20.8 字符串截取
+
+```C++
+#include <iostream>
+using namespace std;
+
+// 字符串截取
+char* subStr(char* str, int start, int end)
+{
+	int len = strlen(str);
+	if (start < 0 || start >= len)
+	{
+		return NULL;
+	}
+	// 含头不含尾
+	if (end < 0 || end > len)
+	{
+		return NULL;
+	}
+	if (start > end)
+	{
+		return NULL;
+	}
+	char* result = (char*)malloc(sizeof(char) * (end - start + 1));
+	if (!result)
+	{
+		return NULL;
+	}
+	char* temp = result;
+	for (int i = 0; i < end - start; i++)
+	{
+		*result = str[start + i];
+		result++;
+	}
+
+	// 标记字符串结尾
+	temp[end - start] = '\0';
+	return temp;
+}
+
+int main()
+{
+	char str[] = "Hello World";
+
+	char* result = subStr(str, 3, 5);
+	cout << result << endl;
+
+	// 截取的长度为2
+	cout << strlen(result) << endl;
+
+	free(result);
+
+	system("pause");
+}
+```
+
+
 
 # 21. 命名空间
 
