@@ -1,4 +1,4 @@
-# 1. 初识C++
+初识C++
 
 ## 1.1 C++常量
 
@@ -5574,3 +5574,3053 @@ int main()
 
 # 22. 智能指针
 
+## 22.1 智能指针及RAII
+
+**问题**
+
+C++中最令人头疼的问题是强迫程序员对申请的资源（文件，内存等）进行管理，一不小心就会出现泄露（忘记对申请的资源进行释放）的问题。
+
+
+
+```C++
+// C++
+auto ptr = new std::vector<int>();
+```
+
+
+
+```java
+//使用了垃圾回收技术,不在需要人为管理，相关的虚拟机会自动释放不需要使用的资源。
+// Java
+ArrayList<int> list = new ArrayList<int>();
+```
+
+
+
+```python
+# Python
+lst = list()
+```
+
+
+
+**C++的解决办法：RAII**
+
+在传统 C++ 里我们只好使用 `new` 和 `delete` 去『记得』对资源进行释放。而 C++11 引入了智能指针的概念，使用了引用计数的想法，让程序员不再需要关心手动释放内存。
+
+**解决思路：**
+
+- 利用C++中一个对象出了其作用域会被自动析构，因此我们只需要在构造函数的时候申请空间，而在析构函数（在离开作用域时调用）的时候释放空间，这样，就减轻了程序员在编码过程中，考虑资源释放的问题，这就是**RAII**。
+
+**RAII**，完整的英文是 Resource Acquisition Is Initialization，是 C++ 所特有的资源管理方式。
+
+- 有少量其他语言，如 D、Ada 和 Rust 也采纳了 RAII，但主流的编程语言中， C++ 是唯一一个依赖 RAII 来做资源管理的。
+- RAII 依托栈和析构函数，来对所有的资源——包括堆内存在内——进行管理。对 RAII 的使用，使得 C++ 不需要类似于 Java 那样的垃圾收集方法，也能有效地对内存进行管理。
+
+具体而言，C11的stl中为大家带来了3种智能指针，正确合理的使用可以有效的帮助大家管理资源，当然，在C++的使用智能指针没有像Java,python这种具备垃圾回收机制的语言那么舒适，毕竟，程序员还需要做一些额外的事情，但是，这远比传统的C或者C++更加优雅。
+
+3种智能指针分别是：
+
+- `std::shared_ptr` 强指针
+- `std::unique_ptr`
+- `std::weak_ptr ` 弱指针
+
+在早期有一个auto_ptr，这四种指针在使用上有区别：
+
+-  auto_ptr有缺陷是过时的产物。
+
+-  unique_ptr对auto_ptr的问题进行了修正。
+
+-  shared_ptr使用了引用计数，但是会出现循环引用的问题需要配合后面的weak_ptr一起使用。
+
+## 22.2 引用计数
+
+要正确的理解智能指针，首先必须理解引用计数技术。
+
+**深拷贝、浅拷贝的概念**
+
+- 深拷贝优缺点：
+  - 优点：每一个的对象（哪怕是通过拷贝构造函数实例化的对象）的指针都有指向的内存空间，而不是共享，所以在对象析构的时候就不存在重复释放或内存泄露的问题了。
+  - 缺点：内存开销大
+
+- 浅拷贝优缺点：
+  - 优点：通过拷贝构造函数实例化的对象的指针数据变量指向的共享的内存空间，因此内存开销较小。
+  - 缺点：对象析构的时候就可能会重复释放或造成内存泄露。
+
+​    鉴于深拷贝和浅拷贝的优缺点，可采用**引用计数**技术，既减小了内存开销，又避免了堆的重复释放或内存泄露问题。
+
+**举例说明**
+
+在深拷贝的情况下，通过拷贝构造或者赋值构造的对象均各自包含自己的指针指向“Hello”。
+
+![image-20210813002033591](.\images\image-20210813002033591.png)
+
+但是，显然这样比较浪费内存，存在冗余，那么下面的版本更好：
+
+![image-20210813002145887](.\images\image-20210813002145887.png)
+
+我们使用代码来描述这一过程：
+
+```c++
+#include "stdafx.h"
+#include <iostream.h>
+#include <cstring>
+
+class CStudent
+{
+public:
+	CStudent(const char* pszName);
+	CStudent(CStudent& obj);
+
+	CStudent& operator=(CStudent& obj);
+
+	void release();
+
+	void Show()
+	{
+		cout << hex << (int&)m_pszName << m_pszName <<endl;
+	}
+
+private:
+    char* m_pszName;	
+};
+
+
+CStudent::CStudent(const char* pszName)
+{
+	m_pszName = new char[256];
+
+	strcpy(m_pszName, pszName);
+}
+
+
+CStudent::CStudent(CStudent& obj)
+{
+	m_pszName = obj.m_pszName;
+	
+	//strcpy(m_pszName, obj.m_pszName);
+}
+
+
+CStudent& CStudent::operator=(CStudent& obj)
+{
+	m_pszName = obj.m_pszName;
+
+	return *this;
+}
+
+void CStudent::release()
+{
+	if (m_pszName != NULL)
+	{
+		delete m_pszName;
+		m_pszName = NULL;
+	}
+}
+
+int main(int argc, char* argv[])
+{
+	CStudent stu1("zhang san");
+
+	CStudent stu2("li si");
+
+	CStudent stu3 = stu2;
+
+
+	stu1.Show();
+	stu2.Show();
+	stu3.Show();
+
+	stu2.release();
+
+	stu3.Show();
+
+	return 0;
+}
+```
+
+**这样做带来的问题**：
+
+ 但是这样同样存在问题，一旦其中一个对象释放了资源，那么所有的其他对象的资源也被释放了。
+
+ **解决方法**：增加一个变量，记录**资源使用的次数**。
+
+![image-20210813002306583](.\images\image-20210813002306583.png)
+
+```C++
+#include "stdafx.h"
+#include <iostream.h>
+#include <cstring>
+
+class CStudent
+{
+public:
+	CStudent(const char* pszName);
+	CStudent(CStudent& obj);
+
+	~CStudent();
+
+	CStudent& operator=(CStudent& obj);
+
+	void release();
+
+	void Show()
+	{
+		if (*m_pCount > 0)
+		{
+			cout << hex << (int&)m_pszName << m_pszName <<endl;
+		}
+	}
+
+private:
+    char* m_pszName;
+	int * m_pCount;
+};
+
+
+CStudent::CStudent(const char* pszName)
+{
+	m_pszName = new char[256];
+	m_pCount  = new int;
+
+	strcpy(m_pszName, pszName);
+
+	*m_pCount = 1;
+}
+
+
+CStudent::CStudent(CStudent& obj)
+{
+	m_pszName = obj.m_pszName;
+	
+	m_pCount = obj.m_pCount;
+	(*m_pCount)++;
+
+}
+
+CStudent::~CStudent()
+{
+	release();
+}
+
+
+CStudent& CStudent::operator=(CStudent& obj)
+{
+	if (obj.m_pszName == m_pszName)
+	{
+		return *this;
+	}
+
+	if (--(*m_pCount) == 0)
+	{
+		delete m_pszName;
+		m_pszName = NULL;
+		delete m_pCount;
+
+	}
+
+	m_pszName = obj.m_pszName;
+	m_pCount = obj.m_pCount;
+
+	(*m_pCount)++;
+
+	return *this;
+}
+
+void CStudent::release()
+{
+	if (m_pszName != NULL && --*m_pCount == 0)
+	{
+		delete m_pszName;
+		m_pszName = NULL;
+
+		delete m_pCount;
+	}
+}
+
+int main(int argc, char* argv[])
+{
+	CStudent stu1("zhang san");
+
+	CStudent stu2("li si");
+
+	CStudent stu3 = stu2;
+
+
+	stu1.Show();
+	stu2.Show();
+	stu3.Show();
+
+	stu2.release();
+	stu3.release();
+
+	stu3.Show();
+
+	return 0;
+}
+```
+
+最后，我们将该引用计数做一个简易的封装，也就是把引用计数作为一个新的类来使用：
+
+```c++
+#include "stdafx.h"
+#include <iostream.h>
+#include <cstring>
+
+struct RefValue 
+{
+
+	RefValue(const char* pszName);
+	~RefValue();
+
+	void AddRef();
+	void Release();
+
+	char* m_pszName;
+	int   m_nCount;
+};
+
+RefValue::RefValue(const char* pszName)
+{
+	m_pszName = new char[strlen(pszName)+1];
+	
+	m_nCount = 1;
+
+}
+
+RefValue::~RefValue()
+{
+
+	if (m_pszName != NULL)
+	{
+		delete m_pszName;
+		m_pszName = NULL;
+	}
+}
+
+void RefValue::AddRef()
+{
+	m_nCount++;
+}
+
+void RefValue::Release()
+{
+	if (--m_nCount == 0)
+	{
+		delete this;
+	}
+	
+}
+
+
+class CStudent
+{
+public:
+	CStudent(const char* pszName);
+	CStudent(CStudent& obj);
+
+	~CStudent();
+
+	CStudent& operator=(CStudent& obj);
+
+	void release();
+
+	void Show()
+	{
+		if (m_pValue->m_nCount > 0)
+		{
+			cout << hex << (int&)m_pValue->m_pszName << m_pValue->m_nCount <<endl;
+		}
+	}
+
+private:
+	RefValue* m_pValue;
+};
+
+
+CStudent::CStudent(const char* pszName)
+{
+	m_pValue = new RefValue(pszName);
+}
+
+
+CStudent::CStudent(CStudent& obj)
+{
+	m_pValue = obj.m_pValue;
+	m_pValue->AddRef();
+}
+
+CStudent::~CStudent()
+{
+	release();
+}
+
+
+CStudent& CStudent::operator=(CStudent& obj)
+{
+	if (obj.m_pValue == m_pValue)
+	{
+		return *this;
+	}
+
+	m_pValue->Release();
+
+	m_pValue = obj.m_pValue;
+	m_pValue->AddRef();
+
+	return *this;
+}
+
+void CStudent::release()
+{
+	m_pValue->Release();
+}
+
+int main(int argc, char* argv[])
+{
+	CStudent stu1("zhang san");
+
+	CStudent stu2("li si");
+
+	CStudent stu3 = stu2;
+
+
+	stu1.Show();
+	stu2.Show();
+	stu3.Show();
+
+	stu2.release();
+	//stu3.release();
+
+	stu3.Show();
+
+	stu3.release();
+
+	return 0;
+}
+```
+
+
+
+**问题**：
+
+上面的做法能在一定程度上解决资源多次重复申请的浪费，但是仍然存在两个核心的问题。
+
+- 如果对其中某一个类对象中的资源进行了修改，那么所有引用该资源的对象全部会被修改，这显然是错误的。
+- 当前的计数器作用于Student类，在使用时候，需要强行加上引用计数类，这样复用性不好，使用不方便。
+
+## 22.3 写时拷贝 
+
+**问题**：如果共享资源中的值发生了变化，那么其他使用该共享资源的值如何保持不变？
+
+![image-20210813002433588](.\images\image-20210813002433588.png)
+
+**解决思路**：使用引用计数时，当发生共享资源值改变的时候，需要对其资源进行重新的拷贝，这样改变的时拷贝的值，而不影响原有的对象中的共享资源。
+
+![image-20210813002527128](.\images\image-20210813002527128.png)
+
+**写时拷贝**(COW copy on write)，在所有需要改变值的地方，重新分配内存。
+
+
+
+```c++
+// Student.cpp : Defines the entry point for the console application.
+//
+
+#include "stdafx.h"
+#include <iostream.h>
+#include <cstring>
+
+struct RefValue 
+{
+
+	RefValue(const char* pszName);
+	~RefValue();
+
+	void AddRef();
+	void Release();
+
+	char* m_pszName;
+	int   m_nCount;
+};
+
+RefValue::RefValue(const char* pszName)
+{
+	m_pszName = new char[256];
+	
+	strcpy(m_pszName, pszName);
+	m_nCount = 1;
+
+}
+
+RefValue::~RefValue()
+{
+	if (m_pszName != NULL)
+	{
+		delete m_pszName;
+		m_pszName = NULL;
+	}
+}
+
+void RefValue::AddRef()
+{
+	m_nCount++;
+}
+
+void RefValue::Release()
+{
+	if (--m_nCount == 0)
+	{
+		delete this;
+	}
+	
+}
+
+
+class CStudent
+{
+public:
+	CStudent(const char* pszName);
+	CStudent(CStudent& obj);
+
+	void SetName(const char* pszName);
+
+	~CStudent();
+
+	CStudent& operator=(CStudent& obj);
+
+	void release();
+
+	void Show()
+	{
+		if (m_pValue->m_nCount > 0)
+		{
+			cout << hex << (int&)m_pValue->m_pszName << m_pValue->m_pszName <<endl;
+		}
+	}
+
+private:
+	RefValue* m_pValue;
+};
+
+void CStudent::SetName(const char* pszName)
+{
+	m_pValue->Release();
+	m_pValue = new RefValue(pszName);
+}
+
+CStudent::CStudent(const char* pszName)
+{
+	m_pValue = new RefValue(pszName);
+}
+
+CStudent::CStudent(CStudent& obj)
+{
+	m_pValue = obj.m_pValue;
+	m_pValue->AddRef();
+}
+
+CStudent::~CStudent()
+{
+	release();
+}
+
+
+CStudent& CStudent::operator=(CStudent& obj)
+{
+	if (obj.m_pValue == m_pValue)
+	{
+		return *this;
+	}
+
+	m_pValue->Release();
+
+	m_pValue = obj.m_pValue;
+	m_pValue->AddRef();
+
+	return *this;
+}
+
+void CStudent::release()
+{
+	m_pValue->Release();
+}
+
+int main(int argc, char* argv[])
+{
+	CStudent stu1("zhang san");
+
+	CStudent stu2("li si");
+
+	CStudent stu3 = stu2;
+
+
+	stu2.Show();
+	stu3.Show();
+
+	stu2.SetName("li si2");
+
+	stu2.Show();
+	stu3.Show();
+
+	return 0;
+}
+```
+
+## 22.4 智能指针的简易实现
+
+前面，我们学会了如何使用引用计数及写时拷贝，这是理解智能指针必不可少的方法。但是，在实际写代码中，我们其实更倾向于让程序员对于资源的管理没有任何的感知，也就是说，最好让程序员只需要考虑资源的何时申请，对于何时释放以及资源内部如何计数等问题，统统交给编译器内部自己处理。
+
+智能指针另外一点就是在使用上要像真正的指针一样可以支持取内容*, 指针访问成员->等操作，因此，就需要对这些运算符进行重载。
+
+
+
+```c++
+#include "stdafx.h"
+#include <iostream.h>
+
+//智能指针
+
+class CStudent
+{
+public:
+  CStudent()
+  {
+  
+  }
+
+  void test()
+  {
+    cout << "CStudent" << endl;
+  }
+  
+private:
+  char* m_pszBuf;
+  int   m_nSex;
+};
+
+class CRefCount
+{
+  friend class CSmartPtr;
+
+  CRefCount(CStudent* pStu)
+  {
+    m_pObj = pStu;
+    m_nCount = 1;
+  }
+
+  ~CRefCount()
+  {
+    delete m_pObj;
+    m_pObj = NULL;
+  }
+
+  void AddRef()
+  {
+    m_nCount++;
+  }
+
+  void Release()
+  {
+    if (--m_nCount == 0)
+    {
+      delete this;
+    }
+  }
+
+private:
+  CStudent* m_pObj;
+  int       m_nCount;
+};
+
+
+class CSmartPtr
+{
+public:
+
+  CSmartPtr()
+  {
+    m_pRef = NULL;
+  }
+
+  CSmartPtr(CStudent* pStu)
+  {
+    m_pRef = new CRefCount(pStu);
+  }
+
+  ~CSmartPtr()
+  {
+    m_pRef->Release();
+  }
+
+  CSmartPtr(CSmartPtr& obj)
+  {
+//     if (m_pRef != NULL)
+//     {
+//       m_pRef->Release();
+//     }
+
+    m_pRef = obj.m_pRef;
+    m_pRef->AddRef();
+
+  }
+
+  CSmartPtr& operator=(CSmartPtr& obj)
+  {
+    if (m_pRef == obj.m_pRef)
+    {
+      return *this;
+    }
+      
+    if (m_pRef != NULL)
+    {
+      m_pRef->Release();
+    }
+    
+    m_pRef = obj.m_pRef;
+    m_pRef->AddRef();
+    
+
+    return *this;
+  }
+
+  void test2()
+  {
+    cout << "test2" << endl;
+  }
+
+  CStudent* operator->()
+  {
+    return m_pRef->m_pObj;
+  }
+
+  CStudent** operator&()
+  {
+    return &m_pRef->m_pObj;
+  }
+
+  CStudent& operator*()
+  {
+    return *m_pRef->m_pObj;
+  }
+
+  operator CStudent*()
+  {
+    return m_pRef->m_pObj;
+  }
+
+
+//   operator CStudent()
+//   {
+//     return *m_pStu;
+//   }
+
+private:
+  CRefCount* m_pRef;
+};
+
+int main(int argc, char* argv[])
+{
+  CSmartPtr obj = new CStudent;
+  CSmartPtr obj4 = new CStudent;
+  
+  CSmartPtr obj2 = obj;
+  
+  {
+    CSmartPtr obj3;
+
+    obj3 = obj;
+    obj3 = obj4;
+  }
+
+  //CStudent* pStu = new CStudent;
+  //obj.test();
+
+  //pStu ==> obj->
+  //pStu->test();
+
+  //obj->->test();
+  //pStu->test();
+  
+
+  
+//   obj->test(); //==> pStu->test();
+// 
+//   CStudent** ppStu = &obj;
+//   
+//   //(obj).test();
+//   (*obj).test();
+// 
+//   CSmartPtr obj2 = obj;
+// 
+//   obj2->test();
+
+	return 0;
+}
+```
+
+## 22.5 为智能指针添加模板
+
+我们在前面自己做一个智能指针，让其帮助我们管理资源。但是这并不通用，因此，我们可以为其添加上模板的技术，这样让其更加通用。
+
+```c++
+// TestC11.cpp : 定义控制台应用程序的入口点。
+//
+
+#include "stdafx.h"
+#include <iostream>
+#include <cstring>
+
+using namespace std;
+
+//智能指针：
+// 1. 用起来像指针
+// 2. 会自己对资源进行释放
+
+class CStudent
+{
+public:
+    CStudent(){}
+
+    void test(){
+        cout << "CStudent" << endl;
+        m_nSex = 1;
+    }
+
+private:
+    char* m_pszBuf;
+    int   m_nSex;
+};
+
+
+template<typename T>
+class CSmartPtr;
+
+template<typename T>
+class CRefCount
+{
+    friend class CSmartPtr<T>;
+public:
+    CRefCount(T* pStu){
+        m_pObj = pStu;
+        m_nCount = 1;
+    }
+
+    ~CRefCount(){
+        delete m_pObj;
+        m_pObj = NULL;
+    }
+
+    void AddRef(){
+        m_nCount++;
+    }
+
+    void Release(){
+        if (--m_nCount == 0){
+            //这么写就表示自己一定要是一个堆对象
+            delete this;
+        }
+    }
+
+private:
+    T* m_pObj;
+    int       m_nCount;
+};
+
+//致命问题， CSmartPtr中表示的类型是固定的，是CStudent, 需要添加模板
+template<typename T>
+class CSmartPtr
+{
+public:
+
+    CSmartPtr()
+    {
+        m_pRef = NULL;
+    }
+
+    CSmartPtr(T* pStu)
+    {
+        m_pRef = new CRefCount<T>(pStu);
+    }
+
+    ~CSmartPtr()
+    {
+        m_pRef->Release();
+    }
+
+    CSmartPtr(CSmartPtr& obj)
+    {
+        m_pRef = obj.m_pRef;
+        m_pRef->AddRef();
+    }
+
+    CSmartPtr& operator=(CSmartPtr& obj)
+    {
+        if (m_pRef == obj.m_pRef){
+            return *this;
+        }
+
+        if (m_pRef != NULL)
+        {
+            m_pRef->Release();
+        }
+
+        m_pRef = obj.m_pRef;
+        m_pRef->AddRef();
+
+        return *this;
+    }
+
+    void test2()
+    {
+        cout << "test2" << endl;
+    }
+
+    T* operator->()
+    {
+        return m_pRef->m_pObj;
+    }
+
+    T** operator&()
+    {
+        return &m_pRef->m_pObj;
+    }
+
+    T& operator*()
+    {
+        return *m_pRef->m_pObj;
+    }
+
+    operator T*()
+    {
+        return m_pRef->m_pObj;
+    }
+
+private:
+    CRefCount<T>* m_pRef;
+};
+
+class CTest{
+public:
+    CTest(){}
+
+};
+
+
+
+
+int main(int argc, char* argv[])
+{
+    CStudent* pStu = new CStudent();
+
+    //CRefCount<CStudent> ref(pStu);
+
+    CSmartPtr<CStudent> sp1(pStu);
+    CSmartPtr<CStudent> sp2(new CStudent()); //拷贝构造
+    //sp2 = sp1; //运算符重载
+
+    //
+    CSmartPtr<CTest> sp3(new CTest);
+
+   
+    return 0;
+}
+```
+
+
+
+另外一种写法：
+
+```c++
+    template<typename FriendClass, typename DataType>  
+    class PtrCount  
+    {  
+        friend FriendClass;  
+        PtrCount(DataType* _p):p(_p),use(1){}  
+        ~PtrCount(){delete p;}  
+        DataType* p;  
+        size_t use;  
+    };  
+      
+    template<typename DataType>  
+    class SmartPtr  
+    {  
+    public:  
+        SmartPtr(DataType *p)  
+            :m_ref(new PtrCount<SmartPtr, DataType>(p))  
+        {  
+        }  
+      
+        SmartPtr(const SmartPtr &orig)  
+            :m_ref(orig.m_ref)  
+        {  
+            ++m_ref->use;  
+        }  
+      
+        SmartPtr& operator=(const SmartPtr &rhs)  
+        {  
+            ++rhs.m_ref->use;  
+            if (--m_ref->use == 0)  
+                delete m_ref;  
+            m_ref = rhs.m_ref;  
+            return *this;  
+        }  
+      
+        ~SmartPtr()  
+        {  
+            if (--m_ref->use == 0)  
+                delete m_ref;  
+        }  
+      
+    private:  
+        PtrCount<SmartPtr, DataType>* m_ref;  
+    };  
+```
+
+```c++
+//另一种实现方式
+#include <utility>  // std::swap
+
+class shared_count {
+public:
+  shared_count() noexcept
+    : count_(1) {}
+  void add_count() noexcept
+  {
+    ++count_;
+  }
+  long reduce_count() noexcept
+  {
+    return --count_;
+  }
+  long get_count() const noexcept
+  {
+    return count_;
+  }
+
+private:
+  long count_;
+};
+
+template <typename T>
+class smart_ptr {
+public:
+  template <typename U>
+  friend class smart_ptr;
+
+  explicit smart_ptr(T* ptr = nullptr)
+    : ptr_(ptr)
+  {
+    if (ptr) {
+      shared_count_ =
+        new shared_count();
+    }
+  }
+  ~smart_ptr()
+  {
+    if (ptr_ &&
+      !shared_count_
+         ->reduce_count()) {
+      delete ptr_;
+      delete shared_count_;
+    }
+  }
+
+  smart_ptr(const smart_ptr& other)
+  {
+    ptr_ = other.ptr_;
+    if (ptr_) {
+      other.shared_count_
+        ->add_count();
+      shared_count_ =
+        other.shared_count_;
+    }
+  }
+  template <typename U>
+  smart_ptr(const smart_ptr<U>& other) noexcept
+  {
+    ptr_ = other.ptr_;
+    if (ptr_) {
+      other.shared_count_->add_count();
+      shared_count_ = other.shared_count_;
+    }
+  }
+  template <typename U>
+  smart_ptr(smart_ptr<U>&& other) noexcept
+  {
+    ptr_ = other.ptr_;
+    if (ptr_) {
+      shared_count_ =
+        other.shared_count_;
+      other.ptr_ = nullptr;
+    }
+  }
+  template <typename U>
+  smart_ptr(const smart_ptr<U>& other,
+            T* ptr) noexcept
+  {
+    ptr_ = ptr;
+    if (ptr_) {
+      other.shared_count_
+        ->add_count();
+      shared_count_ =
+        other.shared_count_;
+    }
+  }
+  smart_ptr&
+  operator=(smart_ptr rhs) noexcept
+  {
+    rhs.swap(*this);
+    return *this;
+  }
+
+  T* get() const noexcept
+  {
+    return ptr_;
+  }
+  long use_count() const noexcept
+  {
+    if (ptr_) {
+      return shared_count_
+        ->get_count();
+    } else {
+      return 0;
+    }
+  }
+  void swap(smart_ptr& rhs) noexcept
+  {
+    using std::swap;
+    swap(ptr_, rhs.ptr_);
+    swap(shared_count_,
+         rhs.shared_count_);
+  }
+
+  T& operator*() const noexcept
+  {
+    return *ptr_;
+  }
+  T* operator->() const noexcept
+  {
+    return ptr_;
+  }
+  operator bool() const noexcept
+  {
+    return ptr_;
+  }
+
+private:
+  T* ptr_;
+  shared_count* shared_count_;
+};
+
+template <typename T>
+void swap(smart_ptr<T>& lhs,
+          smart_ptr<T>& rhs) noexcept
+{
+  lhs.swap(rhs);
+}
+
+template <typename T, typename U>
+smart_ptr<T> static_pointer_cast(
+  const smart_ptr<U>& other) noexcept
+{
+  T* ptr = static_cast<T*>(other.get());
+  return smart_ptr<T>(other, ptr);
+}
+
+template <typename T, typename U>
+smart_ptr<T> reinterpret_pointer_cast(
+  const smart_ptr<U>& other) noexcept
+{
+  T* ptr = reinterpret_cast<T*>(other.get());
+  return smart_ptr<T>(other, ptr);
+}
+
+template <typename T, typename U>
+smart_ptr<T> const_pointer_cast(
+  const smart_ptr<U>& other) noexcept
+{
+  T* ptr = const_cast<T*>(other.get());
+  return smart_ptr<T>(other, ptr);
+}
+
+template <typename T, typename U>
+smart_ptr<T> dynamic_pointer_cast(
+  const smart_ptr<U>& other) noexcept
+{
+  T* ptr = dynamic_cast<T*>(other.get());
+  return smart_ptr<T>(other, ptr);
+}
+```
+
+## 22.6 auto_ptr
+
+> class template
+>
+> <memory>
+>
+> # std::auto_ptr
+>
+> ```
+> template <class X> class auto_ptr;
+> ```
+>
+> Automatic Pointer [deprecated]
+
+ 从官网的文档上就可以看出，这个auto_ptr指针不推荐使用(deprecated)，原因这里也有说明：
+
+> **Note:** This class template is deprecated as of C++11. [unique_ptr](http://www.cplusplus.com/unique_ptr) is a new facility with a similar functionality, but with improved security (no fake copy assignments), added features (*deleters*) and support for arrays. See [unique_ptr](http://www.cplusplus.com/unique_ptr) for additional information.
+
+ **解释**：auto_ptr指针在c++11标准中就被废除了，可以使用unique_ptr来替代，功能上是相同的，unique_ptr相比较auto_ptr而言，提升了安全性（没有浅拷贝），增加了特性（delete析构）和对数组的支持。
+
+
+
+>  This class template provides a limited *garbage collection* facility for pointers, by allowing pointers to have the elements they point to automatically destroyed when the *auto_ptr* object is itself destroyed.
+
+ **解释**：这个类模板提供了有限度的垃圾回收机制，通过将一个指针保存在auto_ptr对象中，当auto_ptr对象析构时，这个对象所保存的指针也会被析构掉。
+
+
+
+> `auto_ptr` objects have the peculiarity of *taking ownership* of the pointers assigned to them: An `auto_ptr` object that has ownership over one element is in charge of destroying the element it points to and to deallocate the memory allocated to it when itself is destroyed. The destructor does this by calling `operator delete` automatically.
+
+**解释**：  auto_ptr 对象拥有其内部指针的所有权。这意味着auto_ptr对其内部指针的释放负责，即当自身被释放时，会在析构函数中自动的调用delete，从而释放内部指针的内存。
+
+
+
+> Therefore, no two `auto_ptr` objects should *own* the same element, since both would try to destruct them at some point. When an assignment operation takes place between two `auto_ptr` objects, *ownership* is transferred, which means that the object losing ownership is set to no longer point to the element (it is set to the *null pointer*).
+
+解释：  
+
+- 正因如此，不能有两个auto_ptr 对象拥有同一个内部指针的所有权，因为有可能在某个时机，两者均会尝试析构这个内部指针。
+
+- 当**两个auto_ptr对象**之间发生**赋值**操作时，内部指针被拥有的所有权会发生转移，这意味着这个赋值的右者对象会丧失该所有权，不在指向这个内部指针（其会被设置成null指针）。
+
+
+
+到这里，我们来看一下auto_ptr的提供的接口和使用方法：
+
+![image-20210813002832004](.\images\image-20210813002832004.png)
+
+其中构造值得说一下：
+
+![image-20210813002854864](.\images\image-20210813002854864.png)
+
+> Constructs an `auto_ptr` object either from a pointer or from another `auto_ptr` object.
+> Since `auto_ptr` objects take ownership of the pointer they *point to*, when a new `auto_ptr` is constructed from another `auto_ptr`, the former owner *releases* it.
+
+解释：  auto_ptr的构造的参数可以是一个指针，或者是另外一个auto_ptr对象。
+
+- 当一个新的auto_ptr获取了内部指针的所有权后，之前的拥有者会释放其所有权。
+
+**1.auto_ptr的构造及所有权的转移**
+
+```c++
+#include "stdafx.h"
+#include <iostream>
+#include <memory>
+using namespace std;
+
+int _tmain(int argc, _TCHAR* argv[])
+{
+	//通过指针进行构造
+	std::auto_ptr<int> aptr(new int(3)); 
+	
+	printf("aptr %p : %d\r\n", aptr.get(), *aptr);
+    
+	//这样会编译出错，因为auto_ptr的构造有关键字explicit
+	//explicit关键字表示调用构造函数时不能使用隐式赋值，而必须是显示调用
+	//std::auto_ptr<int> aptr2 = new int(3); 
+
+	//可以用其他的auto_ptr指针进行初始化
+	std::auto_ptr<int> aptr2 = aptr;
+	printf("aptr2 %p : %d\r\n", aptr2.get(), *aptr2);
+
+	//但是这么内存访问出错，直接0xc05,因为aptr已经释放了其所有权。
+	//*aptr = 4;
+	printf("aptr %p\r\n", aptr.get());
+	
+	return 0;
+}
+```
+
+**2.auto_ptr析构及资源的自动释放**
+
+```C++
+void foo_release()
+{
+	//释放
+	int* pNew = new int(3);
+	{
+		std::auto_ptr<int> aptr(pNew);
+	}
+
+}
+```
+
+- 这里显然，当出了块作用域之后，aptr对象会自动调用析构，然后在析构中会自动的delete其内部指针，也就是出了这个作用域后，其内部指针就被释放了。
+
+- 当然上面这种写法是不推荐的，因为我们这里本质上就是希望不去管理指针的释放工作，上面的写法就又需要程序员自己操心指针的问题，也就是使用**智能指针要避免出现指针的直接使用**！
+
+
+
+在这里可以在使用前调用release，从而放弃其内部指针的使用权，但是同样这么做违背了智能指针的初衷。
+
+```C++
+void foo_release()
+{
+	//释放
+	int* pNew = new int(3);
+	{
+		std::auto_ptr<int> aptr(pNew);
+		int* p = aptr.release();
+	}
+
+}
+```
+
+**3.分配新的指针所有权**
+
+  可以调用reset来重新分配指针的所有权，reset中会先释放原来的内部指针的内存，然后分配新的内部指针。
+
+ 
+
+```
+void foo_reset()
+{
+	//释放
+	int* pNew = new int(3);
+	int*p = new int(5);
+	{
+		std::auto_ptr<int> aptr(pNew);
+		aptr.reset(p);
+
+	}
+}
+```
+
+**4.=运算符的使用**
+
+```C++
+void foo_assign()
+{
+	std::auto_ptr<int> p1;
+	std::auto_ptr<int> p2;
+
+	p1 = std::auto_ptr<int>(new int(3));
+	*p1 = 4;
+	p2 = p1;
+}
+```
+
+
+
+**auto_ptr存在的问题**
+
+为什么11标准会不让使用auto_ptr，原因是其使用有问题。
+
+**1. 作为参数传递会存在问题。**
+
+因为有拷贝构造和赋值的情况下，会释放原有的对象的内部指针，所以当有函数使用的是auto_ptr时，调用后会导致原来的内部指针释放。
+
+```c++
+void foo_test(std::auto_ptr<int> p)
+{
+	printf("%d\r\n", *p);
+}
+
+int _tmain(int argc, _TCHAR* argv[])
+{
+	std::auto_ptr<int> p1 = std::auto_ptr<int>(new int(3));
+	foo_test(p1);
+
+	//这里的调用就会出错，因为拷贝构造函数的存在，p1实际上已经释放了其内部指针的所有权了
+	printf("%d\r\n", *p1);
+	
+	return 0;
+}
+```
+
+**2. 不能使用vector数组**
+
+因为数组的实现，所以这么定义会出错：
+
+```c++
+void foo_ary()
+{
+	std::vector<std::auto_ptr<int>> Ary;
+	std::auto_ptr<int> p(new int(3));
+	Ary.push_back(p);
+
+	printf("%d\r\n", *p);
+
+}
+```
+
+## 22.7 unique_ptr
+
+前面我们讲解了auto_ptr的使用及为什么会被C++11标准抛弃，接下来，我们来学习unique_ptr的使用：
+
+unique_ptr提供了以下操作：
+
+![image-20210813003020772](.\images\image-20210813003020772.png)
+
+看起来似乎与auto_ptr相似，但是其实有区别。
+
+**1. 构造函数**
+
+![image-20210813003119312](.\images\image-20210813003119312.png)
+
+ 虽然这里的构造函数比较多，但是可以发现，实际上是没有类似auto_ptr的那种拷贝构造：
+
+ 
+
+```c++
+void foo_constuct()
+{
+    //这样构造是可以的
+    std::unique_ptr<int> p(new int(3));
+
+    //空构造
+    std::unique_ptr<int> p4;
+
+    //下面三种写法会报错
+    std::unique_ptr<int> p2 = p;
+    std::unique_ptr<int> p3(p);
+    p4 = p;
+
+}
+```
+
+因此，这就从根源上杜绝了auto_ptr作为参数传递的写法了。
+
+**2. reset**
+
+ reset的用法和auto_ptr是一致的：
+
+ 
+
+```c++
+void foo_reset()
+{
+    //释放
+    int* pNew = new int(3);
+    int*p = new int(5);
+    {
+        std::unique_ptr<int> uptr(pNew);
+        uptr.reset(p);
+
+    }
+}
+```
+
+**3.release**
+
+release与reset一样，也不会释放原来的内部指针，只是简单的将自身置空。
+
+ 
+
+```c++
+void foo_release()
+{
+    //释放
+    int* pNew = new int(3);
+    int* p = NULL;
+    {
+        std::unique_ptr<int> uptr(pNew);
+        p = uptr.release();
+    }
+}
+```
+
+![image-20210813003241971](.\images\image-20210813003241971.png)
+
+**4.move**
+
+但是多了个move的用法：
+
+ 
+
+```c++
+void foo_move()
+{
+    int* p = new int(3);
+    
+    std::unique_ptr<int> uptr(p);
+    std::unique_ptr<int> uptr2 = std::move(uptr);
+    
+}
+```
+
+因为unique_ptr不能将自身对象内部指针直接赋值给其他unique_ptr，所以这里可以使用std::move()函数，让unique_ptr交出其内部指针的所有权，而自身置空，内部指针不会释放。
+
+![image-20210813003332135](.\images\image-20210813003332135.png)
+
+**5.数组**
+
+可以采用move的方法来使用数组。
+
+直接使用仍然会报错：
+
+ 
+
+```c++
+void foo_ary()
+{
+    std::vector<std::unique_ptr<int>> Ary;
+    std::unique_ptr<int> p(new int(3));
+    Ary.push_back(p);
+
+    printf("%d\r\n", *p);
+
+}
+```
+
+![image-20210813003526750](.\images\image-20210813003526750.png)
+
+但是可以采用move的办法，这样就编译通过了：
+
+ 
+
+```c++
+void foo_ary()
+{
+    std::vector<std::unique_ptr<int>> Ary;
+    std::unique_ptr<int> uptr(new int(3));
+    Ary.push_back(std::move(uptr));
+
+    printf("%d\r\n", *uptr);
+
+}
+```
+
+但是因为uptr的语义，所以作为参数传递了， 转移了内部指针的所有权，原来的uptr就不能使用了。
+
+所以综上，unique_ptr指的是只有一个对象拥有指针的所有权，可以转移，但是不能直接赋值或者拷贝构造。
+
+所有示例代码如下：
+
+ 
+
+```c++
+// testUniqueptr.cpp : 定义控制台应用程序的入口点。
+//
+
+#include "stdafx.h"
+#include <iostream>
+#include <memory>
+#include <vector>
+
+void foo_constuct()
+{
+    //这样构造是可以的
+    std::unique_ptr<int> p(new int(3));
+
+    //空构造
+    std::unique_ptr<int> p4;
+
+    //下面三种写法会报错
+//  std::unique_ptr<int> p2 = p;
+//  std::unique_ptr<int> p3(p);
+//  p4 = p;
+
+}
+
+void foo_reset()
+{
+    //释放
+    int* pNew = new int(3);
+    int*p = new int(5);
+    {
+        std::unique_ptr<int> uptr(pNew);
+        uptr.reset(p);
+
+    }
+}
+
+void foo_release()
+{
+    //释放
+    int* pNew = new int(3);
+    int* p = NULL;
+    {
+        std::auto_ptr<int> uptr(pNew);
+        p = uptr.release();
+    }
+}
+
+
+
+void foo_move()
+{
+    int* p = new int(3);
+    std::unique_ptr<int> uptr(p);
+    std::unique_ptr<int> uptr2 = std::move(uptr);
+}
+
+void foo_ary()
+{
+    std::vector<std::unique_ptr<int>> Ary;
+    std::unique_ptr<int> uptr(new int(3));
+    Ary.push_back(std::move(uptr));
+
+    printf("%d\r\n", *uptr);
+
+}
+
+
+int _tmain(int argc, _TCHAR* argv[])
+{
+    foo_ary();
+
+
+
+
+    return 0;
+}
+```
+
+## 22.8 智能指针的循环引用
+
+```c++
+// TestC11.cpp : 定义控制台应用程序的入口点。
+//
+
+#include "stdafx.h"
+#include <iostream>
+#include <cstring>
+
+using namespace std;
+
+//智能指针：
+// 1. 用起来像指针
+// 2. 会自己对资源进行释放
+
+class CStudent
+{
+public:
+    CStudent() {}
+
+    void test() {
+        cout << "CStudent" << endl;
+        m_nSex = 1;
+    }
+
+private:
+    char* m_pszBuf;
+    int   m_nSex;
+};
+
+
+template<typename T>
+class CSmartPtr;
+
+template<typename T>
+class CRefCount
+{
+    friend class CSmartPtr<T>;
+public:
+    CRefCount(T* pStu) {
+        m_pObj = pStu;
+        m_nCount = 1;
+    }
+
+    ~CRefCount() {
+        delete m_pObj;
+        m_pObj = NULL;
+    }
+
+    void AddRef() {
+        m_nCount++;
+    }
+
+    void Release() {
+        if (--m_nCount == 0) {
+            //这么写就表示自己一定要是一个堆对象
+            delete this;
+        }
+    }
+
+private:
+    T* m_pObj;
+    int       m_nCount;
+};
+
+template<typename T>
+class CSmartPtr
+{
+public:
+
+    CSmartPtr()
+    {
+        m_pRef = NULL;
+    }
+
+    CSmartPtr(T* pStu)
+    {
+        m_pRef = new CRefCount<T>(pStu);
+    }
+
+    ~CSmartPtr()
+    {
+        if (m_pRef != NULL){
+            m_pRef->Release();
+        } 
+    }
+
+    CSmartPtr(CSmartPtr& obj)
+    {
+        m_pRef = obj.m_pRef;
+        m_pRef->AddRef();
+    }
+
+    CSmartPtr& operator=(CSmartPtr& obj)
+    {
+        if (m_pRef == obj.m_pRef) {
+            return *this;
+        }
+
+        if (m_pRef != NULL)
+        {
+            m_pRef->Release();
+        }
+
+        m_pRef = obj.m_pRef;
+        m_pRef->AddRef();
+
+        return *this;
+    }
+
+    void test2()
+    {
+        cout << "test2" << endl;
+    }
+
+    T* operator->()
+    {
+        return m_pRef->m_pObj;
+    }
+
+    T** operator&()
+    {
+        return &m_pRef->m_pObj;
+    }
+
+    T& operator*()
+    {
+        return *m_pRef->m_pObj;
+    }
+
+    operator T*()
+    {
+        return m_pRef->m_pObj;
+    }
+
+private:
+    CRefCount<T>* m_pRef;
+};
+
+class B;
+
+class A
+{
+
+public:
+    A() {}
+    CSmartPtr<B> m_b;
+};
+
+class B
+{
+
+public:
+    B() {}
+    CSmartPtr<A> m_a;
+};
+
+
+int main(int argc, char* argv[])
+{
+    {
+        CSmartPtr<A> a = new A;
+        CSmartPtr<B> b = new B;
+        a->m_b = b;
+        b->m_a = a;
+    }
+
+    return 0;
+}
+```
+
+## 22.9 shared_ptr与weak_ptr
+
+shared_ptr是带引用计数的智能指针：
+
+**1. 构造**
+
+其初始化多了一种写法：std::make_shared<int>
+
+ 
+
+```c++
+void foo_construct()
+{
+    int* p = new int(3);
+
+    std::shared_ptr<int> sptr(p);
+    std::shared_ptr<int> sptr2(new int(4));
+    std::shared_ptr<int> sptr3 = sptr2;
+    std::shared_ptr<int> sptr4 = std::make_shared<int>(5);
+}
+```
+
+![img](file:///C:/Users/Halo/Documents/My Knowledge/temp/8bac46c4-eb74-403d-84c1-7e46786ef29f/128/index_files/775b17f9-a6d0-4d4a-a467-0b6dcf74d57c.png)
+
+这里显然可以看到有引用计数的存在。
+
+通过修改上面例子种的sptr3的作用域，可以发现，出了块作用域之后，shared_ptr对应的引用计数的值减少了。
+
+ 
+
+```c++
+void foo_construct()
+{
+    int* p = new int(3);
+
+    std::shared_ptr<int> sptr(p);
+    std::shared_ptr<int> sptr2(new int(4));
+    {
+        std::shared_ptr<int> sptr3 = sptr2;
+    }
+    
+    std::shared_ptr<int> sptr4 = std::make_shared<int>(5);
+
+}
+
+```
+
+![img](file:///C:/Users/Halo/Documents/My Knowledge/temp/8bac46c4-eb74-403d-84c1-7e46786ef29f/128/index_files/dd9f556f-4f12-423c-aa4b-7a204524b24f.png)
+
+**2. 注意事项：**
+
+1. 如果用同一个指针去初始化两个shared_ptr时，则引用计数仍然会出错：
+
+ 
+
+```c++
+void foo_test()
+{
+    int* p = new int(3);
+
+    {
+        std::shared_ptr<int> sptr(p);
+
+        {
+            std::shared_ptr<int> sptr2(p);
+        }
+    }
+}
+```
+
+![img](file:///C:/Users/Halo/Documents/My Knowledge/temp/8bac46c4-eb74-403d-84c1-7e46786ef29f/128/index_files/148d891b-cb88-4fcf-a86a-4ce3c9c26148.png)
+
+显然出了最里面的作用域之后，sptr2对象就已经释放了，此时，对于sptr2来说，p的引用计数为0，所有p被释放，但是实际上sptr还存在，所以再释放sptr时，就会0xc0000005.
+
+![img](file:///C:/Users/Halo/Documents/My Knowledge/temp/8bac46c4-eb74-403d-84c1-7e46786ef29f/128/index_files/231b5b65-019a-4016-b4e4-db19e060d048.png)
+
+2. shared_ptr最大的问题是存在循环引用的问题：
+
+  如果两个类的原始指针的循环使用，那么会出现重复释放的问题：
+
+ 
+
+ 
+
+```c++
+class CPerson;
+class CSon;
+
+class Cperson
+{
+public:
+    Cperson(){
+        
+    }
+
+    void Set(CSon* pSon){
+        m_pSon = pSon;
+    }
+    
+    ~Cperson(){
+        if (m_pSon != nullptr)
+        {
+            delete m_pSon;
+            m_pSon = nullptr;
+        }
+    }
+
+    CSon* m_pSon;
+};
+
+class CSon
+{
+public:
+    CSon(){
+
+    }
+
+    void Set(Cperson* pParent){
+        m_pParent = pParent;
+    }
+
+    ~CSon(){
+        if (m_pParent != nullptr)
+        {
+            delete m_pParent;
+            m_pParent = nullptr;
+        }
+    }
+
+    Cperson* m_pParent;
+};
+
+
+int _tmain(int argc, _TCHAR* argv[])
+{
+    Cperson* pPer = new Cperson();
+    CSon* pSon = new CSon();
+
+    pPer->Set(pSon);
+    pSon->Set(pPer);
+
+    delete pSon;
+
+    return 0;
+}
+```
+
+  
+
+这里，delete pSon会出现循环的调用父子类的析构函数，问题很大。
+
+因此，这里考虑使用引用计数的shared_ptr来实现。
+
+ 
+
+```c++
+#pragma once
+
+#include <memory>
+class CPerson;
+class CSon;
+
+class Cperson
+{
+public:
+    Cperson(){
+
+    }
+
+    void Set(std::shared_ptr<CSon> pSon){
+        m_pSon = pSon;
+    }
+
+    ~Cperson(){
+    }
+
+    std::shared_ptr<CSon> m_pSon;
+};
+
+class CSon
+{
+public:
+    CSon(){
+
+    }
+
+    void Set(std::shared_ptr<Cperson> pParent){
+        m_pParent = pParent;
+    }
+
+    ~CSon(){
+    }
+
+    std::shared_ptr<Cperson> m_pParent;
+};
+```
+
+ 
+
+```c++
+void testShared()
+{
+    CSon* pSon = new CSon();
+    Cperson* pPer = new Cperson();
+
+    {
+        std::shared_ptr<Cperson> shared_Parent(pPer);
+        std::shared_ptr<CSon> shared_Son(pSon);
+
+        shared_Parent->Set(shared_Son);
+        shared_Son->Set(shared_Parent);
+
+        printf("pSon : use_count = %d\r\n", shared_Son.use_count());
+        printf("pPer : use_count = %d\r\n", shared_Parent.use_count());
+    }
+
+
+}
+```
+
+这里在出作用域后发现，实际上两个对象均未被销毁：
+
+![img](file:///C:/Users/Halo/Documents/My Knowledge/temp/8bac46c4-eb74-403d-84c1-7e46786ef29f/128/index_files/cfd4dbc7-6416-42af-91a6-b71a92b03969.png)
+
+最后两者的引用计数均为1，原因是出了块作用域之后，两个shared_parent和shared_son均会析构，在这两个智能指针的内部，均会先去判断对应的内部指针是否-1是否为0，显然这里相互引用的情况下，引用计数初值为2，减1后值为1，所以两个指针均不会被释放。
+
+这里，其实只需要一个释放了，另外一个也能跟着释放，可以采用弱指针，即人为的迫使其中一个引用计数为1，从而打破闭环。
+
+这里只需要将上例子中的任意一个强指针改为弱指针即可。
+
+举例：
+
+![img](file:///C:/Users/Halo/Documents/My Knowledge/temp/8bac46c4-eb74-403d-84c1-7e46786ef29f/128/index_files/3b93d064-5f6e-4f5a-93dd-e889a3d5d60f.png)
+
+最后的结果：
+
+此时，两个内部指针均会得到释放。
+
+![img](file:///C:/Users/Halo/Documents/My Knowledge/temp/8bac46c4-eb74-403d-84c1-7e46786ef29f/128/index_files/4536cca6-84f5-4533-aa08-c36508487b33.png)
+
+原因是，弱指针的引用不会增加原来的引用计数，那么就使得引用不再是闭环，所以在出作用域之后，全部得到释放。
+
+**weak_ptr的使用**
+
+1. weak_ptr本身并不具有普通内部指针的功能，而只是用来观察其对应的强指针的使用次数。
+
+2. 因此，这里弱指针的在使用上，实际上是一个特例，即不增加引用计数也能获取对象，因此，实际上在使用弱指针时，不能通过弱指针，直接访问内部指针的数据，而应该是先判断该弱指针所观察的强指针是否存在（调用expired()函数），如果存在，那么则使用lock()函数来获取一个新的shared_ptr来使用对应的内部指针。
+
+3. 实际上，如果不存在循环引用，就不需要使用weak_ptr了，这种做法仍然增加了程序员的负担，所以不如java c#等语言垃圾回收机制省心。
+
+  
+
+ 
+
+```c++
+void testWeak()
+{
+    std::shared_ptr<int> sharedPtr(new int(3));
+    std::weak_ptr<int> weakPtr(sharedPtr);
+
+
+    printf("sharedPtr_Count = %d, weakPtr_Count = %d, Value = %d \r\n", sharedPtr.use_count(), weakPtr.use_count(), *sharedPtr);
+    //当weakPtr为空或者对应的shared_ptr不再有内部指针时，expired返回为true.
+    if (!weakPtr.expired())
+    {
+        std::shared_ptr<int> sharedPtr2 = weakPtr.lock();
+        printf("sharedPtr_Count = %d, weakPtr_Count = %d, Value = %d \r\n", sharedPtr.use_count(), weakPtr.use_count(), *sharedPtr);
+        *sharedPtr2 = 5;
+    }
+
+    printf("sharedPtr_Count = %d, weakPtr_Count = %d, Value = %d \r\n", sharedPtr.use_count(), weakPtr.use_count(), *sharedPtr);
+}
+```
+
+执行结果如下：
+
+![img](file:///C:/Users/Halo/Documents/My Knowledge/temp/8bac46c4-eb74-403d-84c1-7e46786ef29f/128/index_files/23be1c9d-48f2-4da1-8017-cb7bb7dd8d6f.png)
+
+## 22.10 深入分析shared_ptr与weak_ptr的实现
+
+  stl中使用了shared_ptr来管理一个对象的内部指针，并且使用了weak_ptr来防止前面所提到的shared_ptr循环引用的问题。
+
+  接下来简单的分析shared_ptr和weak_ptr的实现，最后通过自己写代码来模拟shared_ptr和weak_ptr，达到深入学习的目的：
+
+  测试代码如下：
+
+```c++
+#include "stdafx.h"
+#include <memory>
+
+int _tmain(int argc, _TCHAR* argv[])
+{   
+    std::shared_ptr<int> sptr(new int(3));
+    std::shared_ptr<int> sptr2 = sptr;
+
+    std::weak_ptr<int> wptr = sptr;
+
+    if (!wptr.expired()){
+        
+        std::shared_ptr<int> sptr3 = wptr.lock();
+    }
+
+    return 0;
+}
+```
+
+1. **首先**看直接看继承关系和类成员：
+
+   shared_ptr与weak_ptr均继承自同一个父类  _Ptr_base
+
+ 
+
+```c++
+template<class _Ty>
+    class shared_ptr
+        : public _Ptr_base<_Ty>
+    {   // class for reference counted resource management
+public:
+    typedef shared_ptr<_Ty> _Myt;
+    typedef _Ptr_base<_Ty> _Mybase;
+
+    shared_ptr() _NOEXCEPT
+        {   // construct empty shared_ptr
+        }
+
+    template<class _Ux>
+        explicit shared_ptr(_Ux *_Px)
+        {   // construct shared_ptr object that owns _Px
+        _Resetp(_Px);
+        }
+
+    template<class _Ux,
+        class _Dx>
+        shared_ptr(_Ux *_Px, _Dx _Dt)
+        {   // construct with _Px, deleter
+        _Resetp(_Px, _Dt);
+        }
+
+    shared_ptr(nullptr_t)
+        {   // construct empty shared_ptr
+        }
+
+    _Myt& operator=(_Myt&& _Right) _NOEXCEPT
+        {   // construct shared_ptr object that takes resource from _Right
+        shared_ptr(_STD move(_Right)).swap(*this);
+        return (*this);
+        }
+
+    template<class _Ty2>
+        _Myt& operator=(shared_ptr<_Ty2>&& _Right) _NOEXCEPT
+        {   // construct shared_ptr object that takes resource from _Right
+        shared_ptr(_STD move(_Right)).swap(*this);
+        return (*this);
+        }
+
+    ~shared_ptr() _NOEXCEPT
+        {   // release resource
+        this->_Decref();
+        }
+
+    _Myt& operator=(const _Myt& _Right) _NOEXCEPT
+        {   // assign shared ownership of resource owned by _Right
+        shared_ptr(_Right).swap(*this);
+        return (*this);
+        }
+
+    template<class _Ty2>
+        _Myt& operator=(const shared_ptr<_Ty2>& _Right) _NOEXCEPT
+        {   // assign shared ownership of resource owned by _Right
+        shared_ptr(_Right).swap(*this);
+        return (*this);
+        }
+
+
+    void reset() _NOEXCEPT
+        {   // release resource and convert to empty shared_ptr object
+        shared_ptr().swap(*this);
+        }
+
+    template<class _Ux>
+        void reset(_Ux *_Px)
+        {   // release, take ownership of _Px
+        shared_ptr(_Px).swap(*this);
+        }
+
+    template<class _Ux,
+        class _Dx>
+        void reset(_Ux *_Px, _Dx _Dt)
+        {   // release, take ownership of _Px, with deleter _Dt
+        shared_ptr(_Px, _Dt).swap(*this);
+        }
+
+    void swap(_Myt& _Other) _NOEXCEPT
+        {   // swap pointers
+        this->_Swap(_Other);
+        }
+
+    _Ty *get() const _NOEXCEPT
+        {   // return pointer to resource
+        return (this->_Get());
+        }
+
+    typename add_reference<_Ty>::type operator*() const _NOEXCEPT
+        {   // return reference to resource
+        return (*this->_Get());
+        }
+
+    _Ty *operator->() const _NOEXCEPT
+        {   // return pointer to resource
+        return (this->_Get());
+        }
+
+    bool unique() const _NOEXCEPT
+        {   // return true if no other shared_ptr object owns this resource
+        return (this->use_count() == 1);
+        }
+
+    explicit operator bool() const _NOEXCEPT
+        {   // test if shared_ptr object owns no resource
+        return (this->_Get() != 0);
+        }
+    };
+```
+
+ 
+
+```c++
+   
+            
+template<class _Ty>
+    class weak_ptr
+        : public _Ptr_base<_Ty>
+    {   // class for pointer to reference counted resource
+public:
+    weak_ptr() _NOEXCEPT
+        {   // construct empty weak_ptr object
+        }
+
+    weak_ptr(const weak_ptr& _Other) _NOEXCEPT
+        {   // construct weak_ptr object for resource pointed to by _Other
+        this->_Resetw(_Other);
+        }
+
+    template<class _Ty2,
+        class = typename enable_if<is_convertible<_Ty2 *, _Ty *>::value,
+            void>::type>
+        weak_ptr(const shared_ptr<_Ty2>& _Other) _NOEXCEPT
+        {   // construct weak_ptr object for resource owned by _Other
+        this->_Resetw(_Other);
+        }
+
+    template<class _Ty2,
+        class = typename enable_if<is_convertible<_Ty2 *, _Ty *>::value,
+            void>::type>
+        weak_ptr(const weak_ptr<_Ty2>& _Other) _NOEXCEPT
+        {   // construct weak_ptr object for resource pointed to by _Other
+        this->_Resetw(_Other.lock());
+        }
+
+    ~weak_ptr() _NOEXCEPT
+        {   // release resource
+        this->_Decwref();
+        }
+
+    weak_ptr& operator=(const weak_ptr& _Right) _NOEXCEPT
+        {   // assign from _Right
+        this->_Resetw(_Right);
+        return (*this);
+        }
+
+    template<class _Ty2>
+        weak_ptr& operator=(const weak_ptr<_Ty2>& _Right) _NOEXCEPT
+        {   // assign from _Right
+        this->_Resetw(_Right.lock());
+        return (*this);
+        }
+
+    template<class _Ty2>
+        weak_ptr& operator=(const shared_ptr<_Ty2>& _Right) _NOEXCEPT
+        {   // assign from _Right
+        this->_Resetw(_Right);
+        return (*this);
+        }
+
+    void reset() _NOEXCEPT
+        {   // release resource, convert to null weak_ptr object
+        this->_Resetw();
+        }
+
+    void swap(weak_ptr& _Other) _NOEXCEPT
+        {   // swap pointers
+        this->_Swap(_Other);
+        }
+
+    bool expired() const _NOEXCEPT
+        {   // return true if resource no longer exists
+        return (this->_Expired());
+        }
+
+    shared_ptr<_Ty> lock() const _NOEXCEPT
+        {   // convert to shared_ptr
+        return (shared_ptr<_Ty>(*this, false));
+        }
+    };
+```
+
+  从这里可以看出来shared_ptr和weak_ptr里面本身并没有成员变量，提供的是对外的接口。shared_ptr可以对外提供模拟内部指针的操作，而weak_ptr是用来提供获取shared_ptr的接口。
+
+  
+
+  具体用来记录保存内部指针和使用次数是他们的共同父类_Ptr_base：
+
+```c++
+template<class _Ty>
+    class _Ptr_base
+    {   // base class for shared_ptr and weak_ptr
+public:
+    typedef _Ptr_base<_Ty> _Myt;
+    typedef _Ty element_type;
+
+    _Ptr_base()
+        : _Ptr(0), _Rep(0)
+        {   // construct
+        }
+
+    _Ptr_base(_Myt&& _Right)
+        : _Ptr(0), _Rep(0)
+        {   // construct _Ptr_base object that takes resource from _Right
+        _Assign_rv(_STD forward<_Myt>(_Right));
+        }
+
+    template<class _Ty2>
+        _Ptr_base(_Ptr_base<_Ty2>&& _Right)
+        : _Ptr(_Right._Ptr), _Rep(_Right._Rep)
+        {   // construct _Ptr_base object that takes resource from _Right
+        _Right._Ptr = 0;
+        _Right._Rep = 0;
+        }
+
+    _Myt& operator=(_Myt&& _Right)
+        {   // construct _Ptr_base object that takes resource from _Right
+        _Assign_rv(_STD forward<_Myt>(_Right));
+        return (*this);
+        }
+
+    void _Assign_rv(_Myt&& _Right)
+        {   // assign by moving _Right
+        if (this != &_Right)
+            _Swap(_Right);
+        }
+
+    long use_count() const _NOEXCEPT
+        {   // return use count
+        return (_Rep ? _Rep->_Use_count() : 0);
+        }
+
+    void _Swap(_Ptr_base& _Right)
+        {   // swap pointers
+        _STD swap(_Rep, _Right._Rep);
+        _STD swap(_Ptr, _Right._Ptr);
+        }
+
+    template<class _Ty2>
+        bool owner_before(const _Ptr_base<_Ty2>& _Right) const
+        {   // compare addresses of manager objects
+        return (_Rep < _Right._Rep);
+        }
+
+    void *_Get_deleter(const _XSTD2 type_info& _Typeid) const
+        {   // return pointer to deleter object if its type is _Typeid
+        return (_Rep ? _Rep->_Get_deleter(_Typeid) : 0);
+        }
+
+    _Ty *_Get() const
+        {   // return pointer to resource
+        return (_Ptr);
+        }
+
+    bool _Expired() const
+        {   // test if expired
+        return (!_Rep || _Rep->_Expired());
+        }
+
+    void _Decref()
+        {   // decrement reference count
+        if (_Rep != 0)
+            _Rep->_Decref();
+        }
+
+    void _Reset()
+        {   // release resource
+        _Reset(0, 0);
+        }
+
+    template<class _Ty2>
+        void _Reset(const _Ptr_base<_Ty2>& _Other)
+        {   // release resource and take ownership of _Other._Ptr
+        _Reset(_Other._Ptr, _Other._Rep);
+        }
+
+    template<class _Ty2>
+        void _Reset(const _Ptr_base<_Ty2>& _Other, bool _Throw)
+        {   // release resource and take ownership from weak_ptr _Other._Ptr
+        _Reset(_Other._Ptr, _Other._Rep, _Throw);
+        }
+
+    template<class _Ty2>
+        void _Reset(const _Ptr_base<_Ty2>& _Other, const _Static_tag&)
+        {   // release resource and take ownership of _Other._Ptr
+        _Reset(static_cast<_Ty *>(_Other._Ptr), _Other._Rep);
+        }
+
+    template<class _Ty2>
+        void _Reset(const _Ptr_base<_Ty2>& _Other, const _Const_tag&)
+        {   // release resource and take ownership of _Other._Ptr
+        _Reset(const_cast<_Ty *>(_Other._Ptr), _Other._Rep);
+        }
+
+    template<class _Ty2>
+        void _Reset(const _Ptr_base<_Ty2>& _Other, const _Dynamic_tag&)
+        {   // release resource and take ownership of _Other._Ptr
+        _Ty *_Ptr = dynamic_cast<_Ty *>(_Other._Ptr);
+        if (_Ptr)
+            _Reset(_Ptr, _Other._Rep);
+        else
+            _Reset();
+        }
+
+    template<class _Ty2>
+        void _Reset(auto_ptr<_Ty2>&& _Other)
+        {   // release resource and take _Other.get()
+        _Ty2 *_Px = _Other.get();
+        _Reset0(_Px, new _Ref_count<_Ty>(_Px));
+        _Other.release();
+        _Enable_shared(_Px, _Rep);
+        }
+
+    template<class _Ty2>
+        void _Reset(_Ty *_Ptr, const _Ptr_base<_Ty2>& _Other)
+        {   // release resource and alias _Ptr with _Other_rep
+        _Reset(_Ptr, _Other._Rep);
+        }
+
+    void _Reset(_Ty *_Other_ptr, _Ref_count_base *_Other_rep)
+        {   // release resource and take _Other_ptr through _Other_rep
+        if (_Other_rep)
+            _Other_rep->_Incref();
+        _Reset0(_Other_ptr, _Other_rep);
+        }
+
+    void _Reset(_Ty *_Other_ptr, _Ref_count_base *_Other_rep, bool _Throw)
+        {   // take _Other_ptr through _Other_rep from weak_ptr if not expired
+            // otherwise, leave in default state if !_Throw,
+            // otherwise throw exception
+        if (_Other_rep && _Other_rep->_Incref_nz())
+            _Reset0(_Other_ptr, _Other_rep);
+        else if (_Throw)
+            _THROW_NCEE(bad_weak_ptr, 0);
+        }
+
+    void _Reset0(_Ty *_Other_ptr, _Ref_count_base *_Other_rep)
+        {   // release resource and take new resource
+        if (_Rep != 0)
+            _Rep->_Decref();
+        _Rep = _Other_rep;
+        _Ptr = _Other_ptr;
+        }
+
+    void _Decwref()
+        {   // decrement weak reference count
+        if (_Rep != 0)
+            _Rep->_Decwref();
+        }
+
+    void _Resetw()
+        {   // release weak reference to resource
+        _Resetw((_Ty *)0, 0);
+        }
+
+    template<class _Ty2>
+        void _Resetw(const _Ptr_base<_Ty2>& _Other)
+        {   // release weak reference to resource and take _Other._Ptr
+        _Resetw(_Other._Ptr, _Other._Rep);
+        }
+
+    template<class _Ty2>
+        void _Resetw(const _Ty2 *_Other_ptr, _Ref_count_base *_Other_rep)
+        {   // point to _Other_ptr through _Other_rep
+        _Resetw(const_cast<_Ty2*>(_Other_ptr), _Other_rep);
+        }
+
+    template<class _Ty2>
+        void _Resetw(_Ty2 *_Other_ptr, _Ref_count_base *_Other_rep)
+        {   // point to _Other_ptr through _Other_rep
+        if (_Other_rep)
+            _Other_rep->_Incwref();
+        if (_Rep != 0)
+            _Rep->_Decwref();
+        _Rep = _Other_rep;
+        _Ptr = _Other_ptr;
+        }
+
+private:
+    _Ty *_Ptr;
+    _Ref_count_base *_Rep;
+    template<class _Ty0>
+        friend class _Ptr_base;
+    };
+```
+
+可以看到这个类里面主要提供了两个成员
+
+-   成员_Ty *_Ptr主要用来记录内部指针。 
+
+-   成员_Ref_count_base *_Rep用来记录使用次数和弱指针使用次数。
+
+​      实际上_Ref_count_base *_Rep 这个指针也是new出来的，当weak_count为0时就可以删除，而使用次数是用来记录内部指针的，当使用次数为0时，就可以释放内部指针了。
+
+一些重要的成员函数：
+
+   Reset  _Decref _Decwref use_count等。
+
+  
+
+ 再来看看类_Ref_count_base的实现：
+
+```c++
+class _Ref_count_base
+    {   // common code for reference counting
+private:
+    virtual void _Destroy() = 0;
+    virtual void _Delete_this() = 0;
+
+private:
+    _Atomic_counter_t _Uses;
+    _Atomic_counter_t _Weaks;
+
+protected:
+    _Ref_count_base()
+        {   // construct
+        _Init_atomic_counter(_Uses, 1);
+        _Init_atomic_counter(_Weaks, 1);
+        }
+
+public:
+    virtual ~_Ref_count_base() _NOEXCEPT
+        {   // ensure that derived classes can be destroyed properly
+        }
+
+    bool _Incref_nz()
+        {   // increment use count if not zero, return true if successful
+        for (; ; )
+            {   // loop until state is known
+ #if defined(_M_IX86) || defined(_M_X64) || defined(_M_CEE_PURE)
+            _Atomic_integral_t _Count =
+                static_cast<volatile _Atomic_counter_t&>(_Uses);
+
+            if (_Count == 0)
+                return (false);
+
+            if (static_cast<_Atomic_integral_t>(_InterlockedCompareExchange(
+                    reinterpret_cast<volatile long *>(&_Uses),
+                    _Count + 1, _Count)) == _Count)
+                return (true);
+
+ #else /* defined(_M_IX86) || defined(_M_X64) || defined(_M_CEE_PURE) */
+            _Atomic_integral_t _Count =
+                _Load_atomic_counter(_Uses);
+
+            if (_Count == 0)
+                return (false);
+
+            if (_Compare_increment_atomic_counter(_Uses, _Count))
+                return (true);
+ #endif /* defined(_M_IX86) || defined(_M_X64) || defined(_M_CEE_PURE) */
+            }
+        }
+
+    unsigned int _Get_uses() const
+        {   // return use count
+        return (_Get_atomic_count(_Uses));
+        }
+
+    void _Incref()
+        {   // increment use count
+        _MT_INCR(_Mtx, _Uses);
+        }
+
+    void _Incwref()
+        {   // increment weak reference count
+        _MT_INCR(_Mtx, _Weaks);
+        }
+
+    void _Decref()
+        {   // decrement use count
+        if (_MT_DECR(_Mtx, _Uses) == 0)
+            {   // destroy managed resource, decrement weak reference count
+            _Destroy();
+            _Decwref();
+            }
+        }
+
+    void _Decwref()
+        {   // decrement weak reference count
+        if (_MT_DECR(_Mtx, _Weaks) == 0)
+            _Delete_this();
+        }
+
+    long _Use_count() const
+        {   // return use count
+        return (_Get_uses());
+        }
+
+    bool _Expired() const
+        {   // return true if _Uses == 0
+        return (_Get_uses() == 0);
+        }
+
+    virtual void *_Get_deleter(const _XSTD2 type_info&) const
+        {   // return address of deleter object
+        return (0);
+        }
+    };
+```
+
+ 
+
+在这个_Ref_count_base类中提供了
+
+   _Atomic_counter_t _Uses;
+
+​    _Atomic_counter_t _Weaks;
+
+ 实际上就是记录的内部指针使用次数和_Ref_count_base使用次数。
+
+在这里有一个简单的继承关系：_Ref_count继承自_Ref_count_base
+
+```c++
+template<class _Ty>
+    class _Ref_count
+    : public _Ref_count_base
+    {   // handle reference counting for object without deleter
+public:
+    _Ref_count(_Ty *_Px)
+        : _Ref_count_base(), _Ptr(_Px)
+        {   // construct
+        }
+
+private:
+    virtual void _Destroy()
+        {   // destroy managed resource
+        delete _Ptr;
+        }
+
+    virtual void _Delete_this()
+        {   // destroy self
+        delete this;
+        }
+
+    _Ty * _Ptr;
+    };
+```
+
+这里_Ptr_base中的_Ref_count_base*  _Rep成员是使用的new  _Ref_count。
+
+ 
+
+```c++
+void _Resetp(_Ux *_Px)
+{   // release, take ownership of _Px
+    _TRY_BEGIN  // allocate control block and reset
+        _Resetp0(_Px, new _Ref_count<_Ux>(_Px));
+    _CATCH_ALL  // allocation failed, delete resource
+        delete _Px;
+    _RERAISE;
+    _CATCH_END
+}
+```
+
+然后使用子类转父类，而这个类实现了_Ref_count_base*的两个接口函数：
+
+  virtual void _Destroy() = 0;
+
+  virtual void _Delete_this() = 0;
+
+这个引用的次数：
+
+ 
+
+```
+    _Ref_count_base()
+        {   // construct
+        _Init_atomic_counter(_Uses, 1);
+        _Init_atomic_counter(_Weaks, 1);
+        }
+```
+
+接下来分析内存结构：
+
+![img](file:///C:/Users/Halo/Documents/My Knowledge/temp/1cb3edc2-5dce-4b0f-9a56-c796844b128f/128/index_files/127c8569-7b95-4f0e-8bd6-b392e462031a.png)
+
+这里有两个成员，分别是
+
+ _Ptr(内部指针) ：0x71b8d0
+
+ _Rep(引用base)：0x0071b910
+
+ 而引用base这里实际上是_Ref_count对象，因为有虚函数，所以这里存在虚表指针：
+
+ 
+
+![img](file:///C:/Users/Halo/Documents/My Knowledge/temp/1cb3edc2-5dce-4b0f-9a56-c796844b128f/128/index_files/ceed5ffa-7608-4150-8071-f82766ff4c8e.png)
+
+前4个字节是虚表指针
+
+中间两个4字节分别是内部对象计数器和自身的计数器。
+
+最后4个字节是内部对象指针。
+
+到这里就shared_ptr与weak_ptr的代码就分析的差不多了
+
+
+
+最后说一下**计数器增减**的规则：
+
+初始化及增加的情形：
+
+- 当创建一个新的shared_ptr时，内部对象计数器和自身的计数器均置1.
+
+- 当将另外一个shared_ptr赋值给新的shared_ptr时，内部对象计数器+1,自身计数器不变。
+
+- 当将另外一个shared_ptr赋值给新的weak_ptr时,内部对象计数器不变,自身计数器+1。
+
+- 当从weak_ptr获取一个shared_ptr时，内部对象计数器+1,自身计数器不变。
+
+减少的情形：
+
+- 当一个shared_ptr析构时，内部对象计数器-1。当内部对象计数器减为0时，则释放内部对象，并将自身计数器-1。
+
+- 当一个weak_ptr析构时，自身计数器-1。当自身计数器减为0时，则释放自身_Ref_count*对象。
+
+那么就可以自己来模拟强弱指针，并修改成模板。
+
+ 
+
+```C++
+#include "stdafx.h"
+#include <memory>
+
+
+/*
+    问题1：
+     为什么会存在强弱指针的计数？
+     A{
+
+        B对象弱智能指针（引用次数  1） weak_ptr_uses_count
+     }
+
+     B{
+     
+        A对象智能指针（引用次数  2）   shared_ptr_uses_count
+     }
+
+
+
+
+    问题2：
+     强弱指针计数的用途是什么，具体的代码实现是什么？
+
+     shared_ptr :  对外提供接口，并无成员变量 表示强指针
+               父类：_Ptr_base
+
+     weak_ptr   :  对外提供接口，并无成员变量 表示弱指针
+               父类：_Ptr_base
+
+     _Ptr_base{
+ 
+        两个成员变量：
+            _Ty *_Ptr;    //表示智能指针关联的原始的指针， 内部指针
+            _Ref_count_base *_Rep; //用于管理智能指针的次数
+     }
+
+     基类 纯虚类
+     _Ref_count_base{
+            virtual void _Destroy() _NOEXCEPT = 0;
+            virtual void _Delete_this() _NOEXCEPT = 0;
+
+            //实际上表达的是当前有多少个强指针在引用内部指针
+            _Atomic_counter_t _Uses;  //表示强指针使用次数 
+
+            //实际上表达的是当前_Ref_count_base类型的使用次数
+            _Atomic_counter_t _Weaks; //表示弱指针使用次数
+     }
+
+     有一个派生类：
+     _Ref_count： //真正的计数器对象，使用时，需要将指针强转为父类指针，仅仅使用接口
+                _Ref_count_base
+     {
+        //派生类多了一个成员
+        _Ty * _Ptr; //表达的是内部指针
+     }
+
+     //强指针构造，析构，=赋值 拷贝构造等情况下，计数器的变化
+     //弱指针构造，析构，=赋值 拷贝构造等情况下，计数器的变化
+     //弱指针提升为强指针时，计数器的变化
+
+     //强指针直接构造（拿原始指针构造）时：
+     //1. 初始化_Ty * _Ptr
+     //2. 创建_Ref_count对象
+     //3. _Ref_count_base对象构造时，会分别为_Uses = 1 并且 _Weaks = 1
+
+*/
+
+int _tmain(int argc, _TCHAR* argv[])
+{
+    std::shared_ptr<int> sptr(new int(3));
+    std::shared_ptr<int> sptr2 = sptr;
+
+    std::weak_ptr<int> wptr = sptr;
+
+    if (!wptr.expired()) {
+        std::shared_ptr<int> sptr3 = wptr.lock();
+    }
+
+    return 0;
+}
+```
+
+## 22.11 再次编写智能指针
+
+经过前面的分析，我们彻底理解了智能指针的使用，因此，这里我们根据stl中的智能指针的写法，对自己版本的智能指针进行修改，从而到底彻底理解智能指针的目的。
+
+```c++
+#pragma once
+
+class CRefCount
+{
+public:
+    CRefCount(){
+        m_nUsedCount = 1;
+        m_nWeakCount = 1; 
+    }
+
+    void incUsed(){
+        m_nUsedCount++;
+    }
+
+    int decUsed(){
+        m_nUsedCount--;
+        return m_nUsedCount;
+    }
+
+    void incWeak(){
+        m_nWeakCount++;
+    }
+
+    int decWeak(){
+        m_nWeakCount--;
+
+        return m_nWeakCount;
+    }
+
+    int getUsed(){
+        return m_nUsedCount;
+    }
+
+private:
+    int m_nUsedCount; //强指针引用次数
+    int m_nWeakCount; //弱指针引用次数
+};
+
+template<typename T>
+class CMySmartPtrBase
+{
+public:
+    CMySmartPtrBase(){};
+    ~CMySmartPtrBase(){};
+
+    void destroy(){
+        delete m_Ptr;
+    }
+
+    void release(){
+        if (m_pRef != nullptr && m_pRef->decWeak() == 0){
+            delete m_pRef;
+        }
+    }
+
+protected:
+    T* m_Ptr;
+    CRefCount* m_pRef;
+};
+
+//强指针类型
+template<typename T>
+class CMyWeakPtr;
+
+template<typename T>
+class CStrongPtr : public CMySmartPtrBase<T>
+{
+    friend class CMyWeakPtr<T>;
+public:
+    CStrongPtr(){
+        m_Ptr = nullptr;
+        m_pRef = nullptr;
+    }
+
+    explicit CStrongPtr(T* p){
+        m_Ptr = p;
+        m_pRef = new CRefCount;
+    }
+
+    CStrongPtr(CStrongPtr<T>& obj){
+
+        m_Ptr = obj.m_Ptr;
+        obj.m_pRef->incUsed();
+        m_pRef = obj.m_pRef;
+    }
+
+    CStrongPtr<T>& operator=(CStrongPtr<T>& obj){
+
+        if (m_pRef != nullptr && m_pRef->decUsed() == 0){
+            destroy();
+            release();
+        }
+
+        m_Ptr = obj.m_Ptr;
+        obj.m_pRef->incUsed();
+        m_pRef = obj.m_pRef;
+
+        return *this;
+    }
+
+    CStrongPtr(CMyWeakPtr<T>& obj){
+        m_Ptr = obj.m_Ptr;
+        obj.m_pRef->incUsed();
+        m_pRef = obj.m_pRef;
+    }
+
+    ~CStrongPtr(){
+        if (m_pRef != nullptr && m_pRef->decUsed() == 0){
+            destroy();
+            release();
+        }
+    }
+
+    T& operator*(){
+        return *m_Ptr;
+    }
+
+    T* operator->(){
+        return m_Ptr;
+    }
+
+    T* get(){
+        return m_Ptr;
+    }
+};
+
+
+//强指针类型
+template<typename T>
+class CMyWeakPtr : public CMySmartPtrBase<T>
+{
+public:
+    friend class CStrongPtr<T>;
+
+    CMyWeakPtr(){
+        m_Ptr = nullptr;
+        m_pRef = nullptr;
+    }
+
+    CMyWeakPtr(CStrongPtr<T>& obj){
+        //release();
+
+        m_Ptr = obj.m_Ptr;
+        obj.m_pRef->incWeak();
+        m_pRef = obj.m_pRef;
+    }
+
+    CMyWeakPtr<T>& operator = (CStrongPtr<T>& obj){
+        release();
+
+        m_Ptr = obj.m_Ptr;
+        obj.m_pRef->incWeak();
+        m_pRef = obj.m_pRef;
+
+        return *this;
+    }
+
+    CMyWeakPtr(CMyWeakPtr<T>& obj){
+
+        m_Ptr = obj.m_Ptr;
+        obj.m_pRef->incWeak();
+        m_pRef = obj.m_pRef;
+    }
+
+    ~CMyWeakPtr(){
+        release();
+    }
+
+    CStrongPtr<T>& lock(){
+        if (m_pRef == nullptr){
+            return CStrongPtr<T>();
+        }
+
+        return CStrongPtr<T>(*this);
+    }
+
+    bool IsExpried(){
+        if (m_pRef == nullptr){
+            return true;
+        }
+
+        return m_pRef->getUsed() == 0;
+    }
+};
+
+```
+
+main:
+
+```c++
+// MySharedPtr.cpp : 定义控制台应用程序的入口点。
+//
+
+#include "stdafx.h"
+#include "MySmartPtr.h"
+
+class CSon;
+
+class CTest{
+public:
+
+    void set(CStrongPtr<CSon> p2){
+        m_p1 = p2;
+    }
+
+    CStrongPtr<CSon> m_p1;
+};
+
+class CSon{
+public:
+
+    void set(CStrongPtr<CTest> p2){
+        m_p1 = p2;
+    }
+
+    CMyWeakPtr<CTest> m_p1;
+};
+
+void foo(){
+    CTest* father = new CTest();
+    CSon* son = new CSon();
+
+
+    CStrongPtr<CTest> ptrFather(father);
+    CStrongPtr<CSon> ptrSon(son);
+
+    father->set(ptrSon);
+    son->set(ptrFather);
+
+}
+
+int _tmain(int argc, _TCHAR* argv[])
+{
+    foo();
+
+    return 0;
+}
+```
+
+ 
