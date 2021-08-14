@@ -1,4 +1,4 @@
-初识C++
+# 1. 初识C++
 
 ## 1.1 C++常量
 
@@ -1582,6 +1582,37 @@ int main()
 }
 ```
 
+## 10.6 内联函数（inline）
+
+http://c.biancheng.net/view/199.html
+
+https://www.runoob.com/w3cnote/cpp-inline-usage.html
+
+C++函数调用需要耗费时间，对于需要大量被调用，且执行的代码比较简单的函数，建议使用inline标识为内联函数。
+
+```C++
+#include <iostream>
+using namespace std;
+
+inline const char* num_check(int v)
+{
+    return (v % 2 > 0) ? "奇" : "偶";
+}
+
+int main()
+{
+    int i;
+    for (i = 0; i < 100; i++)
+    {
+        cout << i << " 是 " << num_check(i) << " 数" << endl;
+    }
+
+	system("pause");
+}
+```
+
+
+
 # 11. 类和对象基础
 
 
@@ -2893,6 +2924,41 @@ this实际上是一个不可变的指向对象的指针，例如对于Person类�
 	// 普通对象的this：Person* const this
 	// 常对象的this：const Person* const this   作用范围，整个对象
 	// 常函数的this：const Person* const this   作用范围，仅常函数
+
+## 11.17 =delete和=default
+
+```C++
+#include <iostream>
+using namespace std;
+
+class Person
+{
+public:
+	// 在重载了有参构造函数后，一般情况下编译器会删除默认构造函数
+	// 可通过 = default 告诉编译器需要生成默认构造函数
+	Person() = default;
+
+	// 不想让对应的函数被调用时，可以通过 = delete 实现
+	Person(int age) = delete;
+
+	void speak() = delete;
+};
+
+int main()
+{
+	Person p;
+
+	// 报错
+	//Person p(10);
+
+	// 报错
+	//p.speak();
+
+	system("pause");
+}
+```
+
+
 
 # 12. 友元
 
@@ -5007,6 +5073,779 @@ int main() {
 }
 ```
 
+## 17.5 类模板语法
+
+类模板作用：
+
+- 建立一个通用类，类中的成员 数据类型可以不具体制定，用一个**虚拟的类型**来代表。
+
+**语法：**
+
+```c++
+template<typename T>
+类
+```
+
+**解释：**
+
+template — 声明创建模板
+
+typename — 表面其后面的符号是一种数据类型，可以用class代替
+
+T — 通用的数据类型，名称可以替换，通常为大写字母
+
+**示例：**
+
+```C++
+#include <string>
+//类模板
+template<class NameType, class AgeType> 
+class Person
+{
+public:
+	Person(NameType name, AgeType age)
+	{
+		this->mName = name;
+		this->mAge = age;
+	}
+	void showPerson()
+	{
+		cout << "name: " << this->mName << " age: " << this->mAge << endl;
+	}
+public:
+	NameType mName;
+	AgeType mAge;
+};
+
+void test01()
+{
+	// 指定NameType 为string类型，AgeType 为 int类型
+	Person<string, int>P1("孙悟空", 999);
+	P1.showPerson();
+}
+
+int main() {
+
+	test01();
+
+	system("pause");
+
+	return 0;
+}
+```
+
+总结：类模板和函数模板语法相似，在声明模板template后面加类，此类称为类模板
+
+## 17.6 类模板与函数模板区别
+
+类模板与函数模板区别主要有两点：
+
+1. 类模板没有自动类型推导的使用方式
+2. 类模板在模板参数列表中可以有默认参数
+
+**示例：**
+
+```C++
+#include <string>
+//类模板
+template<class NameType, class AgeType = int> 
+class Person
+{
+public:
+	Person(NameType name, AgeType age)
+	{
+		this->mName = name;
+		this->mAge = age;
+	}
+	void showPerson()
+	{
+		cout << "name: " << this->mName << " age: " << this->mAge << endl;
+	}
+public:
+	NameType mName;
+	AgeType mAge;
+};
+
+//1、类模板没有自动类型推导的使用方式
+void test01()
+{
+	// Person p("孙悟空", 1000); // 错误 类模板使用时候，不可以用自动类型推导
+	Person <string ,int>p("孙悟空", 1000); //必须使用显示指定类型的方式，使用类模板
+	p.showPerson();
+}
+
+//2、类模板在模板参数列表中可以有默认参数
+void test02()
+{
+	Person <string> p("猪八戒", 999); //类模板中的模板参数列表 可以指定默认参数
+	p.showPerson();
+}
+
+int main() {
+
+	test01();
+
+	test02();
+
+	system("pause");
+
+	return 0;
+}
+```
+
+总结：
+
+- 类模板使用只能用显示指定类型方式
+- 类模板中的模板参数列表可以有默认参数
+
+## 17.7 类模板中成员函数创建时机
+
+类模板中成员函数和普通类中成员函数创建时机是有区别的：
+
+- 普通类中的成员函数一开始就可以创建
+- 类模板中的成员函数在调用时才创建
+
+**示例：**
+
+```C++
+class Person1
+{
+public:
+	void showPerson1()
+	{
+		cout << "Person1 show" << endl;
+	}
+};
+
+class Person2
+{
+public:
+	void showPerson2()
+	{
+		cout << "Person2 show" << endl;
+	}
+};
+
+template<class T>
+class MyClass
+{
+public:
+	T obj;
+
+	//类模板中的成员函数，并不是一开始就创建的，而是在模板调用时再生成
+
+	void fun1() { obj.showPerson1(); }
+	void fun2() { obj.showPerson2(); }
+
+};
+
+void test01()
+{
+	MyClass<Person1> m;
+	
+	m.fun1();
+
+	//m.fun2();//编译会出错，说明函数调用才会去创建成员函数
+}
+
+int main() {
+
+	test01();
+
+	system("pause");
+
+	return 0;
+}
+```
+
+总结：类模板中的成员函数并不是一开始就创建的，在调用时才去创建
+
+## 17.8 类模板对象做函数参数
+
+学习目标：
+
+- 类模板实例化出的对象，向函数传参的方式
+
+一共有三种传入方式：
+
+1. 指定传入的类型 — 直接显示对象的数据类型
+2. 参数模板化 — 将对象中的参数变为模板进行传递
+3. 整个类模板化 — 将这个对象类型 模板化进行传递
+
+**示例：**
+
+```C++
+#include <string>
+//类模板
+template<class NameType, class AgeType = int> 
+class Person
+{
+public:
+	Person(NameType name, AgeType age)
+	{
+		this->mName = name;
+		this->mAge = age;
+	}
+	void showPerson()
+	{
+		cout << "name: " << this->mName << " age: " << this->mAge << endl;
+	}
+public:
+	NameType mName;
+	AgeType mAge;
+};
+
+//1、指定传入的类型
+void printPerson1(Person<string, int> &p) 
+{
+	p.showPerson();
+}
+void test01()
+{
+	Person <string, int >p("孙悟空", 100);
+	printPerson1(p);
+}
+
+//2、参数模板化
+template <class T1, class T2>
+void printPerson2(Person<T1, T2>&p)
+{
+	p.showPerson();
+	cout << "T1的类型为： " << typeid(T1).name() << endl;
+	cout << "T2的类型为： " << typeid(T2).name() << endl;
+}
+void test02()
+{
+	Person <string, int >p("猪八戒", 90);
+	printPerson2(p);
+}
+
+//3、整个类模板化
+template<class T>
+void printPerson3(T & p)
+{
+	cout << "T的类型为： " << typeid(T).name() << endl;
+	p.showPerson();
+
+}
+void test03()
+{
+	Person <string, int >p("唐僧", 30);
+	printPerson3(p);
+}
+
+int main() {
+
+	test01();
+	test02();
+	test03();
+
+	system("pause");
+
+	return 0;
+}
+```
+
+总结：
+
+- 通过类模板创建的对象，可以有三种方式向函数中进行传参
+- 使用比较广泛是第一种：指定传入的类型
+
+## 17.9 类模板与继承
+
+当类模板碰到继承时，需要注意一下几点：
+
+- 当子类继承的父类是一个类模板时，子类在声明的时候，要指定出父类中T的类型
+- 如果不指定，编译器无法给子类分配内存
+- 如果想灵活指定出父类中T的类型，子类也需变为类模板
+
+**示例：**
+
+```C++
+template<class T>
+class Base
+{
+	T m;
+};
+
+//class Son:public Base  //错误，c++编译需要给子类分配内存，必须知道父类中T的类型才可以向下继承
+class Son :public Base<int> //必须指定一个类型
+{
+};
+void test01()
+{
+	Son c;
+}
+
+//类模板继承类模板 ,可以用T2指定父类中的T类型
+template<class T1, class T2>
+class Son2 :public Base<T2>
+{
+public:
+	Son2()
+	{
+		cout << typeid(T1).name() << endl;
+		cout << typeid(T2).name() << endl;
+	}
+};
+
+void test02()
+{
+	Son2<int, char> child1;
+}
+
+
+int main() {
+
+	test01();
+
+	test02();
+
+	system("pause");
+
+	return 0;
+}
+```
+
+总结：如果父类是类模板，子类需要指定出父类中T的数据类型
+
+## 17.10 类模板成员函数类外实现
+
+学习目标：能够掌握类模板中的成员函数类外实现
+
+**示例：**
+
+```C++
+#include <string>
+
+//类模板中成员函数类外实现
+template<class T1, class T2>
+class Person {
+public:
+	//成员函数类内声明
+	Person(T1 name, T2 age);
+	void showPerson();
+
+public:
+	T1 m_Name;
+	T2 m_Age;
+};
+
+//构造函数 类外实现
+template<class T1, class T2>
+Person<T1, T2>::Person(T1 name, T2 age) {
+	this->m_Name = name;
+	this->m_Age = age;
+}
+
+//成员函数 类外实现
+template<class T1, class T2>
+void Person<T1, T2>::showPerson() {
+	cout << "姓名: " << this->m_Name << " 年龄:" << this->m_Age << endl;
+}
+
+void test01()
+{
+	Person<string, int> p("Tom", 20);
+	p.showPerson();
+}
+
+int main() {
+
+	test01();
+
+	system("pause");
+
+	return 0;
+}
+```
+
+总结：类模板中成员函数类外实现时，需要加上模板参数列表
+
+## 17.11 类模板分文件编写
+
+学习目标：
+
+- 掌握类模板成员函数分文件编写产生的问题以及解决方式
+
+问题：
+
+- 类模板中成员函数创建时机是在调用阶段，导致分文件编写时链接不到
+
+解决：
+
+- 解决方式1：直接包含.cpp源文件
+- 解决方式2：将声明和实现写到同一个文件中，并更改后缀名为.hpp，hpp是约定的名称，并不是强制
+
+**示例：**
+
+person.hpp中代码：
+
+```C++
+#pragma once
+#include <iostream>
+using namespace std;
+#include <string>
+
+template<class T1, class T2>
+class Person {
+public:
+	Person(T1 name, T2 age);
+	void showPerson();
+public:
+	T1 m_Name;
+	T2 m_Age;
+};
+
+//构造函数 类外实现
+template<class T1, class T2>
+Person<T1, T2>::Person(T1 name, T2 age) {
+	this->m_Name = name;
+	this->m_Age = age;
+}
+
+//成员函数 类外实现
+template<class T1, class T2>
+void Person<T1, T2>::showPerson() {
+	cout << "姓名: " << this->m_Name << " 年龄:" << this->m_Age << endl;
+}
+```
+
+类模板分文件编写.cpp中代码
+
+```C++
+#include<iostream>
+using namespace std;
+
+//#include "person.h"
+#include "person.cpp" //解决方式1，包含cpp源文件
+
+//解决方式2，将声明和实现写到一起，文件后缀名改为.hpp
+#include "person.hpp"
+void test01()
+{
+	Person<string, int> p("Tom", 10);
+	p.showPerson();
+}
+
+int main() {
+
+	test01();
+
+	system("pause");
+
+	return 0;
+}
+```
+
+总结：主流的解决方式是第二种，将类模板成员函数写到一起，并将后缀名改为.hpp
+
+## 17.12 类模板与友元
+
+学习目标：
+
+- 掌握类模板配合友元函数的类内和类外实现
+
+全局函数类内实现 - 直接在类内声明友元即可
+
+全局函数类外实现 - 需要提前让编译器知道全局函数的存在
+
+**示例：**
+
+```C++
+#include <string>
+
+//2、全局函数配合友元  类外实现 - 先做函数模板声明，下方在做函数模板定义，在做友元
+template<class T1, class T2> class Person;
+
+//如果声明了函数模板，可以将实现写到后面，否则需要将实现体写到类的前面让编译器提前看到
+//template<class T1, class T2> void printPerson2(Person<T1, T2> & p); 
+
+template<class T1, class T2>
+void printPerson2(Person<T1, T2> & p)
+{
+	cout << "类外实现 ---- 姓名： " << p.m_Name << " 年龄：" << p.m_Age << endl;
+}
+
+template<class T1, class T2>
+class Person
+{
+	//1、全局函数配合友元   类内实现
+	friend void printPerson(Person<T1, T2> & p)
+	{
+		cout << "姓名： " << p.m_Name << " 年龄：" << p.m_Age << endl;
+	}
+
+
+	//全局函数配合友元  类外实现
+	friend void printPerson2<>(Person<T1, T2> & p);
+
+public:
+
+	Person(T1 name, T2 age)
+	{
+		this->m_Name = name;
+		this->m_Age = age;
+	}
+
+
+private:
+	T1 m_Name;
+	T2 m_Age;
+
+};
+
+//1、全局函数在类内实现
+void test01()
+{
+	Person <string, int >p("Tom", 20);
+	printPerson(p);
+}
+
+
+//2、全局函数在类外实现
+void test02()
+{
+	Person <string, int >p("Jerry", 30);
+	printPerson2(p);
+}
+
+int main() {
+
+	//test01();
+
+	test02();
+
+	system("pause");
+
+	return 0;
+}
+```
+
+总结：建议全局函数做类内实现，用法简单，而且编译器可以直接识别
+
+## 17.13 类模板案例
+
+案例描述: 实现一个通用的数组类，要求如下：
+
+- 可以对内置数据类型以及自定义数据类型的数据进行存储
+- 将数组中的数据存储到堆区
+- 构造函数中可以传入数组的容量
+- 提供对应的拷贝构造函数以及operator=防止浅拷贝问题
+- 提供尾插法和尾删法对数组中的数据进行增加和删除
+- 可以通过下标的方式访问数组中的元素
+- 可以获取数组中当前元素个数和数组的容量
+
+**示例：**
+
+myArray.hpp中代码
+
+```C++
+#pragma once
+#include <iostream>
+using namespace std;
+
+template<class T>
+class MyArray
+{
+public:
+    
+	//构造函数
+	MyArray(int capacity)
+	{
+		this->m_Capacity = capacity;
+		this->m_Size = 0;
+		pAddress = new T[this->m_Capacity];
+	}
+
+	//拷贝构造
+	MyArray(const MyArray & arr)
+	{
+		this->m_Capacity = arr.m_Capacity;
+		this->m_Size = arr.m_Size;
+		this->pAddress = new T[this->m_Capacity];
+		for (int i = 0; i < this->m_Size; i++)
+		{
+			//如果T为对象，而且还包含指针，必须需要重载 = 操作符，因为这个等号不是 构造 而是赋值，
+			// 普通类型可以直接= 但是指针类型需要深拷贝
+			this->pAddress[i] = arr.pAddress[i];
+		}
+	}
+
+	//重载= 操作符  防止浅拷贝问题
+	MyArray& operator=(const MyArray& myarray) {
+
+		if (this->pAddress != NULL) {
+			delete[] this->pAddress;
+			this->m_Capacity = 0;
+			this->m_Size = 0;
+		}
+
+		this->m_Capacity = myarray.m_Capacity;
+		this->m_Size = myarray.m_Size;
+		this->pAddress = new T[this->m_Capacity];
+		for (int i = 0; i < this->m_Size; i++) {
+			this->pAddress[i] = myarray[i];
+		}
+		return *this;
+	}
+
+	//重载[] 操作符  arr[0]
+	T& operator [](int index)
+	{
+		return this->pAddress[index]; //不考虑越界，用户自己去处理
+	}
+
+	//尾插法
+	void Push_back(const T & val)
+	{
+		if (this->m_Capacity == this->m_Size)
+		{
+			return;
+		}
+		this->pAddress[this->m_Size] = val;
+		this->m_Size++;
+	}
+
+	//尾删法
+	void Pop_back()
+	{
+		if (this->m_Size == 0)
+		{
+			return;
+		}
+		this->m_Size--;
+	}
+
+	//获取数组容量
+	int getCapacity()
+	{
+		return this->m_Capacity;
+	}
+
+	//获取数组大小
+	int	getSize()
+	{
+		return this->m_Size;
+	}
+
+
+	//析构
+	~MyArray()
+	{
+		if (this->pAddress != NULL)
+		{
+			delete[] this->pAddress;
+			this->pAddress = NULL;
+			this->m_Capacity = 0;
+			this->m_Size = 0;
+		}
+	}
+
+private:
+	T * pAddress;  //指向一个堆空间，这个空间存储真正的数据
+	int m_Capacity; //容量
+	int m_Size;   // 大小
+};
+```
+
+类模板案例—数组类封装.cpp中
+
+```C++
+#include "myArray.hpp"
+#include <string>
+
+void printIntArray(MyArray<int>& arr) {
+	for (int i = 0; i < arr.getSize(); i++) {
+		cout << arr[i] << " ";
+	}
+	cout << endl;
+}
+
+//测试内置数据类型
+void test01()
+{
+	MyArray<int> array1(10);
+	for (int i = 0; i < 10; i++)
+	{
+		array1.Push_back(i);
+	}
+	cout << "array1打印输出：" << endl;
+	printIntArray(array1);
+	cout << "array1的大小：" << array1.getSize() << endl;
+	cout << "array1的容量：" << array1.getCapacity() << endl;
+
+	cout << "--------------------------" << endl;
+
+	MyArray<int> array2(array1);
+	array2.Pop_back();
+	cout << "array2打印输出：" << endl;
+	printIntArray(array2);
+	cout << "array2的大小：" << array2.getSize() << endl;
+	cout << "array2的容量：" << array2.getCapacity() << endl;
+}
+
+//测试自定义数据类型
+class Person {
+public:
+	Person() {} 
+		Person(string name, int age) {
+		this->m_Name = name;
+		this->m_Age = age;
+	}
+public:
+	string m_Name;
+	int m_Age;
+};
+
+void printPersonArray(MyArray<Person>& personArr)
+{
+	for (int i = 0; i < personArr.getSize(); i++) {
+		cout << "姓名：" << personArr[i].m_Name << " 年龄： " << personArr[i].m_Age << endl;
+	}
+
+}
+
+void test02()
+{
+	//创建数组
+	MyArray<Person> pArray(10);
+	Person p1("孙悟空", 30);
+	Person p2("韩信", 20);
+	Person p3("妲己", 18);
+	Person p4("王昭君", 15);
+	Person p5("赵云", 24);
+
+	//插入数据
+	pArray.Push_back(p1);
+	pArray.Push_back(p2);
+	pArray.Push_back(p3);
+	pArray.Push_back(p4);
+	pArray.Push_back(p5);
+
+	printPersonArray(pArray);
+
+	cout << "pArray的大小：" << pArray.getSize() << endl;
+	cout << "pArray的容量：" << pArray.getCapacity() << endl;
+
+}
+
+int main() {
+
+	//test01();
+
+	test02();
+
+	system("pause");
+
+	return 0;
+}
+```
+
+总结：
+
+能够利用所学知识点实现通用的数组
+
 # 18. main函数传参
 
 C++可以没有传参，如果有传参，格式如下
@@ -5580,14 +6419,10 @@ int main()
 
 C++中最令人头疼的问题是强迫程序员对申请的资源（文件，内存等）进行管理，一不小心就会出现泄露（忘记对申请的资源进行释放）的问题。
 
-
-
 ```C++
 // C++
 auto ptr = new std::vector<int>();
 ```
-
-
 
 ```java
 //使用了垃圾回收技术,不在需要人为管理，相关的虚拟机会自动释放不需要使用的资源。
@@ -5595,14 +6430,10 @@ auto ptr = new std::vector<int>();
 ArrayList<int> list = new ArrayList<int>();
 ```
 
-
-
 ```python
 # Python
 lst = list()
 ```
-
-
 
 **C++的解决办法：RAII**
 
@@ -6020,8 +6851,6 @@ int main(int argc, char* argv[])
 ![image-20210813002527128](.\images\image-20210813002527128.png)
 
 **写时拷贝**(COW copy on write)，在所有需要改变值的地方，重新分配内存。
-
-
 
 ```c++
 // Student.cpp : Defines the entry point for the console application.
@@ -7373,7 +8202,7 @@ void foo_construct()
 }
 ```
 
-![img](file:///C:/Users/Halo/Documents/My Knowledge/temp/8bac46c4-eb74-403d-84c1-7e46786ef29f/128/index_files/775b17f9-a6d0-4d4a-a467-0b6dcf74d57c.png)
+![image-20210814111945082](.\images\image-20210814111945082.png)
 
 这里显然可以看到有引用计数的存在。
 
@@ -7398,7 +8227,7 @@ void foo_construct()
 
 ```
 
-![img](file:///C:/Users/Halo/Documents/My Knowledge/temp/8bac46c4-eb74-403d-84c1-7e46786ef29f/128/index_files/dd9f556f-4f12-423c-aa4b-7a204524b24f.png)
+![image-20210814112822333](.\images\image-20210814112822333.png)
 
 **2. 注意事项：**
 
@@ -7421,11 +8250,7 @@ void foo_test()
 }
 ```
 
-![img](file:///C:/Users/Halo/Documents/My Knowledge/temp/8bac46c4-eb74-403d-84c1-7e46786ef29f/128/index_files/148d891b-cb88-4fcf-a86a-4ce3c9c26148.png)
-
 显然出了最里面的作用域之后，sptr2对象就已经释放了，此时，对于sptr2来说，p的引用计数为0，所有p被释放，但是实际上sptr还存在，所以再释放sptr时，就会0xc0000005.
-
-![img](file:///C:/Users/Halo/Documents/My Knowledge/temp/8bac46c4-eb74-403d-84c1-7e46786ef29f/128/index_files/231b5b65-019a-4016-b4e4-db19e060d048.png)
 
 2. shared_ptr最大的问题是存在循环引用的问题：
 
@@ -7573,8 +8398,6 @@ void testShared()
 
 这里在出作用域后发现，实际上两个对象均未被销毁：
 
-![img](file:///C:/Users/Halo/Documents/My Knowledge/temp/8bac46c4-eb74-403d-84c1-7e46786ef29f/128/index_files/cfd4dbc7-6416-42af-91a6-b71a92b03969.png)
-
 最后两者的引用计数均为1，原因是出了块作用域之后，两个shared_parent和shared_son均会析构，在这两个智能指针的内部，均会先去判断对应的内部指针是否-1是否为0，显然这里相互引用的情况下，引用计数初值为2，减1后值为1，所以两个指针均不会被释放。
 
 这里，其实只需要一个释放了，另外一个也能跟着释放，可以采用弱指针，即人为的迫使其中一个引用计数为1，从而打破闭环。
@@ -7583,13 +8406,11 @@ void testShared()
 
 举例：
 
-![img](file:///C:/Users/Halo/Documents/My Knowledge/temp/8bac46c4-eb74-403d-84c1-7e46786ef29f/128/index_files/3b93d064-5f6e-4f5a-93dd-e889a3d5d60f.png)
+![image-20210814113642535](.\images\image-20210814113642535.png)
 
 最后的结果：
 
 此时，两个内部指针均会得到释放。
-
-![img](file:///C:/Users/Halo/Documents/My Knowledge/temp/8bac46c4-eb74-403d-84c1-7e46786ef29f/128/index_files/4536cca6-84f5-4533-aa08-c36508487b33.png)
 
 原因是，弱指针的引用不会增加原来的引用计数，那么就使得引用不再是闭环，所以在出作用域之后，全部得到释放。
 
@@ -7600,8 +8421,6 @@ void testShared()
 2. 因此，这里弱指针的在使用上，实际上是一个特例，即不增加引用计数也能获取对象，因此，实际上在使用弱指针时，不能通过弱指针，直接访问内部指针的数据，而应该是先判断该弱指针所观察的强指针是否存在（调用expired()函数），如果存在，那么则使用lock()函数来获取一个新的shared_ptr来使用对应的内部指针。
 
 3. 实际上，如果不存在循环引用，就不需要使用weak_ptr了，这种做法仍然增加了程序员的负担，所以不如java c#等语言垃圾回收机制省心。
-
-  
 
  
 
@@ -7626,8 +8445,6 @@ void testWeak()
 ```
 
 执行结果如下：
-
-![img](file:///C:/Users/Halo/Documents/My Knowledge/temp/8bac46c4-eb74-403d-84c1-7e46786ef29f/128/index_files/23be1c9d-48f2-4da1-8017-cb7bb7dd8d6f.png)
 
 ## 22.10 深入分析shared_ptr与weak_ptr的实现
 
@@ -8250,8 +9067,6 @@ void _Resetp(_Ux *_Px)
 
 接下来分析内存结构：
 
-![img](file:///C:/Users/Halo/Documents/My Knowledge/temp/1cb3edc2-5dce-4b0f-9a56-c796844b128f/128/index_files/127c8569-7b95-4f0e-8bd6-b392e462031a.png)
-
 这里有两个成员，分别是
 
  _Ptr(内部指针) ：0x71b8d0
@@ -8261,8 +9076,6 @@ void _Resetp(_Ux *_Px)
  而引用base这里实际上是_Ref_count对象，因为有虚函数，所以这里存在虚表指针：
 
  
-
-![img](file:///C:/Users/Halo/Documents/My Knowledge/temp/1cb3edc2-5dce-4b0f-9a56-c796844b128f/128/index_files/ceed5ffa-7608-4150-8071-f82766ff4c8e.png)
 
 前4个字节是虚表指针
 
@@ -8511,7 +9324,7 @@ public:
 };
 
 
-//强指针类型
+//弱指针类型
 template<typename T>
 class CMyWeakPtr : public CMySmartPtrBase<T>
 {
@@ -8623,4 +9436,18 @@ int _tmain(int argc, _TCHAR* argv[])
 }
 ```
 
- 
+## 22.12 Android中的智能指针
+
+详细可以看《深入理解Android 内核设计思想》6.1节的内容
+
+Android中的智能指针设计思路与shared_ptr和weak_ptr的一致，但继承关系略有区别。
+
+`shared_ptr&weak_ptr类图：`
+
+![image-20210814173441954](.\images\image-20210814173441954.png)
+
+`android中的sp&wp类图：`
+
+![image-20210814174626655](.\images\image-20210814174626655.png)
+
+对比可知android中要求原始指针需继承计数类RefBase，而shared_ptr中对计数类进行了封装。

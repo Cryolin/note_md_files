@@ -518,6 +518,22 @@ A：Binder是android中主要的IPC方式，通过mmap实现一次拷贝，比So
 
 # 7. 音频框架
 
+关键类位置：
+
+| 名称                 | 路径                                                 |
+| -------------------- | ---------------------------------------------------- |
+| audioserver.rc       | frameworks/av/media/audioserver/audioserver.rc       |
+| main_audioserver.cpp | frameworks/av/media/audioserver/main_audioserver.cpp |
+| processState.cpp     |                                                      |
+|                      |                                                      |
+|                      |                                                      |
+|                      |                                                      |
+|                      |                                                      |
+|                      |                                                      |
+|                      |                                                      |
+
+
+
 ## 7.1 audioserver进程启动
 
 启动配置文件：audioserver.rc：
@@ -597,24 +613,38 @@ int main(int argc __unused, char **argv)
 }
 ```
 
-针对核心代码进行展开说明
+抽取核心代码：
 
-### 7.1.1 android::hardware::configureRpcThreadpool(4, false /*callerWillJoin*/);
+```C++
+frameworks/av/media/audioserver/main_audioserver.cpp
 
-// TODO
+int main(int argc __unused, char **argv)
+{   
+    // 一、获得一个ProcessState的实例
+    sp<ProcessState> proc(ProcessState::self());
+    // 二、audioServer进程作为ServiceManager的客户端，需要向ServiceManager注册服务
+    // 调用defaultServiceManager()得到一个IserviceManager
+    sp<IServiceManager> sm = defaultServiceManager();
+    // 三、初始化音频系统的AudioFlinger服务
+    AudioFlinger::instantiate();
+    // 四、初始化音频系统的AudioPolicyService服务
+    AudioPolicyService::instantiate();
 
-### 7.1.2 sp<ProcessState> proc(ProcessState::self());
+    // 五、按需初始化音频系统的AAudioService服务
+    aaudio_policy_t mmapPolicy = property_get_int32(AAUDIO_PROP_MMAP_POLICY,
+    AAUDIO_POLICY_NEVER);
+    if (mmapPolicy == AAUDIO_POLICY_AUTO || mmapPolicy == AAUDIO_POLICY_ALWAYS) {
+    AAudioService::instantiate();
+    }
 
+    // 六、创建一个线程池
+    ProcessState::self()->startThreadPool();
+    // 将自己加入该线程池
+    IPCThreadState::self()->joinThreadPool();
+    }
+}
+```
 
+上面的核心步骤会分别展开说明
 
-### 7.1.3 sp<IServiceManager> sm = defaultServiceManager();
-
-### 7.1.4 AudioFlinger::instantiate();
-
-### 7.1.5 AudioPolicyService::instantiate();
-
-### 7.1.6 AAudioService::instantiate();
-
-### 7.1.7 ProcessState::self()->startThreadPool();
-
-### 7.1.8 IPCThreadState::self()->joinThreadPool();
+7.1.1 ProcessState
