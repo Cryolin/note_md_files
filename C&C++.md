@@ -6296,6 +6296,8 @@ int main()
 
 # 21. 命名空间
 
+## 21.1 基本用法
+
 命名空间可以确定变量、类、枚举等的范围，可以避免命名冲突。
 
 语法：
@@ -6408,6 +6410,42 @@ int main()
 	A::A_inner::level = 10;
 
 	system("pause");
+}
+```
+
+## 21.2 使用命名空间的部分内容
+
+区别于直接using namespace使用整个命名空间，可以通过using关键字使用命名空间的部分内容
+
+```C++
+using std::cout;
+using std::endl;
+
+int main()
+{
+    cout << "hello world" << endl;
+
+    system("pause");
+}
+```
+
+## 21.2 给命名空间/类名起别名
+
+可以给某个命名空间，或者类起别名，类似于typedef
+
+```C++
+#include <iostream>
+#include <mutex>
+#include <vector>
+
+typedef std::vector<int> intvec;
+using intvec = std::vector<int>;	//这两个写法是等价的
+
+int main()
+{
+    intvec iv = { 1,2,3,4,5 };
+
+    system("pause");
 }
 ```
 
@@ -9451,3 +9489,791 @@ Android中的智能指针设计思路与shared_ptr和weak_ptr的一致，但继�
 ![image-20210814174626655](.\images\image-20210814174626655.png)
 
 对比可知android中要求原始指针需继承计数类RefBase，而shared_ptr中对计数类进行了封装。
+
+# 23. 线程与同步
+
+## 23.1 线程概念与使用
+
+对标准库的扩充: 语言级线程支持
+
+- std::thread
+- std::mutex/std::unique_lock
+- std::future/std::packaged_task
+- std::condition_variable
+
+ 线程：进程内一个相对独立的、可调度的执行单元，是系统独立调度和分派CPU的基本单位指运行中的程序的调度单位。
+
+​      1）线程内核对象。操作系统用它来管理线程，存放线程统计信息。
+
+​      2）线程堆栈，用于维护线程在执行代码时，需要的所有函数参数和局部变量。
+
+时间片：某一间A教室（1班，2班）, 把时间划分，划分成上午（1班）和下午（2班）。
+
+​                           cpu(听歌代码，游戏代码)，把cpu时间划分，划分为片段20ms,由线程1（听歌）和线程2（游戏代码）交替运行。
+
+- windows的线程使用：
+
+```c++
+#include "stdafx.h"
+#include <iostream>
+#include <windows.h>
+
+using namespace std;
+
+//线程回调函数
+DWORD WINAPI ThreadProc(LPVOID lpParameter)
+{
+    std::cout << "hello world" << std::endl;
+
+    return 1;
+}
+
+int _tmain(int argc, _TCHAR* argv[])
+{
+    DWORD dwThreadID = 0;
+    HANDLE hThread = CreateThread(
+        NULL,
+        0,//默认栈大小
+        ThreadProc,//线程回调函数 函数指针
+        NULL,//参数
+        0,//或者CREATE_SUSPENDED  表示是否暂停
+        &dwThreadID //线程
+    );
+
+    WaitForSingleObject(hThread, INFINITE);
+
+    return 0;
+}
+```
+
+- c11中的线程：
+
+```c++
+#include "stdafx.h"
+#include <iostream>
+#include <thread>
+
+using namespace std;
+
+void foo() {
+    std::cout << "hello world" << std::endl;
+}
+
+int _tmain(int argc, _TCHAR* argv[])
+{
+    std::thread t(foo);
+    t.join();
+
+    return 0;
+}
+```
+
+## 23.2 线程同步
+
+线程所带来的问题
+
+- c11中的线程同步问题：
+
+```c++
+#include "stdafx.h"
+#include <iostream>
+#include <thread>
+
+using namespace std;
+
+int g_nData = 0;
+
+void foo() {
+    for (int i = 0; i < 100000; i++) {
+        g_nData++;
+    }
+    
+}
+
+int _tmain(int argc, _TCHAR* argv[])
+{
+    std::thread t(foo);
+
+    for (int i = 0; i < 100000; i++) {
+        g_nData++;
+    }
+
+    t.join();
+
+    std::cout << g_nData << std::endl;
+
+    return 0;
+}
+```
+
+
+
+- 原因分析：
+
+```asm
+1.     /*
+2.     *                 1 int eax = g_nDataMemory;
+3.     *                 
+4.     *   g_nData++ ==> 2 eax++
+5.     *
+6.     *                 3 g_nDataMemory = eax;
+7.     */
+8. 
+9. CPU
+10.     (1)线程1：执行到了第二步
+11.     eax = 1000;
+12.    （2）线程1时间片耗尽，切换到线程2
+13.     线程2：执行到了第三步
+14.     g_nDataMemory = 1050
+15.     (3)线程2时间片耗尽，切回到线程1
+16.     g_nDataMemory = 1000;
+17. 
+18.     lock xxxx = xxxxx;
+```
+
+## 23.3 线程同步的方法
+
+- 原子操作：
+
+​    是指线程在访问资源时能够确保所有其他线程都不在同一时间内访问相同的资源。
+
+
+
+```c++
+1.   while(InterlockedExchange((LPLONG)&pDlg->m_bEnter,TRUE) == TRUE)
+2.   {
+3. 	    Sleep(10);
+4.   }
+5. 
+6.   for (int i = 0; i < 10000000; i++)
+7.   {
+8. 	    pDlg->m_nCount++;
+9.   }
+10. 
+11.  InterlockedExchange((LPLONG)&pDlg->m_bEnter,FALSE);
+```
+
+总结：windows中，互锁函数家族只能在单值上运行，无法使线程进入等待状态，但是速度最快。
+
+```c++
+#include "stdafx.h"
+#include <iostream>
+#include <thread>
+#include <mutex>
+#include <windows.h>
+using namespace std;
+
+int g_nData = 0;
+
+//原子操作
+/*
+会议室： 甲公司 乙公司
+
+保安/买一把锁：
+
+线程1：
+   对会议室进行加锁（同一把锁）
+
+   甲公司开会（独占会议室）
+
+   对会议室进行解锁
+
+线程2：
+   对会议室进行加锁（同一把锁）
+
+   乙公司开会（独占会议室）
+   
+   对会议室进行解锁
+
+*/
+
+void foo() {
+    for (int i = 0; i < 100000; i++) {
+        //++操作对应的汇编代码不止一行
+        //g_nData++;
+        //使用InterlockedAdd，可以使得g_nData++操作是原子操作
+        //lock xadd   dword ptr[ecx], eax
+        //InterlockedAdd((LONG*)&g_nData, 1);
+        g_nData = g_nData * 5;
+    }
+
+}
+
+int _tmain(int argc, _TCHAR* argv[])
+{
+    std::thread t(foo);
+
+    for (int i = 0; i < 100000; i++) {
+        g_nData++;
+        //InterlockedAdd((LONG*)&g_nData, 1);
+    }
+
+    t.join();
+
+    std::cout << g_nData << std::endl;
+
+    return 0;
+}
+```
+
+
+
+---
+
+- 临界区
+
+​      临界区是指一个小代码段，在代码能够执行前，它必须独占对某些共享资源的访问权，在线程退出临界区之前，系统将不给想要访问相同资源的其他任何线程进行调度。    
+
+```c++
+EnterCriticalSection(&cs)
+    xxxx,需要被同步的代码
+LeaveCriticalSection(&cs)
+```
+
+
+
+```c++
+#include "stdafx.h"
+#include <iostream>
+#include <thread>
+#include <mutex>
+#include <windows.h>
+using namespace std;
+
+int g_nData = 0;
+
+//创建临界区对象--等价于锁
+CRITICAL_SECTION g_cs;
+
+void foo() {
+    //进来上锁（颗粒度）
+    EnterCriticalSection(&g_cs);
+
+    for (int i = 0; i < 100000; i++) {
+        g_nData++;
+    }
+
+    //出去解锁
+    //LeaveCriticalSection(&g_cs);
+}
+
+int _tmain(int argc, _TCHAR* argv[])
+{
+
+    //使用前，需要对该对象进行初始化
+    InitializeCriticalSection(&g_cs);
+
+    std::thread t(foo);
+
+    //进来上锁
+    EnterCriticalSection(&g_cs);
+    for (int i = 0; i < 100000; i++) {
+        g_nData++;
+    }
+    //出去解锁
+    LeaveCriticalSection(&g_cs);
+
+    t.join();
+
+    std::cout << g_nData << std::endl;
+
+    //当不在使用该锁时，需要将锁删掉
+    DeleteCriticalSection(&g_cs);
+
+    return 0;
+}
+```
+
+
+
+注意事项：
+
+1. 每一个使用临界区应该在使用共享资源前调用EnterCriticalSection，使用完毕则调用LeaveCriticalSection。
+2. 如果有若干互不相干的共享资源，则应该为每一个互不相干的资源建一个临界区。
+3. 当同时访问多个资源的时候，注意死锁的问题。
+4. 临界区的缺点是不能跨进程
+
+## 23.4 自己封装线程同步锁
+
+```c++
+#pragma once
+#include <windows.h>
+
+
+//利用对象的构造和析构
+
+
+
+class CMyMutex
+{
+public:
+    CMyMutex(){
+        //使用前，需要对该对象进行初始化
+        InitializeCriticalSection(&m_cs);
+    }
+    
+    ~CMyMutex(){
+        //当不在使用该锁时，需要将锁删掉
+        DeleteCriticalSection(&m_cs);
+    }
+
+    void lock(){
+        EnterCriticalSection(&m_cs);
+    }
+
+    void unlock(){
+        //出去解锁
+        LeaveCriticalSection(&m_cs);
+    }
+
+private:
+    CRITICAL_SECTION m_cs;
+};
+
+class CMyLockGuard {
+public:
+    CMyLockGuard(CMyMutex& mtx)
+        :m_Mutex(mtx){
+        m_Mutex.lock();
+    }
+
+    ~CMyLockGuard(){
+        m_Mutex.unlock();
+    }
+
+private:
+    CMyMutex& m_Mutex;
+};
+
+```
+
+
+
+```c++
+#include "stdafx.h"
+#include <iostream>
+#include <thread>
+#include <mutex>
+#include <windows.h>
+#include "MyMutex.h"
+using namespace std;
+
+int g_nData = 0;
+
+//创建临界区对象--等价于锁
+CMyMutex g_mtx;
+
+void foo() {
+
+    {
+        CMyLockGuard lg(g_mtx);
+
+        //进来上锁（颗粒度）
+        for (int i = 0; i < 100000; i++) {
+            g_nData++;
+        }
+        //出去解锁
+        //g_mtx.unlock();
+    }
+
+}
+
+int _tmain(int argc, _TCHAR* argv[])
+{
+    std::thread t(foo);
+    //进来上锁
+
+    {
+        CMyLockGuard lg(g_mtx);
+        for (int i = 0; i < 100000; i++) {
+            g_nData++;
+        }
+    }
+    t.join();
+
+    std::cout << g_nData << std::endl;
+
+    return 0;
+}
+```
+
+## 23.5 mutex与lock_guard的使用
+
+```c++
+// TestC11.cpp : 定义控制台应用程序的入口点。
+//
+
+#include "stdafx.h"
+#include <iostream>
+#include <thread>
+#include <mutex>
+#include <windows.h>
+using namespace std;
+
+int g_nData = 0;
+
+//创建临界区对象--等价于锁
+std::mutex g_mtx;
+
+
+void foo() {
+
+    {
+        std::lock_guard<std::mutex> lg(g_mtx);
+        //g_mtx.lock();
+        //进来上锁（颗粒度）
+        for (int i = 0; i < 100000; i++) {
+            g_nData++;
+        }
+        //出去解锁
+        //g_mtx.unlock();
+
+    }
+
+}
+
+int _tmain(int argc, _TCHAR* argv[])
+{
+    std::thread t(foo);
+    //进来上锁
+    {
+        std::lock_guard<std::mutex> lg(g_mtx);
+        //g_mtx.lock();
+        for (int i = 0; i < 100000; i++) {
+            g_nData++;
+        }
+        //g_mtx.unlock();
+    }
+    t.join();
+
+    std::cout << g_nData << std::endl;
+
+    return 0;
+}
+```
+
+## 23.6 获取进程/线程信息
+
+windows下：通过windows.h
+
+```C++
+#include <iostream>
+#include <mutex>
+
+// windows环境下通过windows.h中的函数获取进程&线程信息
+#include<windows.h>
+using namespace std;
+
+mutex mtx;
+
+void func()
+{
+    cout << "子线程id : " << GetCurrentThreadId() << endl;
+}
+
+int main()
+{
+    thread t(func);
+
+    cout << "主线程id : " << GetCurrentThreadId() << endl;
+
+    t.join();
+
+    cout << "进程id : " << GetCurrentProcessId() << endl;
+    
+	system("pause");
+}
+```
+
+Linux下，通过unistd.h
+
+```C++
+#include "unistd.h"
+printf("pid is %d \n", getpid());
+printf("tid is %d \n", gettid());
+```
+
+## 23.7 call_once和once_flag
+
+call_once结合once_flag可以实现只执行一次的效果：
+
+```C++
+#include <iostream>
+#include <mutex>
+using namespace std;
+
+int main()
+{
+    // once_flag 用于辅助call_once使用
+    once_flag flag;
+
+    call_once(flag, []() {
+        cout << "123" << endl;
+        });
+
+    // 重复调用时，不会执行，直接返回
+    call_once(flag, []() {
+        cout << "456" << endl;
+        });
+
+    system("pause");
+}
+```
+
+二者可以用来实现单例
+
+```C++
+#include <iostream>
+#include <memory>
+#include <mutex>
+
+class Singleton {
+public:
+  static Singleton& GetInstance() {
+    static std::once_flag s_flag;
+    std::call_once(s_flag, [&]() {
+      instance_.reset(new Singleton);
+    });
+
+    return *instance_;
+  }
+
+  ~Singleton() = default;
+
+  void PrintAddress() const {
+    std::cout << this << std::endl;
+  }
+
+private:
+  Singleton() = default;
+
+  Singleton(const Singleton&) = delete;
+  Singleton& operator=(const Singleton&) = delete;
+
+private:
+  static std::unique_ptr<Singleton> instance_;
+};
+
+std::unique_ptr<Singleton> Singleton::instance_;
+
+int main() {
+  Singleton& s1 = Singleton::GetInstance();
+  s1.PrintAddress();
+
+  Singleton& s2 = Singleton::GetInstance();
+  s2.PrintAddress();
+
+  return 0;
+}
+```
+
+
+
+# 24. lambda表达式/匿名函数
+
+**Lambda** 表达式  是一个源自阿隆佐·邱奇（Alonzo Church）——艾伦·图灵（Alan Turing）的老师——的术语。邱奇创立了 λ 演算 ，后来被证明和图灵机是等价的。
+
+**Lambda** 表达式是 C++ 11 中最重要的新特性之一，而 Lambda 表达式，实际上就是提供了一个类似匿名函数的特性，而匿名函数则是在需要一个函数，但是又不想费力去命名一个函数的情况下去使用的。这样的场景其实有很多很多，所以匿名函数几乎是现代编程语言的标配。
+
+## 24.1 Lambda 表达式基础
+
+
+
+Lambda 表达式的基本语法如下：
+
+```txt
+[捕获列表](参数列表) mutable(可选) 异常属性 -> 返回类型 {
+    // 函数体
+}
+[ caputrue ] ( params ) opt -> ret { body; };
+```
+
+- Lambda 表达式以一对**中括号**开始。
+
+- 跟函数定义一样，我们有**参数列表**
+
+- 跟正常的函数定义一样，我们会有一个函数体，里面会有 return 语句
+
+- Lambda 表达式一般不需要说明返回值（相当于 auto）；有特殊情况需要说明时，则应使用箭头语法的方式
+
+- 每个 lambda 表达式都有一个全局唯一的类型，要精确捕捉 lambda 表达式到一个变量中，只能通过 auto 声明的方式
+
+基本使用
+
+- 参数列表
+
+- 返回类型
+
+- 函数体
+
+  ```C++
+  #include "stdafx.h"
+  #include <algorithm>
+  #include <iostream>
+  #include <vector>
+  using namespace std;
+  
+  int main()
+  {
+    int c =  [](int a, int b) -> int{
+          return a+b;
+    }(1, 2);
+  
+    cout << c << endl;
+  
+    int d = [](int n) {
+      return [n](int x){
+          return n + x;
+      }(2);
+    }(1);
+  
+    cout << d << endl;
+  
+    // 函数式编程，函数返回值仅依赖于入参，不依赖于其他
+    // 常被用于并发编程（线程间彼此独立）
+    //adder=λn.(λx.(+ x n))
+    auto adder = [](int n) {
+        return [n](int x) {
+            return n + x;
+        };
+    };
+  
+    cout << adder(1)(2) << endl;
+  }
+  ```
+
+## 24.2 mutable
+
+```c++
+#include "stdafx.h"
+#include <algorithm>
+#include <iostream>
+#include <vector>
+using namespace std;
+
+int main()
+{
+    int t = 10;
+
+    auto l = [t]() mutable {
+        return ++t;
+    };
+
+    auto l2 = [t]() mutable {
+        return ++t;
+    };
+
+    cout << l() << endl;
+    cout << l2() << endl;
+    cout << l() << endl;
+    cout << l2() << endl;
+    cout << t << endl;
+}
+```
+
+打印结果：
+
+```
+11
+11
+12
+12
+10
+请按任意键继续. . .
+```
+
+解释：捕获列表中的值是不可以在lambda表达式（匿名函数）中修改的，但加过mutable之后可以修改。
+
+但是修改仅在同一个匿名函数中生效，函数外不生效。
+
+## 24.3 捕获列表
+
+所谓**捕获列表**，其实可以理解为参数的一种类型，lambda 表达式内部函数体在默认情况下是不能够使用函数体外部的变量的，这时候捕获列表可以起到传递外部数据的作用。根据传递的行为，捕获列表也分为以下几种：
+
+**1. 值捕获**
+
+与参数传值类似，值捕获的前期是变量可以拷贝，不同之处则在于，被捕获的变量在 lambda 表达式被创建时拷贝，而非调用时才拷贝：
+
+```cpp
+void learn_lambda_func_1() {
+    int value_1 = 1;
+    auto copy_value_1 = [value_1] {
+        return value_1;
+    };
+    value_1 = 100;
+    auto stored_value_1 = copy_value_1();
+    // 这时, stored_value_1 == 1, 而 value_1 == 100.
+    // 因为 copy_value_1 在创建时就保存了一份 value_1 的拷贝
+    cout << "value_1 = " << value_1 << endl;
+    cout << "stored_value_1 = " << stored_value_1 << endl;
+}
+```
+
+**2. 引用捕获**
+
+与引用传参类似，引用捕获保存的是引用，值会发生变化。
+
+```cpp
+void learn_lambda_func_2() {
+    int value_2 = 1;
+    auto copy_value_2 = [&value_2] {
+        return value_2;
+    };
+    value_2 = 100;
+    auto stored_value_2 = copy_value_2();
+    // 这时, stored_value_2 == 100, value_1 == 100.
+    // 因为 copy_value_2 保存的是引用
+    cout << "value_2 = " << value_2 << endl;
+    cout << "stored_value_2 = " << stored_value_2 << endl;
+}
+```
+
+**3. 隐式捕获**
+
+手动书写捕获列表有时候是非常复杂的，这种机械性的工作可以交给编译器来处理，这时候可以在捕获列表中写一个 `&` 或 `=` 向编译器声明采用 引用捕获或者值捕获.
+
+总结一下，捕获提供了 Lambda 表达式对外部值进行使用的功能，捕获列表的最常用的四种形式可以是：
+
+- `[]` 空捕获列表
+- `[name1, name2, ...]` 捕获一系列变量
+- `[&]` 引用捕获, 让编译器自行推导捕获列表
+- `[=]` 值捕获, 让编译器执行推导应用列表
+
+**使用案例**
+
+```C++
+#include "stdafx.h"
+#include <algorithm>
+#include <iostream>
+#include <vector>
+using namespace std;
+
+int main()
+{
+    // Create a vector object that contains 10 elements.
+    vector<int> v;
+    for (int i = 0; i < 10; ++i) {
+        v.push_back(i);
+    }
+
+    // Count the number of even numbers in the vector by 
+    // using the for_each function and a lambda.
+    int evenCount = 0;
+    for_each(v.begin(), v.end(), [&evenCount](int n) {
+        cout << n;
+
+        if (n % 2 == 0) {
+            cout << " is even " << endl;
+            ++evenCount;
+        }
+        else {
+            cout << " is odd " << endl;
+        }
+    });
+
+    // Print the count of even numbers to the console.
+    cout << "There are " << evenCount
+        << " even numbers in the vector." << endl;
+}
+```
+

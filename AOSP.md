@@ -524,8 +524,8 @@ A：Binder是android中主要的IPC方式，通过mmap实现一次拷贝，比So
 | -------------------- | ---------------------------------------------------- |
 | audioserver.rc       | frameworks/av/media/audioserver/audioserver.rc       |
 | main_audioserver.cpp | frameworks/av/media/audioserver/main_audioserver.cpp |
-| processState.cpp     |                                                      |
-|                      |                                                      |
+| processState.cpp     | frameworks/native/libs/binder                        |
+| IServiceManager.cpp  | frameworks/native/libs/binder                        |
 |                      |                                                      |
 |                      |                                                      |
 |                      |                                                      |
@@ -647,4 +647,155 @@ int main(int argc __unused, char **argv)
 
 上面的核心步骤会分别展开说明
 
-7.1.1 ProcessState
+### 7.1.1 ProcessState::self
+
+主要针对这行代码展开说明：
+
+```C++
+// main_audioserver.cpp
+	// 一、获得一个ProcessState的实例
+    sp<ProcessState> proc(ProcessState::self());
+```
+
+```C++
+// ProcessState.cpp
+
+sp<ProcessState> ProcessState::self()
+{
+    return init(kDefaultDriver, false);
+}
+
+// 通过std::once_flag和std::call_once实现单例，即sp<ProcessState>::make(driver)只调用一次
+// 相应的，gProcess也只初始化一次
+sp<ProcessState> ProcessState::init(const char *driver, bool requireDefault)
+{
+    [[clang::no_destroy]] static sp<ProcessState> gProcess;
+    [[clang::no_destroy]] static std::mutex gProcessMutex;
+
+    if (driver == nullptr) {
+        std::lock_guard<std::mutex> l(gProcessMutex);
+        return gProcess;
+    }
+
+    [[clang::no_destroy]] static std::once_flag gProcessOnce;
+    std::call_once(gProcessOnce, [&](){
+        if (access(driver, R_OK) == -1) {
+            ALOGE("Binder driver %s is unavailable. Using /dev/binder instead.", driver);
+            driver = "/dev/binder";
+        }
+
+        std::lock_guard<std::mutex> l(gProcessMutex);
+        gProcess = sp<ProcessState>::make(driver);
+    });
+
+    return gProcess;
+}
+```
+
+sp<ProcessState>智能指针的make函数，实际上是执行了ProcessState的构造函数，然后返回智能指针
+
+```C++
+// StrongPointer.h
+template <typename T>
+template <typename... Args>
+sp<T> sp<T>::make(Args&&... args) {
+    T* t = new T(std::forward<Args>(args)...);
+    sp<T> result;
+    result.m_ptr = t;
+    t->incStrong(t);  // bypass check_not_on_stack for heap allocation
+    return result;
+}
+```
+
+查看ProcessState的构造函数
+
+```C++
+// ProcessState.cpp
+
+ProcessState::ProcessState(const char *driver)
+    : mDriverName(String8(driver))
+        // 打开/dev/binder这个设备，这是android在内核中专门用于完成进程间通信而设置的一个虚拟设备。
+    , mDriverFD(open_driver(driver))
+    , mVMStart(MAP_FAILED)
+    , mThreadCountLock(PTHREAD_MUTEX_INITIALIZER)
+    , mThreadCountDecrement(PTHREAD_COND_INITIALIZER)
+    , mExecutingThreadsCount(0)
+    , mWaitingForThreads(0)
+    , mMaxThreads(DEFAULT_MAX_BINDER_THREADS)
+    , mStarvationStartTimeMs(0)
+    , mThreadPoolStarted(false)
+    , mThreadPoolSeq(1)
+    , mCallRestriction(CallRestriction::NONE)
+{
+
+    if (mDriverFD >= 0) {
+        // mmap the binder, providing a chunk of virtual address space to receive transactions.
+        mVMStart = mmap(nullptr, BINDER_VM_SIZE, PROT_READ, MAP_PRIVATE | MAP_NORESERVE, mDriverFD, 0);
+        if (mVMStart == MAP_FAILED) {
+            // *sigh*
+            ALOGE("Using %s failed: unable to mmap transaction memory.\n", mDriverName.c_str());
+            close(mDriverFD);
+            mDriverFD = -1;
+            mDriverName.clear();
+        }
+    }
+}
+```
+
+总结，ProcessState::self做了三件事：
+
+- 打开/dev/binder设备，这就相当于与内核的Binder驱动有了交互的通道。
+- 对返回的fd使用mmap，这样Binder驱动就会分配一块内存来接收数据。
+- 由于ProcessState的惟一性，因此一个进程只打开设备一次。
+
+### 7.1.2 defaultServiceManager
+
+主要针对这行代码展开说明：
+
+```C++
+// 二、audioServer进程作为ServiceManager的客户端，需要向ServiceManager注册服务
+    // 调用defaultServiceManager()得到一个IserviceManager
+    sp<IServiceManager> sm = defaultServiceManager();
+```
+
+defaultServiceManager()函数位于IServiceManager.cpp：
+
+```C++
+// IServiceManager.cpp
+
+using AidlServiceManager = android::os::IServiceManager;
+
+[[clang::no_destroy]] static std::once_flag gSmOnce;
+[[clang::no_destroy]] static sp<IServiceManager> gDefaultServiceManager;
+
+sp<IServiceManager> defaultServiceManager()
+{
+    // 可以看到也是个单例
+    std::call_once(gSmOnce, []() {
+        sp<AidlServiceManager> sm = nullptr;
+        while (sm == nullptr) {
+            sm = interface_cast<AidlServiceManager>(ProcessState::self()->getContextObject(nullptr));
+            if (sm == nullptr) {
+                ALOGE("Waiting 1s on context object on %s.", ProcessState::self()->getDriverName().c_str());
+                sleep(1);
+            }
+        }
+
+        gDefaultServiceManager = sp<ServiceManagerShim>::make(sm);
+    });
+
+    return gDefaultServiceManager;
+}
+```
+
+//  TODO
+
+https://www.kancloud.cn/alex_wsc/android_depp/412925
+
+### AudioFlinger::instantiate
+
+### AudioPolicyService::instantiate
+
+### AAudioServcei::instantiate
+
+### start&joinThreadPool
