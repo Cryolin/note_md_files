@@ -62,6 +62,511 @@ repo依赖的python版本是2.x，推荐2.7
 
 # 3. Android编译
 
+## 3.1 编译过程
+
+编译过程包括：
+
+1. 预处理：对各种预处理命令做处理，为编译阶段做准备
+2. 编译：将预处理的代码编译成汇编代码
+3. 汇编：把汇编代码转为机器代码（目标文件）
+4. 链接：将多个目标文件以及所需的`库文件`链接生成可执行目标文件的过程
+
+## 3.2 静态库&动态库
+
+**`后缀`**
+
+静态库：.a .lib
+
+动态库：.so .dll
+
+**`链接`**
+
+静态库在链接阶段会被“拷贝”到最终的可执行文件中
+
+动态库在链接阶段仅仅“拷贝”一些重定位和符号表信息
+
+通过静态库链接的程序大小 > 通过动态库链接的程序大小
+
+**`运行`**
+
+静态库的空间浪费问题：
+
+![image-20210822103345702](.\images\image-20210822103345702.png)
+
+动态库实现一次加载，多进程使用
+
+![image-20210822103410124](.\images\image-20210822103410124.png)
+
+**`查看依赖的动态库`**
+
+可以通过ldd命令，查看可执行文件依赖了哪些动态库，其路径如何：
+
+```
+$ ldd main
+    linux-vdso.so.1 =>  (0x00007ffc7b5a2000)
+    libm.so.6 => /lib/x86_64-linux-gnu/libm.so.6 (0x00007fe9642bf000)
+    libc.so.6 => /lib/x86_64-linux-gnu/libc.so.6 (0x00007fe963ef5000)
+    /lib64/ld-linux-x86-64.so.2 (0x00007fe9645c8000)
+```
+
+## 3.3 make&makefile
+
+makefile是一个脚本，由make来解析。
+
+（不局限于编译）makefile本身只是一种“规则”的执行者，而使用者具体通过它来做什么则没有任何限制。如既可以用它来架构编译系统，也能用来生成文档，或者单纯地打印log等。
+
+目前软件行业有多款优秀的make解析程序，如GNU make(Android中采用的)，Visual Studio中的nmake等，尽管在表现形式上会有些差异，但“万变不离其宗”，它们都是通过以下基础规则拓展起来的：
+
+> TARGET: PREREQIOSOTES
+>
+> ​        COMMANDS
+
+> 每个COMMANDS前都必须有一个TAB制表符
+
+详细可参考：https://www.bilibili.com/video/BV1iE41187R1?p=15
+
+## 3.4 m&mm&mmm命令
+
+这三个是android中编译模块的命令
+
+要想使用这些命令，首先需要在android源码根目录执行. build/envsetup.sh 
+
+```
+m：编译所有的模块 
+mm：编译当前目录下的模块（但是不包括它们的依赖），当前目录下要有Android.mk文件 
+mmm：编译指定路径下的模块（但是不包括它们的依赖），指定路径下要有Android.mk文件 
+```
+
+## 3.5 Android.mk介绍
+
+Android.mk是一个向Android NDK构建系统描述NDK项目的GNU makefile片段。主要用于编译生成以下几种：
+
+- APK程序
+- JAVA库
+- C\C++应用程序
+- C\C++静态库
+- C\C++共享库
+
+**一个简单的Android.mk文件**
+
+![image-20210822141324424](.\images\image-20210822141324424.png)
+
+**编译多个共享库**
+
+![image-20210822141749553](.\images\image-20210822141749553.png)
+
+**编译静态库**
+
+![image-20210822142733776](.\images\image-20210822142733776.png)
+
+**使用共享库（动态库）**
+
+![image-20210822142910016](.\images\image-20210822142910016.png)
+
+## 3.6 Android.mk开发示例
+
+实际开发中，结合JNI和Android.mk实现动态库的构建、以及打包到APK中。详细的开发流程如下。
+
+![image-20210822154709737](.\images\image-20210822154709737.png)
+
+step 1：java层调用native方法：
+
+```JAVA
+// MainActivity.java
+package com.colin.demo03;
+
+import androidx.appcompat.app.AppCompatActivity;
+
+import android.os.Bundle;
+import android.widget.TextView;
+
+public class MainActivity extends AppCompatActivity {
+    private TextView mTextView;
+
+    static {
+        System.loadLibrary("NDK-TEST");
+    }
+
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        setContentView(R.layout.activity_main);
+        mTextView = findViewById(R.id.textView);
+        mTextView.setText("" + native_test());
+    }
+
+    public native int native_test();
+}
+```
+
+step 2：实现JNI方法
+
+```C++
+// ndk-test.c
+
+#include <jni.h>
+
+int ndk_test() {
+    return 123;
+}
+
+// 注意ndk和test前面要加个“1”
+#ifdef __cplusplus
+extern "C" {
+#endif
+    jint Java_com_colin_demo03_MainActivity_native_1test(JNIEnv *env, jobject thiz) {
+        return ndk_test();
+    }
+#ifdef __cplusplus
+}
+#endif
+
+```
+
+step 3：实现Android.mk
+
+```
+# 定义模块当前路径
+LOCAL_PATH := ${call my-dir}
+
+# 清空环境变量
+include ${CLEAR_VARS}
+
+# 当前模块名
+LOCAL_MODULE := ndk-test
+
+# 当前模块包含的源代码文件
+LOCAL_SRC_FILES := ndk_test.c
+
+# 生成一个动态库
+include $(BUILD_SHARED_LIBRARY)
+```
+
+step 4：修改build.gradle
+
+```gradle
+plugins {
+    id 'com.android.application'
+}
+
+android {
+    compileSdkVersion 30
+    buildToolsVersion "30.0.3"
+
+    defaultConfig {
+        applicationId "com.colin.demo03"
+        minSdkVersion 30
+        targetSdkVersion 30
+        versionCode 1
+        versionName "1.0"
+
+        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+
+        externalNativeBuild {
+            ndkBuild {
+                abiFilters "x86"
+            }
+        }
+    }
+
+    externalNativeBuild {
+        ndkBuild {
+            path "src/main/jni/Android.mk"
+        }
+    }
+
+	省略。。。
+}
+```
+
+step 5：查看运行结果
+
+![image-20210822155540908](.\images\image-20210822155540908.png)
+
+## 3.7 Android.bp介绍
+
+https://blog.csdn.net/tkwxty/article/details/104395820
+
+https://note.qidong.name/demo/soong_build/
+
+> cc_library_headers
+>
+> 对应Android.mk中的BUILD_HEADER_LIBRARY，头文件库
+
+## 3.8 Android.mk和Android.bp映射关系
+
+| Android.mk          | android.bp             | 说明                                         |
+| ------------------- | ---------------------- | -------------------------------------------- |
+| cc_binary           | BUILD_EXECUTABLE       | 编译成可执行文件                             |
+| cc_library          | BUILD_SHARED_LIBRARY   | 默认编译成动态库                             |
+| cc_library_shared   | BUILD_SHARED_LIBRARY   | 编译成动态库                                 |
+| cc_library_headers  | BUILD_HEADER_LIBRARY   | 编译成头文件库                               |
+| name                | LOCAL_MODULE           | 编译出模块的名称                             |
+| srcs                | LOCAL_SRC_FILES        | 源文件                                       |
+| include_dirs        | LOCAL_C_INCLUDES       | 头文件查找路径                               |
+| export_include_dirs |                        | 外部依赖本库时，<br>添加到外部的include_dirs |
+| cflags              | LOCAL_CFLAGS           |                                              |
+| shared_libs         | LOCAL_SHARED_LIBRARIES | 依赖的动态库                                 |
+| header_libs         | LOCAL_HEADER_LIBRARIES | 依赖的头文件库                               |
+|                     |                        |                                              |
+|                     |                        |                                              |
+
+
+
+关于EXPORT相关的属性的含义，可以看：https://blog.csdn.net/huoxiaoqian123/article/details/115702372
+
+## 3.9 Android系统编译过程
+
+学习了上面关于makefile和Android.mk的知识后，看下Android系统的编译过程：
+
+首先来到根目录，有个MAKEFILE文件：
+
+```makefile
+// 根目录/Makefile
+### DO NOT EDIT THIS FILE ###
+include build/make/core/main.mk
+### DO NOT EDIT THIS FILE ###
+```
+
+build/make/core/main.mk文件特别长，建议结合《深入理解Android内核设计思想》第三章理解。
+
+## 3.10 audioserver进程的编译
+
+audioserver进程的mk文件位于
+
+> frameworks\av\media\audioserver\Android.mk
+
+根据上面的学习，对该文件注释如下：
+
+```makefile
+# 定义模块当前路径
+LOCAL_PATH:= $(call my-dir)
+
+# 清除除LOCAL_PATH外的环境变量
+include $(CLEAR_VARS)
+
+# 源文件列表
+LOCAL_SRC_FILES := \
+	main_audioserver.cpp \
+
+# 依赖的动态库列表
+LOCAL_SHARED_LIBRARIES := \
+	libaaudioservice \
+	libaudioflinger \
+	libaudiopolicyservice \
+	libaudioprocessing \
+	libbinder \
+	libcutils \
+	liblog \
+	libhidlbase \
+	libmedia \
+	libmedialogservice \
+	libmediautils \
+	libnbaio \
+	libnblog \
+	libutils \
+	libvibrator
+
+# 
+LOCAL_HEADER_LIBRARIES := \
+	libaudiohal_headers \
+	libmediametrics_headers \
+
+# 头文件路径
+LOCAL_C_INCLUDES := \
+	frameworks/av/services/audioflinger \
+	frameworks/av/services/audiopolicy \
+	frameworks/av/services/audiopolicy/common/managerdefinitions/include \
+	frameworks/av/services/audiopolicy/common/include \
+	frameworks/av/services/audiopolicy/engine/interface \
+	frameworks/av/services/audiopolicy/service \
+	frameworks/av/services/medialog \
+	frameworks/av/services/oboeservice \
+	frameworks/av/media/libaaudio/include \
+	frameworks/av/media/libaaudio/src \
+	frameworks/av/media/libaaudio/src/binding \
+	frameworks/av/media/libmedia/include \
+	external/sonic \
+
+# 模块名
+LOCAL_MODULE := audioserver
+LOCAL_LICENSE_KINDS := SPDX-license-identifier-Apache-2.0
+LOCAL_LICENSE_CONDITIONS := notice
+LOCAL_NOTICE_FILE := $(LOCAL_PATH)/../../NOTICE
+
+LOCAL_INIT_RC := audioserver.rc
+
+LOCAL_CFLAGS := -Werror -Wall
+
+# 生成可执行文件
+include $(BUILD_EXECUTABLE)
+```
+
+看下audioserver进程入口类：main_audioserver.cpp
+
+> frameworks/av/media/audioserver/main_audioserver.cpp
+
+```C++
+#include <binder/IPCThreadState.h>
+#include <binder/ProcessState.h>
+#include <binder/IServiceManager.h>
+```
+
+这几个类位于libbinder库中
+
+> 思考:
+>
+> audioserver.exe的Android.mk位于frameworks\av\media\audioserver\Android.mk
+>
+> libbinder.so中的IPCThreadState.h等位于frameworks\native\libs\binder\include\binder
+>
+> 前者是如何拿到后者的include路径作为相对路径的？
+
+要回答这个问题，先查看libbinder库的Android.bp文件（省略了部分内容）
+
+>\frameworks\native\libs\binder\Android.bp
+
+```makefile
+省略。。。
+
+cc_library_headers {		// 编译生成头文件库
+    name: "libbinder_headers",		// 头文件库名称
+    export_include_dirs: ["include"],	// 外部依赖本库时，把本库的include路径添加到外部的
+    									// include_dirs中
+
+	。。。
+
+    header_libs: [			// 依赖的头文件库
+        "libbase_headers",
+        "libbinder_headers_platform_shared",
+        "libcutils_headers",
+        "libutils_headers",
+    ],
+    export_header_lib_headers: [	// 外部依赖本库时，把本库的如下头文件库添加到外部的
+    								// header_libs中
+        "libbase_headers",
+        "libbinder_headers_platform_shared",
+        "libcutils_headers",
+        "libutils_headers",
+    ],
+	。。。
+}
+
+。。。
+
+cc_library {			// 编译生成动态库
+    name: "libbinder",		// 动态库名称
+
+	。。。
+
+    // 依赖的动态库
+    include_dirs: [
+        "bionic/libc/kernel/android/uapi/",
+        "bionic/libc/kernel/uapi/",
+    ],
+
+	。。。
+
+	// 源码
+    srcs: [
+        "Binder.cpp",
+        "BpBinder.cpp",
+        "BufferedTextOutput.cpp",
+        "Debug.cpp",
+        "IInterface.cpp",
+        "IMemory.cpp",
+        "IPCThreadState.cpp",
+        "IResultReceiver.cpp",
+        "IServiceManager.cpp",
+        "IShellCallback.cpp",
+        "LazyServiceRegistrar.cpp",
+        "MemoryBase.cpp",
+        "MemoryDealer.cpp",
+        "MemoryHeapBase.cpp",
+        "Parcel.cpp",
+        "ParcelableHolder.cpp",
+        "ParcelFileDescriptor.cpp",
+        "PersistableBundle.cpp",
+        "ProcessState.cpp",
+        "RpcAddress.cpp",
+        "RpcSession.cpp",
+        "RpcServer.cpp",
+        "RpcState.cpp",
+        "Static.cpp",
+        "Stability.cpp",
+        "Status.cpp",
+        "TextOutput.cpp",
+        "Utils.cpp",
+        ":packagemanager_aidl",
+        ":libbinder_aidl",
+    ],
+
+	。。。
+
+	// 依赖的动态库
+    shared_libs: [
+        "liblog",
+        "libcutils",
+        "libutils",
+    ],
+
+	// 依赖的头文件库
+    header_libs: [
+        "libbinder_headers",
+    ],
+
+	// 外部依赖本库时，将如下头文件库添加到外部的header_lib中
+    export_header_lib_headers: [
+        "libbinder_headers",
+    ],
+	
+	。。。
+}
+
+省略。。。
+```
+
+可以看到，audioserver.exe依赖libbinder.so时，由于libbinder.so做了如下配置
+
+```makefile
+export_header_lib_headers: [
+    "libbinder_headers",
+],
+```
+
+所以audioserver.exe相当于依赖了libbinder_headers这个头文件库，而同样的，由于libbinder_headers做了如下配置
+
+```makefile
+export_include_dirs: ["include"]
+```
+
+所以audioserver.exe会把libbinder_headers的include路径添加到其include_dirs中，也就回答了前面的`思考`。
+
+## 3.11 libbinder.so动态库的编译
+
+接着audioserver进程的编译，继续看下libbinder.so动态库的编译。其Android.bp文件上节已经讨论过了。
+
+同样的，看下其中一个类的include:
+
+> frameworks\native\libs\binder\IServiceManager.cpp
+
+```C++
+#include <binder/IServiceManager.h>
+#include <binder/IPCThreadState.h>
+#include <binder/Parcel.h>
+
+#include <android/os/BnServiceCallback.h>
+#include <android/os/IServiceManager.h>
+```
+
+前三个比较好理解，参考上一节的分析，libbinder.so依赖了头文件库libbinder_headers，将"include"目录添加到了自己的include_dirs环境变量中。
+
+关于后面两个，同样抛出该问题：
+
+> 思考：IServiceManager.h和BnSrviceCallback.h这两个文件并不存在，这里是如何通过相对路径依赖进来的？
+>
+> TODO
+
 # 4. 系统启动系列
 
 ## 4.1 启动流程
@@ -370,6 +875,10 @@ public class Main {
 执行结果：
 
 ![image-20210808104429501](.\images\image-20210808104429501.png)
+
+```
+说明：这里演示的是在VS中构建动态库，Android工程中依赖动态库的方法，实际开发中，也可以通过Android.mk构建动态库，生成的动态库会自动打包到APK中，并位于libs目录下。详细参考【Android编译】章节
+```
 
 ## 5.2 JNIEnv详解
 
