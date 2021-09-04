@@ -2,7 +2,7 @@
 
 ## 1.1 View&ViewGroup
 
-### Q1：简单介绍下android中View和ViewGroup两个类？
+### 1. View和ViewGroup
 
 View类是UI部件的基础类，占据一块矩形的区域，主要功能包含【绘制】和【事件处理】。
 
@@ -10,7 +10,7 @@ View类是UI部件的基础类，占据一块矩形的区域，主要功能包�
 
 View和ViewGroup均位于android.view包。
 
-### Q2：View中定义的属性有哪些？
+### 2. View中定义的属性有哪些
 
 | 属性名称                     | java方法                            | 属性含义                           | 取值范围                                                     |
 | ---------------------------- | ----------------------------------- | ---------------------------------- | ------------------------------------------------------------ |
@@ -36,7 +36,7 @@ View和ViewGroup均位于android.view包。
 |                              |                                     |                                    |                                                              |
 |                              |                                     |                                    |                                                              |
 
-### Q3：ViewGroup有哪些内部类，包含哪些属性？
+### 3. ViewGroup有哪些内部类，包含哪些属性
 
 ViewGroup包含两个重要的内部类，【ViewGroup.LayoutParams】和【ViewGroup.MarginLayoutParams】类
 
@@ -60,7 +60,7 @@ ViewGroup.MarginLayoutParams用于设置外边距，其属性有：
 | android:layout_end          |                                                              | 设置结束外边距 | 可以兼容文字方向 |
 |                             |                                                              |                |                  |
 
-### Q4：margin值可以设置为负数吗
+### 4. margin值可以设置为负数吗
 
 可以设置为负数，当两个组件需要重叠时，例如下面的删除图片和广告图片，是有重叠的
 
@@ -68,7 +68,7 @@ ViewGroup.MarginLayoutParams用于设置外边距，其属性有：
 
 ## 1.1 布局
 
-### Q1：android的布局（layout）类由哪些？
+### 1. android的布局（layout）类由哪些？
 
 LinearLayout：线性布局
 
@@ -84,7 +84,7 @@ GridLayout：网格布局
 
 ConstraintLayout：约束布局
 
-### Q2：LinearLayout 线性布局
+### 2. LinearLayout 线性布局
 
 LinearLayout继承自android.view.ViewGroup，位于android.widget包，提供线性布局容器能力，可以使子视图在单个方向（水平或垂直）保持对齐。
 
@@ -105,14 +105,14 @@ LinearLayout#LayoutParams中定义的属性有：
 | android:layout_gravity |          | 设置当前组件如何被放入父容器 | bottom center center_horizontal<br />center_vertical left right start end<br />上述属性可以通过 \|组合 |
 | android:weight         |          | 设置子组件的权重             | int值，默认是0                                               |
 
-### Q3：LinearLayout中weight属性的使用技巧
+### 3. LinearLayout中weight属性的使用技巧
 
 1. orientation为horizontal，设置layout_width，orientation为vertical，设置layout_height
 2. 设置weight时，不要设置match_parent，要么统一设置为wrap_content，要么设置为0
 3. 可以通过给某几个子组件配置weight，其余几个不设置weight，不设置的相当于wrap_content，设置了weight的会根据其weight的权重均分剩余空间
 4. 可以通过给每一个子组件配置相同的weight，实现均分效果
 
-### Q4：LinearLayout如何实现分割线？
+### 4. LinearLayout如何实现分割线？
 
 有两种方法可以实现在LinearLayout中的分割线效果：
 
@@ -168,13 +168,13 @@ LinearLayout#LayoutParams中定义的属性有：
 </shape>
 ```
 
-### Q5：LinearLayout的缺点
+### 5. LinearLayout的缺点
 
 LinearLayout中的weight属性对于屏幕适配很有帮助。但当界面比较复杂的时候，需要嵌套多层LinearLayout，这样就会降低UI Render的效率（渲染速度），而且如果是ListView或者GridView上的item，效率会更低。另外太多层LinearLayout嵌套会占用更多的系统资源，还有可能引发stackoverflow。
 
 开发中要多用LinearLayout+RelativeLayout
 
-### Q6：RelativeLayout 相对布局
+### 6. RelativeLayout 相对布局
 
 android.widget.RelativeLayout继承自android.view.ViewGroup，可实现相对布局。
 
@@ -213,13 +213,13 @@ RelativeLayout#LayoutParams中的属性，作用于子组件
 | android:toEndOf                  |          | 位于指定id组件结束位置             | id          |
 |                                  |          |                                    |             |
 
-### Q7：RelativeLayout中某些属性冲突，遇到过吗？
+### 7. RelativeLayout中某些属性冲突，遇到过吗？
 
 RelativeLayout针对子组件，提供了layout_alignParentBottom等相对于父组件的位置属性，如果子组件设置相对RelativeLayout底对齐，而RelativeLayout的layout_height设置了wrap_content，这两个属性在定义上是矛盾的。如果如此设置，RelativeLayout无法确定自己的尺寸，高度会占满屏幕。
 
 其他属性同理。
 
-### Q8：TableLayout 表格布局
+### 8. TableLayout 表格布局
 
 android.widget.TableLayout继承自android.view.ViewGroup，用于实现表格布局。实际使用的不多，简单了解下其属性：
 
@@ -229,7 +229,7 @@ android.widget.TableLayout继承自android.view.ViewGroup，用于实现表格�
 | android:layout_shrinkColumns   |          | 设置被收缩的列index   | 列的index值 |
 | android:layout_stretchColumns  |          | 设置被拉伸的列的index | 列的index值 |
 
-### Q9：FrameLayout 帧布局
+### 9. FrameLayout 帧布局
 
 android.widget.FrameLayout继承自android.view.ViewGroup，用于实现帧布局。
 
@@ -243,7 +243,7 @@ android.widget.FrameLayout继承自android.view.ViewGroup，用于实现帧布�
 | android:foreground_gravity |          | 前景图像位置       | bottom等，多个可以用 \| 隔开 |
 |                            |          |                    |                              |
 
-### Q10：GridLayout 网格布局
+### 10. GridLayout 网格布局
 
 android.widget.GridLayout继承自android.view.ViewGroup，用于实现网格布局。
 
@@ -266,7 +266,7 @@ GridLayout#LayoutParams的属性有，作用于其中的子组件
 | android:layout_rowSpan    |          | 子组件横跨几行 |     数字 |
 | android:layout_columnSpan |          | 子组件纵跨几行 |     数字 |
 
-### Q11：AbsoluteLayout 绝对布局
+### 11. AbsoluteLayout 绝对布局
 
 android.widget.AbaoluteLayout继承自android.view.ViewGroup，用于实现绝对布局。
 
@@ -274,11 +274,11 @@ android.widget.AbaoluteLayout继承自android.view.ViewGroup，用于实现绝�
 
 ## 1.2 TextView系列
 
-### Q1：TextView系列的类继承关系是怎样的？
+### 1. TextView系列的类继承关系是怎样的？
 
 ![image-20210523202407468](.\images\image-20210523202407468.png)
 
-### Q2：TextView的用法？
+### 2. TextView的用法？
 
 TextView可以实现一个带文本的控件，但其能力远不止于此，首先看下其属性：
 
@@ -365,7 +365,7 @@ xml和效果图如下：
 
 ![image-20210526214230408](.\images\image-20210526214230408.png)
 
-### Q3：EditText的用法？
+### 3. EditText的用法？
 
 EditText可以实现一个可供编辑的文本框，继承自TextView，也拥有TextView的相关属性。通过几个例子介绍其用法及相关属性
 
@@ -496,7 +496,7 @@ public class EditTextWithDel extends EditText {
 
 
 
-### Q4：Button的用法？
+### 4. Button的用法？
 
 Button可以用于实现一个按钮，在说Button之前，首先说两种特殊的drawable资源：**StateListDrawable**和**ShapeDrawable**
 
@@ -553,7 +553,7 @@ button_default.xml
 
 *如需上面的background生效，且不改变全局的theme，可以通过把标签显示指定为android.widget.Button实现*
 
-### Q5：CompoundButton的用法？
+### 5. CompoundButton的用法？
 
 Compound是“复合的、混合的”意思，继承自Button，子类有RadioButton，CheckedBox等，可以实现更复杂的Button组。其常用属性有：
 
@@ -574,7 +574,7 @@ setOnCheckedChangedListener(new CompoundButton.OnCheckedChangeListener() {
         })
 ```
 
-### Q5：RadioButton的用法？
+### 6. RadioButton的用法？
 
 RadioButton实现单选按钮（每次只能选中一个），通过RadioGroup管理RadioButton，前者继承关系如下：
 
@@ -785,7 +785,7 @@ public abstract class BasePager {
 
 ![image-20210530110233237](.\images\image-20210530110233237.png)
 
-### Q6：CheckedBox的用法？
+### 7. CheckedBox的用法？
 
 CheckedBox可实现复选框效果，简单实现代码如下：
 
@@ -835,11 +835,11 @@ public class CompoundButtonPager extends BasePager implements CompoundButton.OnC
 
 ![image-20210530170741021](.\images\image-20210530170741021.png)
 
-### Q7：RadioButton,CheckBox结合ListView&RecyclerView的用法？
+### 8. RadioButton,CheckBox结合ListView&RecyclerView的用法？
 
 这部分会在ListView&RecyclerView中详细描述。
 
-### Q8：ToggleButton的用法？
+### 9. ToggleButton的用法？
 
 ToggleButton可实现开关按钮的效果，基本用法如下：
 
@@ -868,7 +868,7 @@ ToggleButton可实现开关按钮的效果，基本用法如下：
 
 ![image-20210530172616940](.\images\image-20210530172616940.png)
 
-### Q9：Switch的用法？
+### 10. Switch的用法？
 
 Switch相对ToggleButton可以实现更炫酷的开关效果，其属性有：
 
@@ -905,19 +905,19 @@ track_selector.xml
 
 ## 1.3 ImageView系列
 
-### Q1：ImageView系列的类继承关系是怎样的？
+### 1. ImageView系列的类继承关系是怎样的？
 
 ![image-20210530175655331](.\images\image-20210530175655331.png)
 
 ## 1.4 ProgressBar系列
 
-### Q1：ProgressBar系列的类继承关系是怎样的？
+### 1. ProgressBar系列的类继承关系是怎样的？
 
 ![image-20210530175958105](.\images\image-20210530175958105.png)
 
 # 2. MVP
 
-## Q1：请介绍下android中的MVP设计模式
+## 1. MVP简介
 
 MVP是MVC的一种衍生，MVP中不允许View直接访问Model，这是MVP与MVC最大的不同之处。
 
@@ -925,13 +925,516 @@ MVP是MVC的一种衍生，MVP中不允许View直接访问Model，这是MVP与MV
 
 MVP中通常包含四个要素：
 
- 1. View：负责绘制UI元素，与用户进行交互（Activity或Fragment）
+  1. View：负责绘制UI元素，与用户进行交互（Activity或Fragment）
+  2. View Interface：View需要实现的接口，View通过View Interface与Presenter进行交互，降低耦合，方便进行单元测试
+  3. Model：负责业务Bean的操作
+  4. Presenter：作为View与Model交互的纽带，承载大部分的复杂逻辑。
 
- 2. View Interface：View需要实现的接口，View通过View Interface与Presenter进行交互，降低耦合，方便进行单元测试
+# 3. AIDL
 
- 3. Model：负责业务Bean的操作
+## 3.1 AIDL的简单示例
 
- 4. Presenter：作为View与Model交互的纽带，承载大部分的复杂逻辑。
+> 核心步骤：
+>
+> 1、客户端和服务端创建同样的aidl文件，注意aidl文件的包名和内容要完全一致
+>
+> 2、创建完aidl之后build下，会在build目录下看到自动生成的.java文件
+>
+> 3、 服务端创建一个暴露Service，onBind()方法返回Stub的实现
+>
+> 4、 客户端bindService，onServiceConnected接受到的IBinder对象，作为Stub.asInterface的传参，获取到远程代理
 
-    
+客户端：
+
+![image-20210904152047155](.\images\image-20210904152047155.png)
+
+服务端：
+
+![image-20210904145342943](.\images\image-20210904145342943.png)
+
+AIDL文件：
+
+```aidl
+package com.colin.aidl;
+
+interface IRemoteInterface {
+    String getName();
+}
+```
+
+服务端的MyService：
+
+```java
+package com.colin.server;
+
+import ...;
+
+import com.colin.aidl.IRemoteInterface;
+
+public class MyService extends Service {
+    public MyService() {
+    }
+
+    @Override
+    public IBinder onBind(Intent intent) {
+        return new IRemoteInterface.Stub() {
+            @Override
+            public String getName() throws RemoteException {
+                return "你好，我是服务端";
+            }
+        };
+    }
+}
+```
+
+客户端MainActivity：
+
+```java
+package com.colin.client;
+
+import ...;
+
+import com.colin.aidl.IRemoteInterface;
+
+public class MainActivity extends AppCompatActivity implements View.OnClickListener {
+    private static final String TAG = "MainActivity";
+    private IRemoteInterface mAidlInterface;
+
+    private TextView mTextView;
+
+    private Button mBind;
+
+    private Button mUnbind;
+
+    private Button mGetName;
+
+    private boolean mIsBound;
+
+    private ServiceConnection mServiceConnection = new ServiceConnection() {
+        @Override
+        public void onServiceConnected(ComponentName name, IBinder service) {
+            Toast.makeText(getApplicationContext(), "bindService 成功", Toast.LENGTH_SHORT).show();
+            mIsBound = true;
+            mAidlInterface = IRemoteInterface.Stub.asInterface(service);
+        }
+
+        @Override
+        public void onServiceDisconnected(ComponentName name) {
+            mIsBound = false;
+            Toast.makeText(getApplicationContext(), "bindService 异常失败", Toast.LENGTH_SHORT).show();
+        }
+    };
+
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        setContentView(R.layout.activity_main);
+
+        initView();
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        if (mIsBound) {
+            unbindService(mServiceConnection);
+        }
+    }
+
+    private void initView() {
+        mTextView = findViewById(R.id.textView);
+        mBind = findViewById(R.id.bind);
+        mBind.setOnClickListener(this);
+        mUnbind = findViewById(R.id.unbind);
+        mUnbind.setOnClickListener(this);
+        mGetName = findViewById(R.id.getName);
+        mGetName.setOnClickListener(this);
+    }
+
+    @Override
+    public void onClick(View v) {
+        switch (v.getId()) {
+            case R.id.bind:
+                Intent intent = new Intent();
+                intent.setClassName("com.colin.server", "com.colin.server.MyService");
+                bindService(intent, mServiceConnection, BIND_AUTO_CREATE);
+                break;
+            case R.id.unbind:
+                if (mIsBound) {
+                    unbindService(mServiceConnection);
+                    mIsBound = false;
+                    mAidlInterface = null;
+                }
+                Toast.makeText(getApplicationContext(), "unbindService ", Toast.LENGTH_LONG).show();
+                break;
+            case R.id.getName:
+                if (mIsBound && mAidlInterface != null) {
+                    try {
+                        Toast.makeText(getApplicationContext(), "调用服务端的getName()返回： " + mAidlInterface.getName(), Toast.LENGTH_LONG).show();
+                    } catch (RemoteException e) {
+                        e.printStackTrace();
+                    }
+                }
+                break;
+            default:
+                break;
+        }
+    }
+}
+```
+
+> 执行结果：
+
+![image-20210904152256766](.\images\image-20210904152256766.png)
+
+![image-20210904152314440](.\images\image-20210904152314440.png)
+
+## 3.2 AIDL传递数据
+
+> AIDL支持的数据类型有：
+>
+> 1、 基本数据类型（int、long、char、boolean、double等）；
+>
+> 2、 String和CharSequence
+>
+> 3、 List（只支持ArrayList，而且其中每个元素也必须是AIDL支持的类型）
+>
+> 4、 Map（只支持HashMap，而且其中每个元素也必须是AIDL支持的类型）
+>
+> 5、Parcelable：所有实现了Parcelable接口的对象
+>
+> 6、AIDL：所有AIDL接口自身也可以在AIDL中使用
+
+这里仅演示下第5、第6条
+
+在3.1节的基础上，创建两个新的aidl文件：
+
+![image-20210904173306632](.\images\image-20210904173306632.png)
+
+> Book.java
+
+```java
+package com.colin.aidl;
+
+import android.os.Parcel;
+import android.os.Parcelable;
+
+public class Book implements Parcelable{
+    public String mBookName;
+    public int mId;
+
+    public Book(String bookName, int id) {
+        mBookName = bookName;
+        mId = id;
+    }
+
+    /**
+     * 构造方法，将Parcel对象转化为Book对象
+     *
+     * @param in
+     */
+    protected Book(Parcel in) {
+        mBookName = in.readString();
+        mId = in.readInt();
+    }
+
+    // 把当前Book对象写入Parcel对象中
+    // 注意读和写的顺序要一致
+    @Override
+    public void writeToParcel(Parcel parcel, int i) {
+        parcel.writeString(mBookName);
+        parcel.writeInt(mId);
+    }
+
+    /**
+     * 实现Parcelable接口必须创建CREATOR
+     * 会回调其中的方法进行对象创建
+     */
+    public static final Creator<Book> CREATOR = new Creator<Book>() {
+        @Override
+        public Book createFromParcel(Parcel in) {
+            return new Book(in);
+        }
+
+        @Override
+        public Book[] newArray(int size) {
+            return new Book[size];
+        }
+    };
+
+    // 这个方法不用管
+    @Override
+    public int describeContents() {
+        return 0;
+    }
+}
+```
+
+> Book.aidl
+
+```aidl
+package com.colin.aidl;
+
+parcelable Book;
+```
+
+> 服务端MyService.java
+
+```java
+package com.colin.server;
+
+import ...;
+
+public class MyService extends Service {
+    private static final String TAG = "MyService";
+    private Map<Integer, Book> mBookMap = new HashMap<>();
+
+    public MyService() {
+    }
+
+    @Override
+    public IBinder onBind(Intent intent) {
+        return new IRemoteInterface.Stub() {
+            @Override
+            public String getName() throws RemoteException {
+                return "你好，我是服务端";
+            }
+
+            @Override
+            public Book queryBook(int id) throws RemoteException {
+                if (id < 0 || id > 10) {
+                    Log.e(TAG, "invalid id");
+                    return null;
+                }
+                return mBookMap.containsKey(id) ? mBookMap.get(id) : null;
+            }
+
+            @Override
+            public boolean addBook(Book book) throws RemoteException {
+                if (book == null || book.mId < 0 || book.mId > 10 || TextUtils.isEmpty(book.mBookName)) {
+                    Log.e(TAG, "invalid book, add fail");
+                    return false;
+                }
+                if (mBookMap.containsKey(book.mId)) {
+                    Log.e(TAG, "already contained specified id, pls reedit id and try again");
+                    return false;
+                }
+                mBookMap.put(book.mId, book);
+                return true;
+            }
+        };
+    }
+}
+```
+
+> 客户端MainActivity.java
+
+```java
+package com.colin.client;
+
+import ...;
+
+public class MainActivity extends AppCompatActivity implements View.OnClickListener {
+    private static final String TAG = "MainActivity";
+    private IRemoteInterface mAidlInterface;
+
+    private TextView mTextView;
+
+    private EditText mAddBookIdEditText;
+
+    private EditText mAddBookNameEditText;
+
+    private EditText mQueryBookEditText;
+
+    private Button mBind;
+
+    private Button mUnbind;
+
+    private Button mGetName;
+
+    private Button mAddBook;
+
+    private Button mQueryBook;
+
+    private boolean mIsBound;
+
+    private ServiceConnection mServiceConnection = new ServiceConnection() {
+        @Override
+        public void onServiceConnected(ComponentName name, IBinder service) {
+            Toast.makeText(getApplicationContext(), "bindService 成功", Toast.LENGTH_SHORT).show();
+            mIsBound = true;
+            mAidlInterface = IRemoteInterface.Stub.asInterface(service);
+        }
+
+        @Override
+        public void onServiceDisconnected(ComponentName name) {
+            mIsBound = false;
+            Toast.makeText(getApplicationContext(), "bindService 异常失败", Toast.LENGTH_SHORT).show();
+        }
+    };
+
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        setContentView(R.layout.activity_main);
+
+        initView();
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        if (mIsBound) {
+            unbindService(mServiceConnection);
+        }
+    }
+
+    private void initView() {
+        mTextView = findViewById(R.id.textView);
+        mBind = findViewById(R.id.bind);
+        mBind.setOnClickListener(this);
+        mUnbind = findViewById(R.id.unbind);
+        mUnbind.setOnClickListener(this);
+        mGetName = findViewById(R.id.getName);
+        mGetName.setOnClickListener(this);
+        mAddBookIdEditText = findViewById(R.id.addBookIdEditText);
+        mAddBookNameEditText = findViewById(R.id.addBookNameEditText);
+        mAddBook = findViewById(R.id.addBook);
+        mAddBook.setOnClickListener(this);
+        mQueryBookEditText = findViewById(R.id.querybookEditText);
+        mQueryBook = findViewById(R.id.querybook);
+        mQueryBook.setOnClickListener(this);
+    }
+
+    @Override
+    public boolean onTouchEvent(MotionEvent event) {
+        // 点击空白处EditText失去焦点
+        InputMethodManager imm = (InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE);
+        imm.hideSoftInputFromWindow(mAddBookIdEditText.getWindowToken(), 0);
+        imm.hideSoftInputFromWindow(mAddBookNameEditText.getWindowToken(), 0);
+        imm.hideSoftInputFromWindow(mQueryBookEditText.getWindowToken(), 0);
+        return super.onTouchEvent(event);
+    }
+
+    @Override
+    public void onClick(View v) {
+        switch (v.getId()) {
+            case R.id.bind:
+                Intent intent = new Intent();
+                intent.setClassName("com.colin.server", "com.colin.server.MyService");
+                bindService(intent, mServiceConnection, BIND_AUTO_CREATE);
+                break;
+            case R.id.unbind:
+                if (mIsBound) {
+                    unbindService(mServiceConnection);
+                    mIsBound = false;
+                    mAidlInterface = null;
+                }
+                Toast.makeText(getApplicationContext(), "unbindService ", Toast.LENGTH_SHORT).show();
+                break;
+            case R.id.getName:
+                getNameInner();
+                break;
+            case R.id.addBook:
+                addBookInner();
+                break;
+            case R.id.querybook:
+                queryBookInner();
+                break;
+            default:
+                break;
+        }
+    }
+
+    private void getNameInner() {
+        if (!mIsBound || mAidlInterface == null) {
+            Toast.makeText(getApplicationContext(), "请先bindService", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        try {
+            Toast.makeText(getApplicationContext(), "调用服务端的getName()返回： " + mAidlInterface.getName(), Toast.LENGTH_SHORT).show();
+        } catch (RemoteException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private void addBookInner() {
+        if (!mIsBound || mAidlInterface == null) {
+            Toast.makeText(getApplicationContext(), "请先bindService", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        String bookIdStr = mAddBookIdEditText.getText().toString();
+        int bookId;
+        try {
+            bookId = Integer.valueOf(bookIdStr);
+        } catch (NumberFormatException e) {
+            bookId = 0;
+        }
+        String bookName = mAddBookNameEditText.getText().toString();
+        try {
+            boolean result = mAidlInterface.addBook(new Book(bookName, bookId));
+            if (result) {
+                Toast.makeText(getApplicationContext(), "addBook成功！！！", Toast.LENGTH_SHORT).show();
+            } else {
+                Toast.makeText(getApplicationContext(), "addBook失败！！！", Toast.LENGTH_SHORT).show();
+            }
+        } catch (RemoteException e) {
+            Toast.makeText(getApplicationContext(), "addBook失败！！！", Toast.LENGTH_SHORT).show();
+            e.printStackTrace();
+        }
+    }
+
+    private void queryBookInner() {
+        if (!mIsBound || mAidlInterface == null) {
+            Toast.makeText(getApplicationContext(), "请先bindService", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        String bookIdStr = mQueryBookEditText.getText().toString();
+        int bookId;
+        try {
+            bookId = Integer.valueOf(bookIdStr);
+        } catch (NumberFormatException e) {
+            bookId = 0;
+        }
+        try {
+            Book book = mAidlInterface.queryBook(bookId);
+            if (book == null) {
+                Toast.makeText(getApplicationContext(), "queryBook失败！！！", Toast.LENGTH_SHORT).show();
+            } else {
+                Toast.makeText(getApplicationContext(), "查询到id 为 " + bookId + " 的图书，书名为： " + book.mBookName, Toast.LENGTH_SHORT).show();
+            }
+        } catch (RemoteException e) {
+            Toast.makeText(getApplicationContext(), "queryBook失败！！！", Toast.LENGTH_SHORT).show();
+            e.printStackTrace();
+        }
+        return;
+    }
+}
+```
+
+> 执行结果：addbook
+
+![image-20210904174018215](.\images\image-20210904174018215.png)
+
+>执行结果：querybook
+
+![image-20210904174112245](.\images\image-20210904174112245.png)
+
+## 3.3 抽取AIDL到SDK
+
+实际开发中，服务端可以把AIDL封装成sdk提供给客户端，有着更好的容错。
+
+> 创建aidl的library工程，目录结构如下
+
+![image-20210904222905948](.\images\image-20210904222905948.png)
+
+> 查看生成的aar，可以看到里面没有aidl文件，而是aidl生成的java文件相关的字节码文件
+
+![image-20210904223132239](.\images\image-20210904223132239.png)
+
+> client端和server端将该aar依赖进来，无需添加aidl文件（略）
+
+## 3.4 AIDL的回调
+
+## 3.5 AIDL生成的Java文件解析
 
