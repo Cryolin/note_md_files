@@ -225,7 +225,7 @@ extern "C" {
 
 step 3：实现Android.mk
 
-```
+```makefile
 # 定义模块当前路径
 LOCAL_PATH := ${call my-dir}
 
@@ -956,6 +956,8 @@ static JNINativeMethod gMethods[] = {
 详见：http://gityuan.com/2016/05/28/android-jni/
 
 # 6. Binder
+
+Binder内容比较多，单独开一个文件说明
 
 ## 6.1 什么是Binder？
 
