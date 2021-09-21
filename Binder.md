@@ -698,11 +698,128 @@ public interface IRemoteInterface extends android.os.IInterface
 }
 ```
 
+## 2.2 动手写aidl生成的java文件，取代aidl
 
+可以手动写aidl生成的java文件，可以精简部分代码。
 
-## 2.2 类图
+> step 1：抽取IInterface接口，客户端和服务端都要有该接口。可以把一些常量放到接口中
 
-## 2.3 动手写aidl生成的java文件，取代aidl
+```java
+package com.colin.aidl;
+
+import android.os.IInterface;
+import android.os.RemoteException;
+
+public interface IRemoteInterface extends IInterface {
+    String DESCRIPTOR = "com.colin.aidl.IRemoteInterface";
+
+    int TRANSACTION_getName = android.os.IBinder.FIRST_CALL_TRANSACTION + 0;
+
+    String getName() throws RemoteException;
+}
+```
+
+> step 2：实现服务端，实现如下三个方法即可
+
+```java
+package com.colin.server;
+
+import ...
+
+public class MyRemoteStub extends Binder implements IRemoteInterface {
+    @Override
+    public String getName() throws RemoteException {
+        return "This is server";
+    }
+
+    @Override
+    public IBinder asBinder() {
+        return this;
+    }
+
+    @Override
+    protected boolean onTransact(int code, @NonNull Parcel data, @Nullable Parcel reply, int flags) throws RemoteException {
+        switch (code)
+        {
+            case INTERFACE_TRANSACTION:
+            {
+                reply.writeString(DESCRIPTOR);
+                return true;
+            }
+            case TRANSACTION_getName:
+            {
+                data.enforceInterface(DESCRIPTOR);
+                java.lang.String _result = this.getName();
+                reply.writeNoException();
+                reply.writeString(_result);
+                return true;
+            }
+            default:
+            {
+                return super.onTransact(code, data, reply, flags);
+            }
+        }
+    }
+}
+```
+
+> 实现客户端，同样也是实现三个方法
+
+```java
+package com.colin.client;
+
+import ...
+
+public class MyRemoteProxy implements IRemoteInterface {
+    // 客户端需要持有IBinder（实际上是BinderProxy）
+    private IBinder mRemote;
+
+    public MyRemoteProxy(IBinder iBinder) {
+        mRemote = iBinder;
+    }
+
+    // 客户端通过mRemote.transact() 调用服务端
+    @Override
+    public String getName() throws RemoteException {
+        Parcel _data = Parcel.obtain();
+        Parcel _reply = Parcel.obtain();
+        String _result;
+        try {
+            _data.writeInterfaceToken(DESCRIPTOR);
+            mRemote.transact(TRANSACTION_getName, _data, _reply, 0);
+            _reply.readException();
+            _result = _reply.readString();
+        }
+        finally {
+            _reply.recycle();
+            _data.recycle();
+        }
+        return _result;
+    }
+
+    // 客户端返回mRemote
+    @Override
+    public IBinder asBinder() {
+        return mRemote;
+    }
+}
+```
+
+虽然，但是transact和onTransact写起来太麻烦了，实际使用中还是不要手动写了。
+
+## 2.3 类图
+
+前面铺垫了这么多，来看下这块的类图吧：
+
+![image-20210919105100679](.\images\image-20210919105100679.png)
+
+> 1、 最核心的两个接口，用来描述远程对象的IBinder和用来描述业务接口的IInterface，二者可以相互转换
+>
+> 2、 注意到IBinder中是没有onTransact()方法的，因为这是服务端明确的方法。例如对于子类BinderProxy是不需要该方法的
+>
+> 3、 Stub是服务端的实现类，同时具备了IBinder和IInterface的特性
+>
+> 4、 Proxy是客户端的代理类，需要绑定BinderProxy，然后通过后者的transact()方法进行远程调用
 
 # 3. native层的Binder
 
