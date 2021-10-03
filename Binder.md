@@ -823,3 +823,29 @@ public class MyRemoteProxy implements IRemoteInterface {
 
 # 3. native层的Binder
 
+## 3.1 类图
+
+与java层的结构类似，以IAudioTrack接口为例，类图如下
+
+.\edraw\【Binder】Binder类图（native层）.png
+
+![image-20211003213020129](.\images\image-20211003213020129.png)
+
+![image-20211003213154735](.\images\image-20211003213154735.png)
+
+## 3.2 native层Binder的一般开发流程
+
+以IAudioTrack接口为例，
+
+> 首先，在一端（可以是服务端，也可以是客户端，这个不重要）定义IAudioTrack.h的库文件，把IAudioTrack和BnAudioTrack定义好。
+
+![image-20211003213523516](.\images\image-20211003213523516.png)
+
+> 然后，服务端导入IAudioTrack.h，并实现BnAudioTrack。
+
+![image-20211003213807800](.\images\image-20211003213807800.png)
+
+> 最后，客户端同样导入IAudioTrack.ha，并实现BpAudioTrack
+
+![image-20211003213911362](.\images\image-20211003213911362.png)
+
