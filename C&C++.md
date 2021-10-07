@@ -717,7 +717,13 @@ void main() {
 }
 ```
 
-## 6.7 void指针
+## 6.7 使用typedef定义函数指针
+
+与普通的函数指针不同之处在于，typedef可以定义某个指向函数指针的类型
+
+https://www.cnblogs.com/zhubaohua-bupt/p/7182803.html
+
+## 6.8 void指针
 
 void 指针是一种特殊的指针，表示为“无类型指针”，任何指针都可以直接赋值给void指针
 
