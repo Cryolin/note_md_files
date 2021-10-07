@@ -1818,26 +1818,35 @@ typedef enum {
 
 ## 5.2 关键成员
 
-| 成员类型              | 成员名称            | 含义                            |
-| --------------------- | ------------------- | ------------------------------- |
-| audio_stream_type_t   | mStreamType         | 流类型                          |
-| audio_format_t        | mFormat             | 位宽                            |
-| audio_channel_mask_t  | mChannelMask        | 声道数mask                      |
-| uint32_t              | mChannelCount       | 声道数                          |
-| mutable uint32_t      | mSampleRate         | 采样率                          |
-| uint32_t              | mOriginalSampleRate | 初始采样率                      |
-| audio_output_flags_t  | mOrigFlags          | 输出Flag                        |
-| std::string           | mCallerName         | 调用方                          |
-| bool                  | mThreadCanCallJava  | 是否是走JNI过来的               |
-| audio_port_handle_t   | mSelectedDeviceId   | 输出设备id                      |
-| transfer_type         | mTransfer           | 数据如何传递给AudioTrack        |
-| sp<IMemory>           | mSharedBuffer       | 共享内存（仅MODE_STATIC）       |
-| bool                  | mDoNotReconnect     | 自动重连                        |
-| sp<IAudioTrack>       | mAudioTrack         | 与AudioFlinger进行交互的binder  |
-| size_t                | mFrameSize          | 每个采样点的大小，单位：字节    |
-| AudioPlaybackRate     | mPlaybackRate       | 播放速度/音高等与混音相关的属性 |
-| audio_offload_info_t  | mOffloadInfoCopy    | offload信息的本地拷贝           |
-| audio_offload_info_t* | mOffloadInfo        | offload信息                     |
+| 成员类型              | 成员名称                   | 含义                            |
+| --------------------- | -------------------------- | ------------------------------- |
+| audio_stream_type_t   | mStreamType                | 流类型                          |
+| audio_format_t        | mFormat                    | 位宽                            |
+| audio_channel_mask_t  | mChannelMask               | 声道数mask                      |
+| uint32_t              | mChannelCount              | 声道数                          |
+| mutable uint32_t      | mSampleRate                | 采样率                          |
+| uint32_t              | mOriginalSampleRate        | 初始采样率                      |
+| audio_output_flags_t  | mFlags                     | 输出Flag                        |
+| audio_output_flags_t  | mOrigFlags                 | 初始输出Flag                    |
+| std::string           | mCallerName                | 调用方                          |
+| bool                  | mThreadCanCallJava         | 是否是走JNI过来的               |
+| audio_port_handle_t   | mSelectedDeviceId          | 输出设备id                      |
+| transfer_type         | mTransfer                  | 数据如何传递给AudioTrack        |
+| sp<IMemory>           | mSharedBuffer              | 共享内存（仅MODE_STATIC）       |
+| bool                  | mDoNotReconnect            | 自动重连                        |
+| sp<IAudioTrack>       | mAudioTrack                | 与AudioFlinger进行交互的binder  |
+| size_t                | mFrameSize                 | 每个采样点的大小，单位：字节    |
+| AudioPlaybackRate     | mPlaybackRate              | 播放速度/音高等与混音相关的属性 |
+| audio_offload_info_t  | mOffloadInfoCopy           | offload信息的本地拷贝           |
+| audio_offload_info_t* | mOffloadInfo               | offload信息                     |
+| float                 | mVolume[2]                 | 音量                            |
+| float                 | mSendLevel                 |                                 |
+| size_t                | mReqFrameCount             | 缓冲区大小                      |
+| uint32_t              | mNotificationFramesReq     | 每两次回调之间需要的音频帧数量  |
+| uint32_t              | mNotificationsPerBufferReq | 每个buffer需要通知的数量        |
+| uint32_t              | mNotificationFramesAct     | 每两次回调之间实际的音频帧数量  |
+| uid_t                 | mClientUid                 | 调用方的uid                     |
+| pid_t                 | mClientPid                 | 调用方的pid                     |
 
 
 
@@ -1863,7 +1872,7 @@ std::string getCallerName()
 
 
 
-# 6. AudioTrack(源码走读)
+# 6. AudioTrack创建源码
 
 ## 6.1 关键Binder接口
 
@@ -1876,9 +1885,9 @@ AudioTrack.cpp与audioserver之间的关键Binder及定义位置如下：
 | TrackHandle  | AudioFlinger.h / AudioFlinger.cpp |
 | BpAudioTrack | AudioTrack.cpp                    |
 
-## 6.2 AudioTrack的创建之初始化列表
+## 6.2 初始化列表
 
-## 6.3 AudioTrack的创建之set()
+## 6.3 set()
 
 AudioTrack的构造函数：
 
@@ -2141,7 +2150,7 @@ status_t AudioTrack::set(
     // mFrameCount is initialized in createTrack_l
     mReqFrameCount = frameCount;
     
-    // step 19
+    // step 12
     if (notificationFrames >= 0) {
         mNotificationFramesReq = notificationFrames;
         mNotificationsPerBufferReq = 0;
@@ -2168,9 +2177,9 @@ status_t AudioTrack::set(
                 __func__,
                 notificationFrames, minNotificationsPerBuffer, maxNotificationsPerBuffer);
     }
-    
-    // step 20
     mNotificationFramesAct = 0;
+    
+    // step 13
     callingPid = IPCThreadState::self()->getCallingPid();
     myPid = getpid();
     if (uid == AUDIO_UID_INVALID || (callingPid != myPid)) {
@@ -2184,26 +2193,25 @@ status_t AudioTrack::set(
         mClientPid = pid;
     }
     
-    // step 21
+    // step 14
     mAuxEffectId = 0;
     mOrigFlags = mFlags = flags;
     mCbf = cbf;
 
-    // step 22
+    // step 15
     if (cbf != NULL) {
         mAudioTrackThread = new AudioTrackThread(*this);
         mAudioTrackThread->run("AudioTrack", ANDROID_PRIORITY_AUDIO, 0 /*stack*/);
         // thread begins in paused state, and will not reference us until start()
     }
 
-    // step 23
+    // step 16
     // create the IAudioTrack
     {
         AutoMutex lock(mLock);
         status = createTrack_l();
     }
-    
-    // step 24
+
     if (status != NO_ERROR) {
         if (mAudioTrackThread != 0) {
             mAudioTrackThread->requestExit();   // see comment in AudioTrack.h
@@ -2213,7 +2221,7 @@ status_t AudioTrack::set(
         goto exit;
     }
 
-    // step 25
+    // step 17
     mUserData = user;
     mLoopCount = 0;
     mLoopStart = 0;
@@ -3272,7 +3280,7 @@ audio_offload_info_t是一个结构体，mOffloadInfoCopy是对mOffLoadInfo做�
 
 ### 6.3.11 step 11
 
-**初始化mVolume、mSendLevel**
+**初始化mVolume、mSendLevel和mReqFrameCount**
 
 ```c++
     mVolume[AUDIO_INTERLEAVE_LEFT] = 1.0f;
@@ -3284,17 +3292,272 @@ audio_offload_info_t是一个结构体，mOffloadInfoCopy是对mOffLoadInfo做�
 
 #### 6.3.11.1 mVolume
 
+```c++
+float mVolume[2];
+```
 
+mVolume记录左右声道的音量
 
 #### 6.3.11.2 mSendLevel
 
+```c++
+float mSendLevel;
+```
 
+mSendLevel含义暂不明确
 
 #### 6.3.11.3 mReqFrameCount
 
+```c++
+size_t mReqFrameCount; // frame count to request the first or next time
+                       // a new IAudioTrack is needed, non-decreasing
+```
+
+先看下入参的frameCount：
+
+> 1、AudioTrack.h中，缺省值为0
+>
+> 2、MediaPlayerService中，如果音频输出flag是AUDIO_OUTPUT_FLAG_COMPRESS_OFFLOAD（不走软解，走硬解），则frameCount为0；否则，计算一个frameCount的值
+>
+> 3、JNI中
+>
+> ```C++
+>         // buffSizeInBytes是java层传过来的值，一般是通过getMInBufferSize()计算而来
+> 		size_t frameCount;
+>         if (audio_has_proportional_frames(format)) {
+>             const size_t bytesPerSample = audio_bytes_per_sample(format);
+>             frameCount = buffSizeInBytes / (channelCount * bytesPerSample);
+>         } else {
+>             frameCount = buffSizeInBytes;
+>         }
+> ```
+
+综上，这个成员可以简单的理解为：缓冲区大小
+
+### 6.3.12 step 12
+
+**初始化mNotificationFramesReq、mNotificationsPerBufferReq和mNotificationFramesAct**
+
+```c++
+    if (notificationFrames >= 0) {
+        mNotificationFramesReq = notificationFrames;
+        mNotificationsPerBufferReq = 0;
+    } else {
+        if (!(flags & AUDIO_OUTPUT_FLAG_FAST)) {
+            ALOGE("%s(): notificationFrames=%d not permitted for non-fast track",
+                    __func__, notificationFrames);
+            status = BAD_VALUE;
+            goto exit;
+        }
+        if (frameCount > 0) {
+            ALOGE("%s(): notificationFrames=%d not permitted with non-zero frameCount=%zu",
+                    __func__, notificationFrames, frameCount);
+            status = BAD_VALUE;
+            goto exit;
+        }
+        mNotificationFramesReq = 0;
+        const uint32_t minNotificationsPerBuffer = 1;
+        const uint32_t maxNotificationsPerBuffer = 8;
+        mNotificationsPerBufferReq = min(maxNotificationsPerBuffer,
+                max((uint32_t) -notificationFrames, minNotificationsPerBuffer));
+        ALOGW_IF(mNotificationsPerBufferReq != (uint32_t) -notificationFrames,
+                "%s(): notificationFrames=%d clamped to the range -%u to -%u",
+                __func__,
+                notificationFrames, minNotificationsPerBuffer, maxNotificationsPerBuffer);
+    }
+    mNotificationFramesAct = 0;
+```
+
+看下这三个成员的定义
+
+```c++
+    // next 2 fields are const after constructor or set()
+    // 执行完set()后，mNotificationFramesReq和mNotificationsPerBufferReq就是常量了
+    
+    // 每两次回调之间需要的音频帧数量
+    uint32_t mNotificationFramesReq; // requested number of frames between each
+                                                    // notification callback,
+                                                    // at initial source sample rate
+	// 每个buffer需要通知的数量
+    uint32_t mNotificationsPerBufferReq;
+                                                    // requested number of notifications per buffer,
+                                                    // currently only used for fast tracks with
+                                                    // default track buffer size
+	// 每两次回调之间实际的音频帧数量
+    uint32_t mNotificationFramesAct; // actual number of frames between each
+                                                    // notification callback,
+                                                    // at initial source sample rate
+```
+
+先看下入参notificaitonFrames
+
+> 1、AudioTrack.h中缺省值为0
+>
+> 2、MediaPlayerService中：0
+>
+> 3、JNI中，也是0
+
+### 6.3.13 step 13
+
+**初始化mClientPid和mClientUid**
+
+```c++
+callingPid = IPCThreadState::self()->getCallingPid();
+    myPid = getpid();
+    if (uid == AUDIO_UID_INVALID || (callingPid != myPid)) {
+        mClientUid = IPCThreadState::self()->getCallingUid();
+    } else {
+        mClientUid = uid;
+    }
+    if (pid == -1 || (callingPid != myPid)) {
+        mClientPid = callingPid;
+    } else {
+        mClientPid = pid;
+    }
+```
+
+先看下传参uid和pid
+
+> 1、AudioTrack.h中，uid的缺省值为AUDIO_UID_INVALID（-1），pid的缺省值为-1
+>
+> 2、MediaPlayerService中，uid为mUid，pid为mPid，对应mediaserver进程和线程
+>
+> 3、JNI中，uid和pid都是-1
+>
+> 综上，只有在mediaserver进程调用的场景，uid和pid才不是-1
+
+补充下注释：
+
+```c++
+callingPid = IPCThreadState::self()->getCallingPid();
+    myPid = getpid();
+    if (uid == AUDIO_UID_INVALID || (callingPid != myPid)) {
+        // uid是-1时，代表是应用层调用的，通过通过getCallingUid获取uid
+        mClientUid = IPCThreadState::self()->getCallingUid();
+    } else {
+        // uid不是-1时，代表是mediaserver进程调用的，直接用传参的uid
+        mClientUid = uid;
+    }
+    if (pid == -1 || (callingPid != myPid)) {
+        // 同理，pid为-1时，代表是应用层调用的，通过getCallingPid获取pid
+        mClientPid = callingPid;
+    } else {
+        // pid不是-1时，代表是mediaserver进程调用的，直接用传参的pid
+        mClientPid = pid;
+    }
+```
+
+mClientUid和mClientPid分别代表调用方的uid和pid
+
+### 6.3.14 step 14
+
+**初始化mAuxEffected、mOrigFlags、mCbf**
+
+```c++
+    mAuxEffectId = 0;
+    mOrigFlags = mFlags = flags;
+    mCbf = cbf;
+```
+
+### 6.3.15 step 15
+
+***启动AudioTrackThread***
+
+```c++
+    if (cbf != NULL) {
+        mAudioTrackThread = new AudioTrackThread(*this);
+        mAudioTrackThread->run("AudioTrack", ANDROID_PRIORITY_AUDIO, 0 /*stack*/);
+        // thread begins in paused state, and will not reference us until start()
+    }
+```
+
+这是AudioTrack非常重要的一个线程，这里不展开了，开专门的章节展开。
+
+### 6.3.16 step 16
+
+**创建IAudioTrack**
+
+```c++
+    // create the IAudioTrack
+    {
+        AutoMutex lock(mLock);
+        status = createTrack_l();
+    }
+
+    if (status != NO_ERROR) {
+        if (mAudioTrackThread != 0) {
+            mAudioTrackThread->requestExit();   // see comment in AudioTrack.h
+            mAudioTrackThread->requestExitAndWait();
+            mAudioTrackThread.clear();
+        }
+        goto exit;
+    }
+```
+
+这里同样也是AudioTrack创建过程非常重要的一步，也不展开了。
+
+### 6.3.17 step 17
+
+**其他成员的初始化**
+
+```c++
+    mUserData = user;
+    mLoopCount = 0;
+    mLoopStart = 0;
+    mLoopEnd = 0;
+    mLoopCountNotified = 0;
+    mMarkerPosition = 0;
+    mMarkerReached = false;
+    mNewPosition = 0;
+    mUpdatePeriod = 0;
+    mPosition = 0;
+    mReleased = 0;
+    mStartNs = 0;
+    mStartFromZeroUs = 0;
+    AudioSystem::acquireAudioSessionId(mSessionId, mClientPid, mClientUid);
+    mSequence = 1;
+    mObservedSequence = mSequence;
+    mInUnderrun = false;
+    mPreviousTimestampValid = false;
+    mTimestampStartupGlitchReported = false;
+    mTimestampRetrogradePositionReported = false;
+    mTimestampRetrogradeTimeReported = false;
+    mTimestampStallReported = false;
+    mTimestampStaleTimeReported = false;
+    mPreviousLocation = ExtendedTimestamp::LOCATION_INVALID;
+    mStartTs.mPosition = 0;
+    mUnderrunCountOffset = 0;
+    mFramesWritten = 0;
+    mFramesWrittenServerOffset = 0;
+    mFramesWrittenAtRestore = -1; // -1 is a unique initializer.
+    mVolumeHandler = new media::VolumeHandler();
+```
+
+## 6.4 启动AudioTrackThread
+
+展开看下6.3.15:
+
+```c++
+    if (cbf != NULL) {
+        mAudioTrackThread = new AudioTrackThread(*this);
+        mAudioTrackThread->run("AudioTrack", ANDROID_PRIORITY_AUDIO, 0 /*stack*/);
+        // thread begins in paused state, and will not reference us until start()
+    }
+```
+
+### 6.4.1 native层启动线程
+
+了解AudioTrackThread之前，先了解下native层开发/启动一个Thread的方法
+
+> 首先，创建一个类继承自Thread基类
+>
+> 然后，实现threadLoop()的纯虚函数
+>
+> 最后，创建该类的对象，并调用run()方法，启动线程
 
 
-## 6.4 AudioTrack的创建之createTrack_l()
+
+## 6.4 createTrack_l()
 
 # 7. offload模式
 
