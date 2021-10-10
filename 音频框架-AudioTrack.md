@@ -1874,23 +1874,6 @@ std::string getCallerName()
 
 # 6. AudioTrack创建源码
 
-## 6.1 关键Binder接口
-
-AudioTrack.cpp与audioserver之间的关键Binder及定义位置如下：
-
-| 类           | 位置                              |
-| ------------ | --------------------------------- |
-| IAudioTrack  | IAudioTrack.h                     |
-| BnAudioTrack | IAudioTrack.h                     |
-| TrackHandle  | AudioFlinger.h / AudioFlinger.cpp |
-| BpAudioTrack | AudioTrack.cpp                    |
-
-## 6.2 初始化列表
-
-## 6.3 set()
-
-AudioTrack的构造函数：
-
 ```c++
 AudioTrack::AudioTrack(
         audio_stream_type_t streamType,			// 流类型
@@ -1929,7 +1912,96 @@ AudioTrack::AudioTrack(
 }
 ```
 
-继续看set()函数：
+## 6.1 关键Binder接口
+
+AudioTrack.cpp与audioserver之间的关键Binder及定义位置如下：
+
+| 类           | 位置                                        |
+| ------------ | ------------------------------------------- |
+| IAudioTrack  | IAudioTrack.h                               |
+| BnAudioTrack | (定义)IAudioTrack.h / (实现)IAudioTrack.cpp |
+| TrackHandle  | (定义)AudioFlinger.h / AudioFlinger.cpp     |
+| BpAudioTrack | IAudioTrack.cpp                             |
+
+
+
+| 类             | 位置                                            |
+| -------------- | ----------------------------------------------- |
+| IAudioFlinger  | IAudioFlinger.h                                 |
+| BnAudioFlinger | (定义)IAudioFlinger.h / (实现)IAudioFlinger.cpp |
+| AudioFlinger   | (定义)AudioFlinger.h / (实现)AudioFlinger.cpp   |
+| BpAudioFlinger | IAudioFlinger.cpp                               |
+
+IAudioTrack和IAudioFlinger都是实现在audioserver进程的audioflinger服务中的。 
+
+
+
+| 类                   | 位置                                                        |
+| -------------------- | ----------------------------------------------------------- |
+| IAudioFlingerClient  | IAudioFlingerClient.h                                       |
+| BnAudioFlingerClient | (定义)IAudioFlingerClient.h / (实现)IAudioFlingerClient.cpp |
+| AudioFlingerClient   | (定义)AudioSystem.h / (实现)AudioSystem.cpp                 |
+| BpAudioFlingerClient | IAudioFlingerClient.cpp                                     |
+
+IAudioFlingerClient是客户端实现，用于AudioFlinger回调给AudioTrack
+
+> 上面之所以列举出来这些位置是为了便于查询。实际上，真正重要的不是这些类定义在哪里，实现在哪里
+>
+> **最重要的是，客户端的Binder对象是哪里创建的**
+
+下面给出第三张表：
+
+| 类                 | 创建位置                                 |
+| ------------------ | ---------------------------------------- |
+| AudioFlinger       | 实名服务，在audioserver进程启动时创建    |
+| TrackHandle        | audioserver进程（audioFlinger）中创建    |
+| AudioFlingerClient | client进程（创建AudioTrack的进程）中创建 |
+
+
+
+## 6.2 初始化列表
+
+看下AudioTrack创建时的初始化列表
+
+```c++
+    : mStatus(NO_INIT),
+      mState(STATE_STOPPED),
+      mPreviousPriority(ANDROID_PRIORITY_NORMAL),
+      mPreviousSchedulingGroup(SP_DEFAULT),
+      mPausedPosition(0),
+      mSelectedDeviceId(AUDIO_PORT_HANDLE_NONE),
+      mOpPackageName(opPackageName),
+      mAudioTrackCallback(new AudioTrackCallback())
+```
+
+### 6.2.1 mStatus和mState
+
+mStatus和mState是描述AudioTrack状态的两个成员：
+
+```c++
+	status_t mStatus;
+```
+
+mStatus，类型为status_t，是android用于描述状态的一个通用类型。例如AudioTrack::set()，AudioTrack::createTrack()的返回值都是status_t类型。一般情况下，在返回值为status_t的函数开头，或者有status_t类型的类创建时，都要进行初始化。
+
+### 6.2.2 mState
+
+```c++
+    enum State {
+        STATE_ACTIVE,		// 激活
+        STATE_STOPPED,		// 停止
+        STATE_PAUSED,		// 暂停
+        STATE_PAUSED_STOPPING,
+        STATE_FLUSHED,
+        STATE_STOPPING,
+    } mState;
+```
+
+默认值是STATE_STOPPED
+
+## 6.3 set()
+
+AudioTrack的构造函数调用set()函数：
 
 ```C++
 status_t AudioTrack::set(
@@ -1955,7 +2027,7 @@ status_t AudioTrack::set(
         audio_port_handle_t selectedDeviceId)
 {
     
-    // step 1
+    // step 1 : 初始化mThreadCanCallJava、mSelectedDeviceId、mSessionId
     status_t status;
     uint32_t channelCount;
     pid_t callingPid;
@@ -1972,7 +2044,7 @@ status_t AudioTrack::set(
     mSelectedDeviceId = selectedDeviceId;
     mSessionId = sessionId;
 
-    // step 2
+    // step 2 : 处理下transferType相关的一些异常分支，然后初始化mSharedBuffer，mTransfer和mDoNotReconnect
     switch (transferType) {
     case TRANSFER_DEFAULT:
         if (sharedBuffer != 0) {
@@ -2024,7 +2096,7 @@ status_t AudioTrack::set(
     ALOGV("%s(): streamType %d frameCount %zu flags %04x",
             __func__, streamType, frameCount, flags);
 
-    // step 3
+    // step 3 : 处理mAudioTrack的异常场景
     // invariant that mAudioTrack != 0 is true only after set() returns successfully
     if (mAudioTrack != 0) {
         ALOGE("%s(): Track already in use", __func__);
@@ -2032,7 +2104,7 @@ status_t AudioTrack::set(
         goto exit;
     }
 
-    // step 4
+    // step 4 : 初始化mStreamType
     // handle default values first.
     if (streamType == AUDIO_STREAM_DEFAULT) {
         streamType = AUDIO_STREAM_MUSIC;
@@ -2057,7 +2129,7 @@ status_t AudioTrack::set(
         audio_flags_to_audio_output_flags(mAttributes.flags, &flags);
     }
 
-    // step 5
+    // step 5 : 初始化mFormat
     // these below should probably come from the audioFlinger too...
     if (format == AUDIO_FORMAT_DEFAULT) {
         format = AUDIO_FORMAT_PCM_16_BIT;
@@ -2074,7 +2146,7 @@ status_t AudioTrack::set(
 
     mFormat = format;
 
-    // step 6
+    // step 6 : 初始化mChannelMask和mChannelCount
     if (!audio_is_output_channel(channelMask)) {
         ALOGE("%s(): Invalid channel mask %#x",  __func__, channelMask);
         status = BAD_VALUE;
@@ -2085,7 +2157,7 @@ status_t AudioTrack::set(
     channelCount = audio_channel_count_from_out_mask(channelMask);
     mChannelCount = channelCount;
 
-    // step 7
+    // step 7 : 进一步调整flags
     // force direct flag if format is not linear PCM
     // or offload was requested
     if ((flags & AUDIO_OUTPUT_FLAG_COMPRESS_OFFLOAD)
@@ -2104,7 +2176,7 @@ status_t AudioTrack::set(
         flags = (audio_output_flags_t)(flags | AUDIO_OUTPUT_FLAG_DIRECT);
     }
 
-    // step 8
+    // step 8 : 初始化mFrameSize
     if (flags & AUDIO_OUTPUT_FLAG_DIRECT) {
         if (audio_has_proportional_frames(format)) {
             mFrameSize = channelCount * audio_bytes_per_sample(format);
@@ -2118,7 +2190,7 @@ status_t AudioTrack::set(
         // so no need to check for specific PCM formats here
     }
 
-    // step 9
+    // step 9 : 初始化mSampleRate，mOriginalSampleRate，mPlaybackRate和mMaxRequiredSpeed
     // sampling rate must be specified for direct outputs
     if (sampleRate == 0 && (flags & AUDIO_OUTPUT_FLAG_DIRECT) != 0) {
         status = BAD_VALUE;
@@ -2131,7 +2203,7 @@ status_t AudioTrack::set(
     // 1.0 <= mMaxRequiredSpeed <= AUDIO_TIMESTRETCH_SPEED_MAX
     mMaxRequiredSpeed = min(max(maxRequiredSpeed, 1.0f), AUDIO_TIMESTRETCH_SPEED_MAX);
 
-    // step 10
+    // step 10 : 初始化mOffloadInfoCopy、mOffloadInfo
     // Make copy of input parameter offloadInfo so that in the future:
     //  (a) createTrack_l doesn't need it as an input parameter
     //  (b) we can support re-creation of offloaded tracks
@@ -2143,14 +2215,14 @@ status_t AudioTrack::set(
         memset(&mOffloadInfoCopy, 0, sizeof(audio_offload_info_t));
     }
 
-    // step 11
+    // step 11 : 初始化mVolume、mSendLevel和mReqFrameCount
     mVolume[AUDIO_INTERLEAVE_LEFT] = 1.0f;
     mVolume[AUDIO_INTERLEAVE_RIGHT] = 1.0f;
     mSendLevel = 0.0f;
     // mFrameCount is initialized in createTrack_l
     mReqFrameCount = frameCount;
     
-    // step 12
+    // step 12 : 初始化mNotificationFramesReq、mNotificationsPerBufferReq和mNotificationFramesAct
     if (notificationFrames >= 0) {
         mNotificationFramesReq = notificationFrames;
         mNotificationsPerBufferReq = 0;
@@ -2179,7 +2251,7 @@ status_t AudioTrack::set(
     }
     mNotificationFramesAct = 0;
     
-    // step 13
+    // step 13 : 初始化mClientPid和mClientUid
     callingPid = IPCThreadState::self()->getCallingPid();
     myPid = getpid();
     if (uid == AUDIO_UID_INVALID || (callingPid != myPid)) {
@@ -2193,19 +2265,19 @@ status_t AudioTrack::set(
         mClientPid = pid;
     }
     
-    // step 14
+    // step 14 : 初始化mAuxEffected、mOrigFlags、mCbf
     mAuxEffectId = 0;
     mOrigFlags = mFlags = flags;
     mCbf = cbf;
 
-    // step 15
+    // step 15 : 启动AudioTrackThread
     if (cbf != NULL) {
         mAudioTrackThread = new AudioTrackThread(*this);
         mAudioTrackThread->run("AudioTrack", ANDROID_PRIORITY_AUDIO, 0 /*stack*/);
         // thread begins in paused state, and will not reference us until start()
     }
 
-    // step 16
+    // step 16 : 创建IAudioTrack
     // create the IAudioTrack
     {
         AutoMutex lock(mLock);
@@ -2221,7 +2293,7 @@ status_t AudioTrack::set(
         goto exit;
     }
 
-    // step 17
+    // step 17 : 其他成员的初始化
     mUserData = user;
     mLoopCount = 0;
     mLoopStart = 0;
@@ -3538,14 +3610,24 @@ mClientUid和mClientPid分别代表调用方的uid和pid
 展开看下6.3.15:
 
 ```c++
-    if (cbf != NULL) {
+	if (cbf != NULL) {
         mAudioTrackThread = new AudioTrackThread(*this);
         mAudioTrackThread->run("AudioTrack", ANDROID_PRIORITY_AUDIO, 0 /*stack*/);
         // thread begins in paused state, and will not reference us until start()
     }
 ```
 
-### 6.4.1 native层启动线程
+cbf不为NULL时，会创建AudioTrackThread，可见AudioTrackThread是需要cbf向java层进行回调的。
+
+看下cbf的传参：
+
+> 1、 在AudioTrack.h，cbf默认是NULL
+>
+> 2、 在MediaPlayerService，cbf可能为NULL，也可能不为NULL
+>
+> 3、 在JNI，cbf不为空
+
+### 6.4.1 android native线程
 
 了解AudioTrackThread之前，先了解下native层开发/启动一个Thread的方法
 
@@ -3553,11 +3635,900 @@ mClientUid和mClientPid分别代表调用方的uid和pid
 >
 > 然后，实现threadLoop()的纯虚函数
 >
-> 最后，创建该类的对象，并调用run()方法，启动线程
+> 最后，创建该类的对象，并调用run()函数，启动线程
 
+再看下run()函数：
 
+```c++
+/**
+ * 启动一个线程，并执行器thread_loop()函数
+ * @param name : 线程名
+ * @param priority : 线程优先级
+ * @param stack : TODO
+ */
+virtual status_t run(const char* name, int32_t priority = PRIORITY_DEFAULT, 
+	size_t stack = 0);
+```
+
+### 6.4.2 AudioTrackThread
+
+看下AudioTrackThread的构造函数：
+
+```c++
+// 看初始化列表，传入的receiver是AudioTrack对象，mPaused是true代表开始的时候是暂停状态
+AudioTrack::AudioTrackThread::AudioTrackThread(AudioTrack& receiver)
+    : Thread(true /* bCanCallJava */)  // binder recursion on restoreTrack_l() may call Java.
+    , mReceiver(receiver), mPaused(true), mPausedInt(false), mPausedNs(0LL),
+      mIgnoreNextPausedInt(false)
+{
+}
+```
+
+再看下AudioTrackThread的threadLoop()函数：
+
+```c++
+bool AudioTrack::AudioTrackThread::threadLoop()
+{
+    {
+        AutoMutex _l(mMyLock);
+		...
+    }
+	...
+
+    // 核心代码
+    nsecs_t ns = mReceiver.processAudioBuffer();
+
+    ...
+}
+```
+
+看下AudioTrack的processAudioBuffer():
+
+```c++
+nsecs_t AudioTrack::processAudioBuffer()
+{
+    // Currently the AudioTrack thread is not created if there are no callbacks.
+    // Would it ever make sense to run the thread, even without callbacks?
+    // If so, then replace this by checks at each use for mCbf != NULL.
+    LOG_ALWAYS_FATAL_IF(mCblk == NULL);
+
+    mLock.lock();
+    if (mAwaitBoost) {
+        mAwaitBoost = false;
+        mLock.unlock();
+        static const int32_t kMaxTries = 5;
+        int32_t tryCounter = kMaxTries;
+        uint32_t pollUs = 10000;
+        do {
+            int policy = sched_getscheduler(0) & ~SCHED_RESET_ON_FORK;
+            if (policy == SCHED_FIFO || policy == SCHED_RR) {
+                break;
+            }
+            usleep(pollUs);
+            pollUs <<= 1;
+        } while (tryCounter-- > 0);
+        if (tryCounter < 0) {
+            ALOGE("%s(%d): did not receive expected priority boost on time",
+                    __func__, mPortId);
+        }
+        // Run again immediately
+        return 0;
+    }
+
+    // Can only reference mCblk while locked
+    int32_t flags = android_atomic_and(
+        ~(CBLK_UNDERRUN | CBLK_LOOP_CYCLE | CBLK_LOOP_FINAL | CBLK_BUFFER_END), &mCblk->mFlags);
+
+    // Check for track invalidation
+    if (flags & CBLK_INVALID) {
+        // for offloaded tracks restoreTrack_l() will just update the sequence and clear
+        // AudioSystem cache. We should not exit here but after calling the callback so
+        // that the upper layers can recreate the track
+        if (!isOffloadedOrDirect_l() || (mSequence == mObservedSequence)) {
+            status_t status __unused = restoreTrack_l("processAudioBuffer");
+            // FIXME unused status
+            // after restoration, continue below to make sure that the loop and buffer events
+            // are notified because they have been cleared from mCblk->mFlags above.
+        }
+    }
+
+    bool waitStreamEnd = mState == STATE_STOPPING;
+    bool active = mState == STATE_ACTIVE;
+
+    // Manage underrun callback, must be done under lock to avoid race with releaseBuffer()
+    bool newUnderrun = false;
+    if (flags & CBLK_UNDERRUN) {
+#if 0
+        // Currently in shared buffer mode, when the server reaches the end of buffer,
+        // the track stays active in continuous underrun state.  It's up to the application
+        // to pause or stop the track, or set the position to a new offset within buffer.
+        // This was some experimental code to auto-pause on underrun.   Keeping it here
+        // in "if 0" so we can re-visit this if we add a real sequencer for shared memory content.
+        if (mTransfer == TRANSFER_SHARED) {
+            mState = STATE_PAUSED;
+            active = false;
+        }
+#endif
+        if (!mInUnderrun) {
+            mInUnderrun = true;
+            newUnderrun = true;
+        }
+    }
+
+    // Get current position of server
+    Modulo<uint32_t> position(updateAndGetPosition_l());
+
+    // Manage marker callback
+    bool markerReached = false;
+    Modulo<uint32_t> markerPosition(mMarkerPosition);
+    // uses 32 bit wraparound for comparison with position.
+    if (!mMarkerReached && markerPosition.value() > 0 && position >= markerPosition) {
+        mMarkerReached = markerReached = true;
+    }
+
+    // Determine number of new position callback(s) that will be needed, while locked
+    size_t newPosCount = 0;
+    Modulo<uint32_t> newPosition(mNewPosition);
+    uint32_t updatePeriod = mUpdatePeriod;
+    // FIXME fails for wraparound, need 64 bits
+    if (updatePeriod > 0 && position >= newPosition) {
+        newPosCount = ((position - newPosition).value() / updatePeriod) + 1;
+        mNewPosition += updatePeriod * newPosCount;
+    }
+
+    // Cache other fields that will be needed soon
+    uint32_t sampleRate = mSampleRate;
+    float speed = mPlaybackRate.mSpeed;
+    const uint32_t notificationFrames = mNotificationFramesAct;
+    if (mRefreshRemaining) {
+        mRefreshRemaining = false;
+        mRemainingFrames = notificationFrames;
+        mRetryOnPartialBuffer = false;
+    }
+    size_t misalignment = mProxy->getMisalignment();
+    uint32_t sequence = mSequence;
+    sp<AudioTrackClientProxy> proxy = mProxy;
+
+    // Determine the number of new loop callback(s) that will be needed, while locked.
+    int loopCountNotifications = 0;
+    uint32_t loopPeriod = 0; // time in frames for next EVENT_LOOP_END or EVENT_BUFFER_END
+
+    if (mLoopCount > 0) {
+        int loopCount;
+        size_t bufferPosition;
+        mStaticProxy->getBufferPositionAndLoopCount(&bufferPosition, &loopCount);
+        loopPeriod = ((loopCount > 0) ? mLoopEnd : mFrameCount) - bufferPosition;
+        loopCountNotifications = min(mLoopCountNotified - loopCount, kMaxLoopCountNotifications);
+        mLoopCountNotified = loopCount; // discard any excess notifications
+    } else if (mLoopCount < 0) {
+        // FIXME: We're not accurate with notification count and position with infinite looping
+        // since loopCount from server side will always return -1 (we could decrement it).
+        size_t bufferPosition = mStaticProxy->getBufferPosition();
+        loopCountNotifications = int((flags & (CBLK_LOOP_CYCLE | CBLK_LOOP_FINAL)) != 0);
+        loopPeriod = mLoopEnd - bufferPosition;
+    } else if (/* mLoopCount == 0 && */ mSharedBuffer != 0) {
+        size_t bufferPosition = mStaticProxy->getBufferPosition();
+        loopPeriod = mFrameCount - bufferPosition;
+    }
+
+    // These fields don't need to be cached, because they are assigned only by set():
+    //     mTransfer, mCbf, mUserData, mFormat, mFrameSize, mFlags
+    // mFlags is also assigned by createTrack_l(), but not the bit we care about.
+
+    mLock.unlock();
+
+    // get anchor time to account for callbacks.
+    const nsecs_t timeBeforeCallbacks = systemTime();
+
+    if (waitStreamEnd) {
+        // FIXME:  Instead of blocking in proxy->waitStreamEndDone(), Callback thread
+        // should wait on proxy futex and handle CBLK_STREAM_END_DONE within this function
+        // (and make sure we don't callback for more data while we're stopping).
+        // This helps with position, marker notifications, and track invalidation.
+        struct timespec timeout;
+        timeout.tv_sec = WAIT_STREAM_END_TIMEOUT_SEC;
+        timeout.tv_nsec = 0;
+
+        status_t status = proxy->waitStreamEndDone(&timeout);
+        switch (status) {
+        case NO_ERROR:
+        case DEAD_OBJECT:
+        case TIMED_OUT:
+            if (status != DEAD_OBJECT) {
+                // for DEAD_OBJECT, we do not send a EVENT_STREAM_END after stop();
+                // instead, the application should handle the EVENT_NEW_IAUDIOTRACK.
+                mCbf(EVENT_STREAM_END, mUserData, NULL);
+            }
+            {
+                AutoMutex lock(mLock);
+                // The previously assigned value of waitStreamEnd is no longer valid,
+                // since the mutex has been unlocked and either the callback handler
+                // or another thread could have re-started the AudioTrack during that time.
+                waitStreamEnd = mState == STATE_STOPPING;
+                if (waitStreamEnd) {
+                    mState = STATE_STOPPED;
+                    mReleased = 0;
+                }
+            }
+            if (waitStreamEnd && status != DEAD_OBJECT) {
+               return NS_INACTIVE;
+            }
+            break;
+        }
+        return 0;
+    }
+
+    // perform callbacks while unlocked
+    if (newUnderrun) {
+        mCbf(EVENT_UNDERRUN, mUserData, NULL);
+    }
+    while (loopCountNotifications > 0) {
+        mCbf(EVENT_LOOP_END, mUserData, NULL);
+        --loopCountNotifications;
+    }
+    if (flags & CBLK_BUFFER_END) {
+        mCbf(EVENT_BUFFER_END, mUserData, NULL);
+    }
+    if (markerReached) {
+        mCbf(EVENT_MARKER, mUserData, &markerPosition);
+    }
+    while (newPosCount > 0) {
+        size_t temp = newPosition.value(); // FIXME size_t != uint32_t
+        mCbf(EVENT_NEW_POS, mUserData, &temp);
+        newPosition += updatePeriod;
+        newPosCount--;
+    }
+
+    if (mObservedSequence != sequence) {
+        mObservedSequence = sequence;
+        mCbf(EVENT_NEW_IAUDIOTRACK, mUserData, NULL);
+        // for offloaded tracks, just wait for the upper layers to recreate the track
+        if (isOffloadedOrDirect()) {
+            return NS_INACTIVE;
+        }
+    }
+
+    // if inactive, then don't run me again until re-started
+    if (!active) {
+        return NS_INACTIVE;
+    }
+
+    // Compute the estimated time until the next timed event (position, markers, loops)
+    // FIXME only for non-compressed audio
+    uint32_t minFrames = ~0;
+    if (!markerReached && position < markerPosition) {
+        minFrames = (markerPosition - position).value();
+    }
+    if (loopPeriod > 0 && loopPeriod < minFrames) {
+        // loopPeriod is already adjusted for actual position.
+        minFrames = loopPeriod;
+    }
+    if (updatePeriod > 0) {
+        minFrames = min(minFrames, (newPosition - position).value());
+    }
+
+    // If > 0, poll periodically to recover from a stuck server.  A good value is 2.
+    static const uint32_t kPoll = 0;
+    if (kPoll > 0 && mTransfer == TRANSFER_CALLBACK && kPoll * notificationFrames < minFrames) {
+        minFrames = kPoll * notificationFrames;
+    }
+
+    // This "fudge factor" avoids soaking CPU, and compensates for late progress by server
+    static const nsecs_t kWaitPeriodNs = WAIT_PERIOD_MS * 1000000LL;
+    const nsecs_t timeAfterCallbacks = systemTime();
+
+    // Convert frame units to time units
+    nsecs_t ns = NS_WHENEVER;
+    if (minFrames != (uint32_t) ~0) {
+        // AudioFlinger consumption of client data may be irregular when coming out of device
+        // standby since the kernel buffers require filling. This is throttled to no more than 2x
+        // the expected rate in the MixerThread. Hence, we reduce the estimated time to wait by one
+        // half (but no more than half a second) to improve callback accuracy during these temporary
+        // data surges.
+        const nsecs_t estimatedNs = framesToNanoseconds(minFrames, sampleRate, speed);
+        constexpr nsecs_t maxThrottleCompensationNs = 500000000LL;
+        ns = estimatedNs - min(estimatedNs / 2, maxThrottleCompensationNs) + kWaitPeriodNs;
+        ns -= (timeAfterCallbacks - timeBeforeCallbacks);  // account for callback time
+        // TODO: Should we warn if the callback time is too long?
+        if (ns < 0) ns = 0;
+    }
+
+    // If not supplying data by EVENT_MORE_DATA or EVENT_CAN_WRITE_MORE_DATA, then we're done
+    if (mTransfer != TRANSFER_CALLBACK && mTransfer != TRANSFER_SYNC_NOTIF_CALLBACK) {
+        return ns;
+    }
+
+    // EVENT_MORE_DATA callback handling.
+    // Timing for linear pcm audio data formats can be derived directly from the
+    // buffer fill level.
+    // Timing for compressed data is not directly available from the buffer fill level,
+    // rather indirectly from waiting for blocking mode callbacks or waiting for obtain()
+    // to return a certain fill level.
+
+    struct timespec timeout;
+    const struct timespec *requested = &ClientProxy::kForever;
+    if (ns != NS_WHENEVER) {
+        timeout.tv_sec = ns / 1000000000LL;
+        timeout.tv_nsec = ns % 1000000000LL;
+        ALOGV("%s(%d): timeout %ld.%03d",
+                __func__, mPortId, timeout.tv_sec, (int) timeout.tv_nsec / 1000000);
+        requested = &timeout;
+    }
+
+    size_t writtenFrames = 0;
+    while (mRemainingFrames > 0) {
+
+        Buffer audioBuffer;
+        audioBuffer.frameCount = mRemainingFrames;
+        size_t nonContig;
+        status_t err = obtainBuffer(&audioBuffer, requested, NULL, &nonContig);
+        LOG_ALWAYS_FATAL_IF((err != NO_ERROR) != (audioBuffer.frameCount == 0),
+                "%s(%d): obtainBuffer() err=%d frameCount=%zu",
+                 __func__, mPortId, err, audioBuffer.frameCount);
+        requested = &ClientProxy::kNonBlocking;
+        size_t avail = audioBuffer.frameCount + nonContig;
+        ALOGV("%s(%d): obtainBuffer(%u) returned %zu = %zu + %zu err %d",
+                __func__, mPortId, mRemainingFrames, avail, audioBuffer.frameCount, nonContig, err);
+        if (err != NO_ERROR) {
+            if (err == TIMED_OUT || err == WOULD_BLOCK || err == -EINTR ||
+                    (isOffloaded() && (err == DEAD_OBJECT))) {
+                // FIXME bug 25195759
+                return 1000000;
+            }
+            ALOGE("%s(%d): Error %d obtaining an audio buffer, giving up.",
+                    __func__, mPortId, err);
+            return NS_NEVER;
+        }
+
+        if (mRetryOnPartialBuffer && audio_has_proportional_frames(mFormat)) {
+            mRetryOnPartialBuffer = false;
+            if (avail < mRemainingFrames) {
+                if (ns > 0) { // account for obtain time
+                    const nsecs_t timeNow = systemTime();
+                    ns = max((nsecs_t)0, ns - (timeNow - timeAfterCallbacks));
+                }
+
+                // delayNs is first computed by the additional frames required in the buffer.
+                nsecs_t delayNs = framesToNanoseconds(
+                        mRemainingFrames - avail, sampleRate, speed);
+
+                // afNs is the AudioFlinger mixer period in ns.
+                const nsecs_t afNs = framesToNanoseconds(mAfFrameCount, mAfSampleRate, speed);
+
+                // If the AudioTrack is double buffered based on the AudioFlinger mixer period,
+                // we may have a race if we wait based on the number of frames desired.
+                // This is a possible issue with resampling and AAudio.
+                //
+                // The granularity of audioflinger processing is one mixer period; if
+                // our wait time is less than one mixer period, wait at most half the period.
+                if (delayNs < afNs) {
+                    delayNs = std::min(delayNs, afNs / 2);
+                }
+
+                // adjust our ns wait by delayNs.
+                if (ns < 0 /* NS_WHENEVER */ || delayNs < ns) {
+                    ns = delayNs;
+                }
+                return ns;
+            }
+        }
+
+        size_t reqSize = audioBuffer.size;
+        if (mTransfer == TRANSFER_SYNC_NOTIF_CALLBACK) {
+            // when notifying client it can write more data, pass the total size that can be
+            // written in the next write() call, since it's not passed through the callback
+            audioBuffer.size += nonContig;
+        }
+        mCbf(mTransfer == TRANSFER_CALLBACK ? EVENT_MORE_DATA : EVENT_CAN_WRITE_MORE_DATA,
+                mUserData, &audioBuffer);
+        size_t writtenSize = audioBuffer.size;
+
+        // Validate on returned size
+        if (ssize_t(writtenSize) < 0 || writtenSize > reqSize) {
+            ALOGE("%s(%d): EVENT_MORE_DATA requested %zu bytes but callback returned %zd bytes",
+                    __func__, mPortId, reqSize, ssize_t(writtenSize));
+            return NS_NEVER;
+        }
+
+        if (writtenSize == 0) {
+            if (mTransfer == TRANSFER_SYNC_NOTIF_CALLBACK) {
+                // The callback EVENT_CAN_WRITE_MORE_DATA was processed in the JNI of
+                // android.media.AudioTrack. The JNI is not using the callback to provide data,
+                // it only signals to the Java client that it can provide more data, which
+                // this track is read to accept now.
+                // The playback thread will be awaken at the next ::write()
+                return NS_WHENEVER;
+            }
+            // The callback is done filling buffers
+            // Keep this thread going to handle timed events and
+            // still try to get more data in intervals of WAIT_PERIOD_MS
+            // but don't just loop and block the CPU, so wait
+
+            // mCbf(EVENT_MORE_DATA, ...) might either
+            // (1) Block until it can fill the buffer, returning 0 size on EOS.
+            // (2) Block until it can fill the buffer, returning 0 data (silence) on EOS.
+            // (3) Return 0 size when no data is available, does not wait for more data.
+            //
+            // (1) and (2) occurs with AudioPlayer/AwesomePlayer; (3) occurs with NuPlayer.
+            // We try to compute the wait time to avoid a tight sleep-wait cycle,
+            // especially for case (3).
+            //
+            // The decision to support (1) and (2) affect the sizing of mRemainingFrames
+            // and this loop; whereas for case (3) we could simply check once with the full
+            // buffer size and skip the loop entirely.
+
+            nsecs_t myns;
+            if (audio_has_proportional_frames(mFormat)) {
+                // time to wait based on buffer occupancy
+                const nsecs_t datans = mRemainingFrames <= avail ? 0 :
+                        framesToNanoseconds(mRemainingFrames - avail, sampleRate, speed);
+                // audio flinger thread buffer size (TODO: adjust for fast tracks)
+                // FIXME: use mAfFrameCountHAL instead of mAfFrameCount below for fast tracks.
+                const nsecs_t afns = framesToNanoseconds(mAfFrameCount, mAfSampleRate, speed);
+                // add a half the AudioFlinger buffer time to avoid soaking CPU if datans is 0.
+                myns = datans + (afns / 2);
+            } else {
+                // FIXME: This could ping quite a bit if the buffer isn't full.
+                // Note that when mState is stopping we waitStreamEnd, so it never gets here.
+                myns = kWaitPeriodNs;
+            }
+            if (ns > 0) { // account for obtain and callback time
+                const nsecs_t timeNow = systemTime();
+                ns = max((nsecs_t)0, ns - (timeNow - timeAfterCallbacks));
+            }
+            if (ns < 0 /* NS_WHENEVER */ || myns < ns) {
+                ns = myns;
+            }
+            return ns;
+        }
+
+        size_t releasedFrames = writtenSize / mFrameSize;
+        audioBuffer.frameCount = releasedFrames;
+        mRemainingFrames -= releasedFrames;
+        if (misalignment >= releasedFrames) {
+            misalignment -= releasedFrames;
+        } else {
+            misalignment = 0;
+        }
+
+        releaseBuffer(&audioBuffer);
+        writtenFrames += releasedFrames;
+
+        // FIXME here is where we would repeat EVENT_MORE_DATA again on same advanced buffer
+        // if callback doesn't like to accept the full chunk
+        if (writtenSize < reqSize) {
+            continue;
+        }
+
+        // There could be enough non-contiguous frames available to satisfy the remaining request
+        if (mRemainingFrames <= nonContig) {
+            continue;
+        }
+
+#if 0
+        // This heuristic tries to collapse a series of EVENT_MORE_DATA that would total to a
+        // sum <= notificationFrames.  It replaces that series by at most two EVENT_MORE_DATA
+        // that total to a sum == notificationFrames.
+        if (0 < misalignment && misalignment <= mRemainingFrames) {
+            mRemainingFrames = misalignment;
+            return ((double)mRemainingFrames * 1100000000) / ((double)sampleRate * speed);
+        }
+#endif
+
+    }
+    if (writtenFrames > 0) {
+        AutoMutex lock(mLock);
+        mFramesWritten += writtenFrames;
+    }
+    mRemainingFrames = notificationFrames;
+    mRetryOnPartialBuffer = true;
+
+    // A lot has transpired since ns was calculated, so run again immediately and re-calculate
+    return 0;
+}
+```
+
+又是一个很长的代码，抽取下面部分：
+
+```c++
+    // perform callbacks while unlocked
+    if (newUnderrun) {
+        mCbf(EVENT_UNDERRUN, mUserData, NULL);
+    }
+    while (loopCountNotifications > 0) {
+        mCbf(EVENT_LOOP_END, mUserData, NULL);
+        --loopCountNotifications;
+    }
+    if (flags & CBLK_BUFFER_END) {
+        mCbf(EVENT_BUFFER_END, mUserData, NULL);
+    }
+    if (markerReached) {
+        mCbf(EVENT_MARKER, mUserData, &markerPosition);
+    }
+    while (newPosCount > 0) {
+        size_t temp = newPosition.value(); // FIXME size_t != uint32_t
+        mCbf(EVENT_NEW_POS, mUserData, &temp);
+        newPosition += updatePeriod;
+        newPosCount--;
+    }
+
+    if (mObservedSequence != sequence) {
+        mObservedSequence = sequence;
+        mCbf(EVENT_NEW_IAUDIOTRACK, mUserData, NULL);
+        // for offloaded tracks, just wait for the upper layers to recreate the track
+        if (isOffloadedOrDirect()) {
+            return NS_INACTIVE;
+        }
+    }
+```
+
+可以粗略地知道AudioTrackThread是为了通过mCbf回调java层的。
 
 ## 6.4 createTrack_l()
+
+重点看下这个函数：
+
+```c++
+
+status_t AudioTrack::createTrack_l()
+{
+    // step 1 : 获取IAudioFlinger，也就是BpAudioFlinger
+    status_t status;
+    bool callbackAdded = false;
+
+    const sp<IAudioFlinger>& audioFlinger = AudioSystem::get_audio_flinger();
+    if (audioFlinger == 0) {
+        ALOGE("%s(%d): Could not get audioflinger",
+                __func__, mPortId);
+        status = NO_INIT;
+        goto exit;
+    }
+
+    // step 2 : 
+    {
+    // mFlags (not mOrigFlags) is modified depending on whether fast request is accepted.
+    // After fast request is denied, we will request again if IAudioTrack is re-created.
+    // Client can only express a preference for FAST.  Server will perform additional tests.
+    if (mFlags & AUDIO_OUTPUT_FLAG_FAST) {
+        // either of these use cases:
+        // use case 1: shared buffer
+        bool sharedBuffer = mSharedBuffer != 0;
+        bool transferAllowed =
+            // use case 2: callback transfer mode
+            (mTransfer == TRANSFER_CALLBACK) ||
+            // use case 3: obtain/release mode
+            (mTransfer == TRANSFER_OBTAIN) ||
+            // use case 4: synchronous write
+            ((mTransfer == TRANSFER_SYNC || mTransfer == TRANSFER_SYNC_NOTIF_CALLBACK)
+                    && mThreadCanCallJava);
+
+        bool fastAllowed = sharedBuffer || transferAllowed;
+        if (!fastAllowed) {
+            ALOGW("%s(%d): AUDIO_OUTPUT_FLAG_FAST denied by client,"
+                  " not shared buffer and transfer = %s",
+                  __func__, mPortId,
+                  convertTransferToText(mTransfer));
+            mFlags = (audio_output_flags_t) (mFlags & ~AUDIO_OUTPUT_FLAG_FAST);
+        }
+    }
+
+    IAudioFlinger::CreateTrackInput input;
+    if (mStreamType != AUDIO_STREAM_DEFAULT) {
+        input.attr = AudioSystem::streamTypeToAttributes(mStreamType);
+    } else {
+        input.attr = mAttributes;
+    }
+    input.config = AUDIO_CONFIG_INITIALIZER;
+    input.config.sample_rate = mSampleRate;
+    input.config.channel_mask = mChannelMask;
+    input.config.format = mFormat;
+    input.config.offload_info = mOffloadInfoCopy;
+    input.clientInfo.clientUid = mClientUid;
+    input.clientInfo.clientPid = mClientPid;
+    input.clientInfo.clientTid = -1;
+    if (mFlags & AUDIO_OUTPUT_FLAG_FAST) {
+        // It is currently meaningless to request SCHED_FIFO for a Java thread.  Even if the
+        // application-level code follows all non-blocking design rules, the language runtime
+        // doesn't also follow those rules, so the thread will not benefit overall.
+        if (mAudioTrackThread != 0 && !mThreadCanCallJava) {
+            input.clientInfo.clientTid = mAudioTrackThread->getTid();
+        }
+    }
+    input.sharedBuffer = mSharedBuffer;
+    input.notificationsPerBuffer = mNotificationsPerBufferReq;
+    input.speed = 1.0;
+    if (audio_has_proportional_frames(mFormat) && mSharedBuffer == 0 &&
+            (mFlags & AUDIO_OUTPUT_FLAG_FAST) == 0) {
+        input.speed  = !isPurePcmData_l() || isOffloadedOrDirect_l() ? 1.0f :
+                        max(mMaxRequiredSpeed, mPlaybackRate.mSpeed);
+    }
+    input.flags = mFlags;
+    input.frameCount = mReqFrameCount;
+    input.notificationFrameCount = mNotificationFramesReq;
+    input.selectedDeviceId = mSelectedDeviceId;
+    input.sessionId = mSessionId;
+    input.audioTrackCallback = mAudioTrackCallback;
+    input.opPackageName = mOpPackageName;
+
+    IAudioFlinger::CreateTrackOutput output;
+
+    sp<IAudioTrack> track = audioFlinger->createTrack(input,
+                                                      output,
+                                                      &status);
+
+    if (status != NO_ERROR || output.outputId == AUDIO_IO_HANDLE_NONE) {
+        ALOGE("%s(%d): AudioFlinger could not create track, status: %d output %d",
+                __func__, mPortId, status, output.outputId);
+        if (status == NO_ERROR) {
+            status = NO_INIT;
+        }
+        goto exit;
+    }
+    ALOG_ASSERT(track != 0);
+
+    mFrameCount = output.frameCount;
+    mNotificationFramesAct = (uint32_t)output.notificationFrameCount;
+    mRoutedDeviceId = output.selectedDeviceId;
+    mSessionId = output.sessionId;
+
+    mSampleRate = output.sampleRate;
+    if (mOriginalSampleRate == 0) {
+        mOriginalSampleRate = mSampleRate;
+    }
+
+    mAfFrameCount = output.afFrameCount;
+    mAfSampleRate = output.afSampleRate;
+    mAfLatency = output.afLatencyMs;
+
+    mLatency = mAfLatency + (1000LL * mFrameCount) / mSampleRate;
+
+    // AudioFlinger now owns the reference to the I/O handle,
+    // so we are no longer responsible for releasing it.
+
+    // FIXME compare to AudioRecord
+    sp<IMemory> iMem = track->getCblk();
+    if (iMem == 0) {
+        ALOGE("%s(%d): Could not get control block", __func__, mPortId);
+        status = NO_INIT;
+        goto exit;
+    }
+    // TODO: Using unsecurePointer() has some associated security pitfalls
+    //       (see declaration for details).
+    //       Either document why it is safe in this case or address the
+    //       issue (e.g. by copying).
+    void *iMemPointer = iMem->unsecurePointer();
+    if (iMemPointer == NULL) {
+        ALOGE("%s(%d): Could not get control block pointer", __func__, mPortId);
+        status = NO_INIT;
+        goto exit;
+    }
+    // invariant that mAudioTrack != 0 is true only after set() returns successfully
+    if (mAudioTrack != 0) {
+        IInterface::asBinder(mAudioTrack)->unlinkToDeath(mDeathNotifier, this);
+        mDeathNotifier.clear();
+    }
+    mAudioTrack = track;
+    mCblkMemory = iMem;
+    IPCThreadState::self()->flushCommands();
+
+    audio_track_cblk_t* cblk = static_cast<audio_track_cblk_t*>(iMemPointer);
+    mCblk = cblk;
+
+    mAwaitBoost = false;
+    if (mFlags & AUDIO_OUTPUT_FLAG_FAST) {
+        if (output.flags & AUDIO_OUTPUT_FLAG_FAST) {
+            ALOGI("%s(%d): AUDIO_OUTPUT_FLAG_FAST successful; frameCount %zu -> %zu",
+                  __func__, mPortId, mReqFrameCount, mFrameCount);
+            if (!mThreadCanCallJava) {
+                mAwaitBoost = true;
+            }
+        } else {
+            ALOGD("%s(%d): AUDIO_OUTPUT_FLAG_FAST denied by server; frameCount %zu -> %zu",
+                  __func__, mPortId, mReqFrameCount, mFrameCount);
+        }
+    }
+    mFlags = output.flags;
+
+    //mOutput != output includes the case where mOutput == AUDIO_IO_HANDLE_NONE for first creation
+    if (mDeviceCallback != 0) {
+        if (mOutput != AUDIO_IO_HANDLE_NONE) {
+            AudioSystem::removeAudioDeviceCallback(this, mOutput, mPortId);
+        }
+        AudioSystem::addAudioDeviceCallback(this, output.outputId, output.portId);
+        callbackAdded = true;
+    }
+
+    mPortId = output.portId;
+    // We retain a copy of the I/O handle, but don't own the reference
+    mOutput = output.outputId;
+    mRefreshRemaining = true;
+
+    // Starting address of buffers in shared memory.  If there is a shared buffer, buffers
+    // is the value of pointer() for the shared buffer, otherwise buffers points
+    // immediately after the control block.  This address is for the mapping within client
+    // address space.  AudioFlinger::TrackBase::mBuffer is for the server address space.
+    void* buffers;
+    if (mSharedBuffer == 0) {
+        buffers = cblk + 1;
+    } else {
+        // TODO: Using unsecurePointer() has some associated security pitfalls
+        //       (see declaration for details).
+        //       Either document why it is safe in this case or address the
+        //       issue (e.g. by copying).
+        buffers = mSharedBuffer->unsecurePointer();
+        if (buffers == NULL) {
+            ALOGE("%s(%d): Could not get buffer pointer", __func__, mPortId);
+            status = NO_INIT;
+            goto exit;
+        }
+    }
+
+    mAudioTrack->attachAuxEffect(mAuxEffectId);
+
+    // If IAudioTrack is re-created, don't let the requested frameCount
+    // decrease.  This can confuse clients that cache frameCount().
+    if (mFrameCount > mReqFrameCount) {
+        mReqFrameCount = mFrameCount;
+    }
+
+    // reset server position to 0 as we have new cblk.
+    mServer = 0;
+
+    // update proxy
+    if (mSharedBuffer == 0) {
+        mStaticProxy.clear();
+        mProxy = new AudioTrackClientProxy(cblk, buffers, mFrameCount, mFrameSize);
+    } else {
+        mStaticProxy = new StaticAudioTrackClientProxy(cblk, buffers, mFrameCount, mFrameSize);
+        mProxy = mStaticProxy;
+    }
+
+    mProxy->setVolumeLR(gain_minifloat_pack(
+            gain_from_float(mVolume[AUDIO_INTERLEAVE_LEFT]),
+            gain_from_float(mVolume[AUDIO_INTERLEAVE_RIGHT])));
+
+    mProxy->setSendLevel(mSendLevel);
+    const uint32_t effectiveSampleRate = adjustSampleRate(mSampleRate, mPlaybackRate.mPitch);
+    const float effectiveSpeed = adjustSpeed(mPlaybackRate.mSpeed, mPlaybackRate.mPitch);
+    const float effectivePitch = adjustPitch(mPlaybackRate.mPitch);
+    mProxy->setSampleRate(effectiveSampleRate);
+
+    AudioPlaybackRate playbackRateTemp = mPlaybackRate;
+    playbackRateTemp.mSpeed = effectiveSpeed;
+    playbackRateTemp.mPitch = effectivePitch;
+    mProxy->setPlaybackRate(playbackRateTemp);
+    mProxy->setMinimum(mNotificationFramesAct);
+
+    if (mDualMonoMode != AUDIO_DUAL_MONO_MODE_OFF) {
+        setDualMonoMode_l(mDualMonoMode);
+    }
+    if (mAudioDescriptionMixLeveldB != -std::numeric_limits<float>::infinity()) {
+        setAudioDescriptionMixLevel_l(mAudioDescriptionMixLeveldB);
+    }
+
+    mDeathNotifier = new DeathNotifier(this);
+    IInterface::asBinder(mAudioTrack)->linkToDeath(mDeathNotifier, this);
+
+    // This is the first log sent from the AudioTrack client.
+    // The creation of the audio track by AudioFlinger (in the code above)
+    // is the first log of the AudioTrack and must be present before
+    // any AudioTrack client logs will be accepted.
+
+    mMetricsId = std::string(AMEDIAMETRICS_KEY_PREFIX_AUDIO_TRACK) + std::to_string(mPortId);
+    mediametrics::LogItem(mMetricsId)
+        .set(AMEDIAMETRICS_PROP_EVENT, AMEDIAMETRICS_PROP_EVENT_VALUE_CREATE)
+        // the following are immutable
+        .set(AMEDIAMETRICS_PROP_FLAGS, toString(mFlags).c_str())
+        .set(AMEDIAMETRICS_PROP_ORIGINALFLAGS, toString(mOrigFlags).c_str())
+        .set(AMEDIAMETRICS_PROP_SESSIONID, (int32_t)mSessionId)
+        .set(AMEDIAMETRICS_PROP_TRACKID, mPortId) // dup from key
+        .set(AMEDIAMETRICS_PROP_CONTENTTYPE, toString(mAttributes.content_type).c_str())
+        .set(AMEDIAMETRICS_PROP_USAGE, toString(mAttributes.usage).c_str())
+        .set(AMEDIAMETRICS_PROP_THREADID, (int32_t)output.outputId)
+        .set(AMEDIAMETRICS_PROP_SELECTEDDEVICEID, (int32_t)mSelectedDeviceId)
+        .set(AMEDIAMETRICS_PROP_ROUTEDDEVICEID, (int32_t)mRoutedDeviceId)
+        .set(AMEDIAMETRICS_PROP_ENCODING, toString(mFormat).c_str())
+        .set(AMEDIAMETRICS_PROP_CHANNELMASK, (int32_t)mChannelMask)
+        .set(AMEDIAMETRICS_PROP_FRAMECOUNT, (int32_t)mFrameCount)
+        // the following are NOT immutable
+        .set(AMEDIAMETRICS_PROP_VOLUME_LEFT, (double)mVolume[AUDIO_INTERLEAVE_LEFT])
+        .set(AMEDIAMETRICS_PROP_VOLUME_RIGHT, (double)mVolume[AUDIO_INTERLEAVE_RIGHT])
+        .set(AMEDIAMETRICS_PROP_STATE, stateToString(mState))
+        .set(AMEDIAMETRICS_PROP_AUXEFFECTID, (int32_t)mAuxEffectId)
+        .set(AMEDIAMETRICS_PROP_SAMPLERATE, (int32_t)mSampleRate)
+        .set(AMEDIAMETRICS_PROP_PLAYBACK_SPEED, (double)mPlaybackRate.mSpeed)
+        .set(AMEDIAMETRICS_PROP_PLAYBACK_PITCH, (double)mPlaybackRate.mPitch)
+        .set(AMEDIAMETRICS_PROP_PREFIX_EFFECTIVE
+                AMEDIAMETRICS_PROP_SAMPLERATE, (int32_t)effectiveSampleRate)
+        .set(AMEDIAMETRICS_PROP_PREFIX_EFFECTIVE
+                AMEDIAMETRICS_PROP_PLAYBACK_SPEED, (double)effectiveSpeed)
+        .set(AMEDIAMETRICS_PROP_PREFIX_EFFECTIVE
+                AMEDIAMETRICS_PROP_PLAYBACK_PITCH, (double)effectivePitch)
+        .record();
+
+    // mSendLevel
+    // mReqFrameCount?
+    // mNotificationFramesAct, mNotificationFramesReq, mNotificationsPerBufferReq
+    // mLatency, mAfLatency, mAfFrameCount, mAfSampleRate
+
+    }
+
+exit:
+    if (status != NO_ERROR && callbackAdded) {
+        // note: mOutput is always valid is callbackAdded is true
+        AudioSystem::removeAudioDeviceCallback(this, mOutput, mPortId);
+    }
+
+    mStatus = status;
+
+    // sp<IAudioTrack> track destructor will cause releaseOutput() to be called by AudioFlinger
+    return status;
+}
+```
+
+### 6.4.1 step 1
+
+**获取IAudioFlinger，也就是BpAudioFlinger**
+
+```c++
+    status_t status;
+    bool callbackAdded = false;
+
+    const sp<IAudioFlinger>& audioFlinger = AudioSystem::get_audio_flinger();
+    if (audioFlinger == 0) {
+        ALOGE("%s(%d): Could not get audioflinger",
+                __func__, mPortId);
+        status = NO_INIT;
+        goto exit;
+    }
+```
+
+直接看下AudioSystem::get_audio_flinger():
+
+```c++
+// establish binder interface to AudioFlinger service
+const sp<IAudioFlinger> AudioSystem::get_audio_flinger()
+{
+    sp<IAudioFlinger> af;
+    sp<AudioFlingerClient> afc;
+    bool reportNoError = false;
+    {
+        Mutex::Autolock _l(gLock);
+        if (gAudioFlinger == 0) {
+            sp<IServiceManager> sm = defaultServiceManager();
+            sp<IBinder> binder;
+            do {
+                binder = sm->getService(String16("media.audio_flinger"));
+                if (binder != 0)
+                    break;
+                ALOGW("AudioFlinger not published, waiting...");
+                usleep(500000); // 0.5 s
+            } while (true);
+            if (gAudioFlingerClient == NULL) {
+                gAudioFlingerClient = new AudioFlingerClient();
+            } else {
+                reportNoError = true;
+            }
+            binder->linkToDeath(gAudioFlingerClient);
+            gAudioFlinger = interface_cast<IAudioFlinger>(binder);
+            LOG_ALWAYS_FATAL_IF(gAudioFlinger == 0);
+            afc = gAudioFlingerClient;
+            // Make sure callbacks can be received by gAudioFlingerClient
+            ProcessState::self()->startThreadPool();
+        }
+        af = gAudioFlinger;
+    }
+    if (afc != 0) {
+        int64_t token = IPCThreadState::self()->clearCallingIdentity();
+        af->registerClient(afc);
+        IPCThreadState::self()->restoreCallingIdentity(token);
+    }
+    if (reportNoError) reportError(NO_ERROR);
+    return af;
+}
+```
+
+
 
 # 7. offload模式
 
