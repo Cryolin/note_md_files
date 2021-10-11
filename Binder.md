@@ -829,9 +829,9 @@ public class MyRemoteProxy implements IRemoteInterface {
 
 .\edraw\【Binder】Binder类图（native层）.png
 
-![image-20211003213020129](.\images\image-20211003213020129.png)
+![image-20211011231834458](.\images\image-20211011231834458.png)
 
-![image-20211003213154735](.\images\image-20211003213154735.png)
+
 
 ## 3.2 native层Binder的一般开发流程
 

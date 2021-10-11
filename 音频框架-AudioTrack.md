@@ -2878,6 +2878,12 @@ typedef enum {
 
 可以看到这个flag跟pAttributes中的flags有所重叠，但不尽相同。
 
+> 1、AudioTrack.h中，默认AUDIO_OUTPUT_FLAG_NONE
+>
+> 2、MediaPlayerService中，不确定
+>
+> 3、JNI中，不确定
+
 #### 6.3.4.3 走读
 
 ```c++
@@ -4184,7 +4190,7 @@ status_t AudioTrack::createTrack_l()
         goto exit;
     }
 
-    // step 2 : 
+    // step 2 : 判断下是否能走低时延，如果不能，取消mFlags的低时延
     {
     // mFlags (not mOrigFlags) is modified depending on whether fast request is accepted.
     // After fast request is denied, we will request again if IAudioTrack is re-created.
@@ -4212,6 +4218,7 @@ status_t AudioTrack::createTrack_l()
         }
     }
 
+    // step 3 : 
     IAudioFlinger::CreateTrackInput input;
     if (mStreamType != AUDIO_STREAM_DEFAULT) {
         input.attr = AudioSystem::streamTypeToAttributes(mStreamType);
@@ -4498,6 +4505,7 @@ const sp<IAudioFlinger> AudioSystem::get_audio_flinger()
             sp<IServiceManager> sm = defaultServiceManager();
             sp<IBinder> binder;
             do {
+                // 获取到IAudioFlinger对应的BpBinder
                 binder = sm->getService(String16("media.audio_flinger"));
                 if (binder != 0)
                     break;
@@ -4509,7 +4517,9 @@ const sp<IAudioFlinger> AudioSystem::get_audio_flinger()
             } else {
                 reportNoError = true;
             }
+            // BpBinder->linkToDeath()，监听IAudioFlinger服务端的binderDied()事件
             binder->linkToDeath(gAudioFlingerClient);
+            // 通过BpBinder获取对应的BpAudioFlinger，用于与对端通信
             gAudioFlinger = interface_cast<IAudioFlinger>(binder);
             LOG_ALWAYS_FATAL_IF(gAudioFlinger == 0);
             afc = gAudioFlingerClient;
@@ -4520,6 +4530,7 @@ const sp<IAudioFlinger> AudioSystem::get_audio_flinger()
     }
     if (afc != 0) {
         int64_t token = IPCThreadState::self()->clearCallingIdentity();
+        // 注册AudioFlinger的回调AudioFlingerClient
         af->registerClient(afc);
         IPCThreadState::self()->restoreCallingIdentity(token);
     }
@@ -4527,6 +4538,43 @@ const sp<IAudioFlinger> AudioSystem::get_audio_flinger()
     return af;
 }
 ```
+
+
+
+### 6.4.2 step 2
+
+**判断下是否能走低时延，如果不能，取消mFlags的低时延**
+
+```c++
+    {
+    // mFlags (not mOrigFlags) is modified depending on whether fast request is accepted.
+    // After fast request is denied, we will request again if IAudioTrack is re-created.
+    // Client can only express a preference for FAST.  Server will perform additional tests.
+    if (mFlags & AUDIO_OUTPUT_FLAG_FAST) {
+        // either of these use cases:
+        // use case 1: shared buffer
+        bool sharedBuffer = mSharedBuffer != 0;
+        bool transferAllowed =
+            // use case 2: callback transfer mode
+            (mTransfer == TRANSFER_CALLBACK) ||
+            // use case 3: obtain/release mode
+            (mTransfer == TRANSFER_OBTAIN) ||
+            // use case 4: synchronous write
+            ((mTransfer == TRANSFER_SYNC || mTransfer == TRANSFER_SYNC_NOTIF_CALLBACK)
+                    && mThreadCanCallJava);
+
+        bool fastAllowed = sharedBuffer || transferAllowed;
+        if (!fastAllowed) {
+            ALOGW("%s(%d): AUDIO_OUTPUT_FLAG_FAST denied by client,"
+                  " not shared buffer and transfer = %s",
+                  __func__, mPortId,
+                  convertTransferToText(mTransfer));
+            mFlags = (audio_output_flags_t) (mFlags & ~AUDIO_OUTPUT_FLAG_FAST);
+        }
+    }
+```
+
+
 
 
 
