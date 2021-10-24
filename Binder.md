@@ -562,6 +562,8 @@ interface IMediaPlayer {
 
 // TODO
 
+
+
 # 2. Java层的Binder
 
 ## 2.1 AIDL生成的Java文件解析
@@ -821,6 +823,8 @@ public class MyRemoteProxy implements IRemoteInterface {
 >
 > 4、 Proxy是客户端的代理类，需要绑定BinderProxy，然后通过后者的transact()方法进行远程调用
 
+
+
 # 3. native层的Binder
 
 ## 3.1 类图
@@ -849,3 +853,16 @@ public class MyRemoteProxy implements IRemoteInterface {
 
 ![image-20211003213911362](.\images\image-20211003213911362.png)
 
+## 3.3 native层传递数据
+
+native层同样是通过parcelable对象进行跨进程数据传递，在接口层面与java层稍有不同。
+
+|        | 写入parcel      | 从parcel读取     |
+| ------ | --------------- | ---------------- |
+| java   | writeToParcel() | 通过CREATOR      |
+| native | writeToParcel() | readFromParcel() |
+|        |                 |                  |
+
+
+
+# 

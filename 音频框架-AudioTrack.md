@@ -4539,8 +4539,6 @@ const sp<IAudioFlinger> AudioSystem::get_audio_flinger()
 }
 ```
 
-
-
 ### 6.4.2 step 2
 
 **判断下是否能走低时延，如果不能，取消mFlags的低时延**
@@ -4574,9 +4572,120 @@ const sp<IAudioFlinger> AudioSystem::get_audio_flinger()
     }
 ```
 
+### 6.4.3 step 3
 
+**BpAudioFlinger::createTrack()**
 
+```c++
+	// 创建Parcelable对象
+	IAudioFlinger::CreateTrackInput input;
+    if (mStreamType != AUDIO_STREAM_DEFAULT) {
+        input.attr = AudioSystem::streamTypeToAttributes(mStreamType);
+    } else {
+        input.attr = mAttributes;
+    }
+    input.config = AUDIO_CONFIG_INITIALIZER;
+    input.config.sample_rate = mSampleRate;
+    input.config.channel_mask = mChannelMask;
+    input.config.format = mFormat;
+    input.config.offload_info = mOffloadInfoCopy;
+    input.clientInfo.clientUid = mClientUid;
+    input.clientInfo.clientPid = mClientPid;
+    input.clientInfo.clientTid = -1;
+    if (mFlags & AUDIO_OUTPUT_FLAG_FAST) {
+        // It is currently meaningless to request SCHED_FIFO for a Java thread.  Even if the
+        // application-level code follows all non-blocking design rules, the language runtime
+        // doesn't also follow those rules, so the thread will not benefit overall.
+        if (mAudioTrackThread != 0 && !mThreadCanCallJava) {
+            input.clientInfo.clientTid = mAudioTrackThread->getTid();
+        }
+    }
+    input.sharedBuffer = mSharedBuffer;
+    input.notificationsPerBuffer = mNotificationsPerBufferReq;
+    input.speed = 1.0;
+    if (audio_has_proportional_frames(mFormat) && mSharedBuffer == 0 &&
+            (mFlags & AUDIO_OUTPUT_FLAG_FAST) == 0) {
+        input.speed  = !isPurePcmData_l() || isOffloadedOrDirect_l() ? 1.0f :
+                        max(mMaxRequiredSpeed, mPlaybackRate.mSpeed);
+    }
+    input.flags = mFlags;
+    input.frameCount = mReqFrameCount;
+    input.notificationFrameCount = mNotificationFramesReq;
+    input.selectedDeviceId = mSelectedDeviceId;
+    input.sessionId = mSessionId;
+    input.audioTrackCallback = mAudioTrackCallback;
+    input.opPackageName = mOpPackageName;
 
+    IAudioFlinger::CreateTrackOutput output;
+
+	// 调用BpAudioFlinger::createTrack(),创建BpAudioTrack，同时，用output接收其他参数
+    sp<IAudioTrack> track = audioFlinger->createTrack(input,
+                                                      output,
+                                                      &status);
+
+	// 返回结果接收
+    if (status != NO_ERROR || output.outputId == AUDIO_IO_HANDLE_NONE) {
+        ALOGE("%s(%d): AudioFlinger could not create track, status: %d output %d",
+                __func__, mPortId, status, output.outputId);
+        if (status == NO_ERROR) {
+            status = NO_INIT;
+        }
+        goto exit;
+    }
+    ALOG_ASSERT(track != 0);
+```
+
+> 细节就不展开了，这里主要是调用IAudioFlinger的接口，获取IAudioTrack的句柄。
+>
+> 此外，这里这里可以看到IAudioFlinger中的两个内部类：CreateTrackInput和CreateTrackOutput
+
+简单看下BpAudioFlinger::createTrack():
+
+```c++
+    // BpAudioFlinger
+	virtual sp<IAudioTrack> createTrack(const CreateTrackInput& input,
+                                        CreateTrackOutput& output,
+                                        status_t *status)
+    {
+        Parcel data, reply;
+        sp<IAudioTrack> track;
+        data.writeInterfaceToken(IAudioFlinger::getInterfaceDescriptor());
+
+        if (status == nullptr) {
+            return track;
+        }
+
+        input.writeToParcel(&data);
+
+        status_t lStatus = remote()->transact(CREATE_TRACK, data, &reply);
+        if (lStatus != NO_ERROR) {
+            ALOGE("createTrack transaction error %d", lStatus);
+            *status = DEAD_OBJECT;
+            return track;
+        }
+        *status = reply.readInt32();
+        if (*status != NO_ERROR) {
+            ALOGE("createTrack returned error %d", *status);
+            return track;
+        }
+        // 拿到BpAudioTrack
+        track = interface_cast<IAudioTrack>(reply.readStrongBinder());
+        if (track == 0) {
+            ALOGE("createTrack returned an NULL IAudioTrack with status OK");
+            *status = DEAD_OBJECT;
+            return track;
+        }
+        // 从BpAudioFlinger的reply信息中，还原处CreateTrackOutput
+        output.readFromParcel(&reply);
+        return track;
+    }
+```
+
+## 6.5 总结
+
+本节仅从AudioTrack的角度走读了native层创建AudioTrack的源码，涉及AudioFlinger的部分未展开。简单的流程图如下：
+
+![image-20211024111040773](.\images\image-20211024111040773.png)
 
 # 7. offload模式
 

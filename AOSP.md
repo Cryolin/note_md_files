@@ -1021,10 +1021,54 @@ A：Binder是android中主要的IPC方式，通过mmap实现一次拷贝，比So
 
 **其实现一次拷贝的流程如下：**
 
+# 7. HIDL
+
+在了解HIDL之前，先看几个概念：
+
+## 7.1 OEM/ODM
+
+https://zhuanlan.zhihu.com/p/40483304
+
+**OEM(Original Equipment Manufacturer)**：原始设备制造商：我有研发能力，也有设计能力，就是懒得自己去生产。
+
+**ODM(Original Design Manufacturer)**：原始设计制造商：我有渠道，我有idea，但我没研发能力，我提需求你帮我做出来吧。或者我有研发能力，可这东西太低端了，不值得我亲手去做，外包给你做吧。
+
+## 7.2 分区
+
+https://zhuanlan.zhihu.com/p/364003927
+
+system分区：android系统的可执行程序、库、系统服务和app等。
+
+vendor分区：厂商私有的可执行程序、库、系统服务和app等。
+
+对于小米、华为等设备制造商，由于【使用的硬件/芯片】不同，所以会有自己针对不同芯片、不同硬件的HAL层的定制，这些定制都是位于vendor分区的。
+
+## 7.3 O版本前的版本升级
+
+在android O版本之前，每次android大版本升级，对于芯片供应商、硬件制造商和手机制造商来讲，都是一个庞大的工作量。O版本前的升级模型是这样的：
+
+![image-20211024155234898](.\images\image-20211024155234898.png)
+
+下面灰色的部分，可以理解为【芯片供应商、硬件供应商】等提供的vendor部件，也可以理解为HAL层，在O版本前，是以so的形式提供给【设备制造商的】。而设备制造商要做的事情，是把绿色的部分升级到新的android版本，然后把里面的接口与【芯片供应商、硬件供应商】提供的新的so进行联调。
+
+O版本前，framework和HAL是在同一个进程的，framework通过dlopen()打开HAL的一个个so库，进行调用。
 
 
-## 6.4 介绍下一次完整的Binder IPC通信的过程？
 
-## 
+![image-20211024155506699](.\images\image-20211024155506699.png)
 
-### 
+## 7.3 Treble
+
+https://source.android.google.cn/devices/architecture/treble
+
+Treble是google提出的用于简化android版本升级的框架。它利用HIDL技术，将framework和HAL分离到不同的进程，进程间通过HIDL进行IPC。而之所以做到了简化，是因为Treble提供了一套【稳定的】接口。
+
+这样一来，【芯片供应商、硬件供应商】就不必链接system分区的每个大版本的接口变更，而疲于进行接口适配，简化了android的升级。
+
+![image-20211024155901315](.\images\image-20211024155901315.png)
+
+![image-20211024155917362](.\images\image-20211024155917362.png)
+
+## 7.4 HIDL
+
+HIDL是用于Android Framework与HAL进行IPC的接口。
