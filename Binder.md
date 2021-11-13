@@ -849,7 +849,7 @@ public class MyRemoteProxy implements IRemoteInterface {
 
 ![image-20211003213807800](.\images\image-20211003213807800.png)
 
-> 最后，客户端同样导入IAudioTrack.ha，并实现BpAudioTrack
+> 最后，客户端同样导入IAudioTrack.h，并实现BpAudioTrack
 
 ![image-20211003213911362](.\images\image-20211003213911362.png)
 
