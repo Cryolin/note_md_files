@@ -174,9 +174,27 @@ cat [-AbeEnstTuv] [--help] [--version] fileName
 ```
 // 举例1：查看指定文件
 cat /etc/passwd
+// 举例2：查看文件且附带行号
+cat -n 1.txt
 ```
 
-## Q3：chmod
+## Q3：cd
+
+change directory，切换到指定目录
+
+```
+// 语法
+cd [directory]
+```
+
+```
+// 举例1：切换到目录
+cd ~/
+// 举例2：切换到上级目录
+cd ..
+```
+
+## Q4：chmod
 
 Linux chmod（英文全拼：change mode）命令是控制用户对文件的权限的命令
 
@@ -193,7 +211,7 @@ r 表示可读取，w 表示可写入，x 表示可执行，X 表示只有当该
 chmod a+x ~/bin/repo
 ```
 
-## Q4：cp
+## Q5：cp
 
 Linux cp（英文全拼：copy file）命令主要用于复制文件或目录。
 
@@ -208,9 +226,13 @@ cp [options] source... directory
 cp avahi-daemon avahi-daemon.bak
 // 举例2：cp命令默认是不能复制目录的，通过-r可复制目录
 cp -r 123 /tmp
+// 举例3：复制多个文档到指定目录
+cp 1.txt 2.txt /home
+// 举例4：复制多个目录到指定目录
+cp /test1 /test2 /test3
 ```
 
-## Q5：curl
+## Q6：curl
 
 curl 是常用的命令行工具，用来请求 Web 服务器。它的名字就是客户端（client）的 URL 工具的意思。
 
@@ -226,7 +248,7 @@ curl www.baidu.com
 curl https://storage.googleapis.com/git-repo-downloads/repo > ~/bin/repo
 ```
 
-## Q6：df
+## Q7：df
 
 Linux df（英文全拼：disk free） 命令用于显示目前在 Linux 系统上的文件系统磁盘使用情况统计。
 
@@ -240,7 +262,7 @@ df [选项]... [FILE]...
 df -h
 ```
 
-## Q7：export
+## Q8：export
 
 Linux export 命令用于设置或显示环境变量。
 
@@ -268,7 +290,22 @@ export PATH=$PATH:/home/cc/path1:/home/cc/path2
 export PATH=/home/cc/path1:/home/cc/path2:$PATH
 ```
 
-## Q8：id
+## Q9：head
+
+head 命令可用于查看文件的开头部分的内容，有一个常用的参数 **-n** 用于显示行数，默认为 10，即显示 10 行的内容。
+
+```
+head [参数] [文件]  
+```
+
+```
+// 举例1：默认查看前10行的内容
+head 1.txt
+// 举例2：指定查看前6行的内容
+head -n 6 1.txt
+```
+
+## Q10：id
 
 Linux id命令用于显示用户的ID，以及所属群组的ID。
 
@@ -285,7 +322,7 @@ id -un
 
 ![image-20210502152852411](.\images\image-20210502152852411.png)
 
-## Q9：kill
+## Q11：kill
 
 发送指定信号到指定进程
 
@@ -299,9 +336,26 @@ kill[参数][进程号]
 kill -l
 ```
 
+## Q12：less
 
+与more类似，用于查看文件
 
-## Q10：ls
+## Q13：ln
+
+**Linux ln命令**用来为文件创件连接，连接类型分为硬连接和符号连接两种，默认的连接类型是硬连接。如果要创建符号连接必须使用"-s"选项。
+
+```
+ln(选项)(参数)
+```
+
+```
+// 举例1：创建硬链接
+ln 1.txt /tmp/1_hard.txt
+// 举例2：创建软链接
+ln -s 1.txt /tmp/1_soft.txt
+```
+
+## Q14：ls
 
 Linux ls（英文全拼：list files）命令用于显示指定工作目录下之内容（列出目前工作目录所含之文件及子目录)。
 
@@ -315,9 +369,16 @@ ls [-alrtAFR] [name...]
 ls /home
 // 举例2：列举所有文件，包含隐藏文件
 ls —a /home
-// 举例3：列举文件详细信息
+ls --all /home
+// 举例3：列举文件详细信息（长格式显示）
 ls -l /home
-// 举例4：不填路径时，默认当前路径
+// 举例4：人性化显示（文件大小按Kb/Mb等实际大小显示）（需结合-l或-s一起使用）
+ls -lh /home
+ls --human -l /home
+ls --human-readable -l /home
+// 举例5：查看目录的详细信息，而非目录下的文件（需结合-l一起使用）
+ls -ld /home
+// 举例6：不填路径时，默认当前路径
 ls
 ```
 
@@ -336,12 +397,12 @@ ls
 // 第二列：文件硬链接数
 // 第三列：文件/目录拥有者
 // 第四列：文件/目录拥有者所在的组
-// 第五列：文件所占用的空间（以字节为单位）
+// 第五列：文件所占用的空间（以字节为单位）（-h可以按Kb/Mb等人性化显示）
 // 第六列：文件/目录最近访问（修改）时间
 // 第七列：文件/目录名
 ```
 
-## Q11：mkdir
+## Q15：mkdir
 
 Linux mkdir（英文全拼：make directory）命令用于创建目录。
 
@@ -353,9 +414,67 @@ mkdir [-p] dirName
 ```
 // 举例1：创建test目录
 mkdir test
+// 举例2：递归创建目录（当test1，test2不存在时，可创建成功）
+mkdir -p test/test1/test2/test3
+// 举例3：同时创建多个目录
+mkdir test/test1 test/test2 test/test3
 ```
 
-## Q12：mv
+## Q16：more
+
+Linux more 命令类似 cat ，不过会以一页一页的形式显示，更方便使用者逐页阅读，而最基本的指令就是按空白键（space）就往下一页显示，按 b 键就会往回（back）一页显示，而且还有搜寻字串的功能（与 vi 相似），使用中的说明文件，请按 h 。
+
+```
+// 语法
+more [-dlfpcsu] [-num] [+/pattern] [+linenum] [fileNames..]
+
+-num 一次显示的行数
+-d 提示使用者，在画面下方显示 [Press space to continue, 'q' to quit.] ，如果使用者按错键，则会显示 [Press 'h' for instructions.] 而不是 '哔' 声
+-l 取消遇见特殊字元 ^L（送纸字元）时会暂停的功能
+-f 计算行数时，以实际上的行数，而非自动换行过后的行数（有些单行字数太长的会被扩展为两行或两行以上）
+-p 不以卷动的方式显示每一页，而是先清除萤幕后再显示内容
+-c 跟 -p 相似，不同的是先显示内容再清除其他旧资料
+-s 当遇到有连续两行以上的空白行，就代换为一行的空白行
+-u 不显示下引号 （根据环境变数 TERM 指定的 terminal 而有所不同）
++/pattern 在每个文档显示前搜寻该字串（pattern），然后从该字串之后开始显示
++num 从第 num 行开始显示
+fileNames 欲显示内容的文档，可为复数个数
+
+注：[-dlfpcsu] [-num] [+/pattern] [+linenum]都是属于选项，没有顺序要求
+```
+
+```
+// 举例1：查看某个文件
+more 1.txt
+// 举例2：查看某个文件，限制一次显示20行
+more -20 1.txt
+// 举例3：从第20行开始查看某个文件
+more +20 1.txt
+// 举例4：查看的时候，增加使用者提示
+more -d 1.txt
+// 举例5：不滚动查看，每次翻页清除上一页
+more -p 1.txt
+more -c 1.txt
+// 举例6：连续空行按一行显示
+more -s 1.txt
+// 举例7：搜索指定字符串，并从该位置向后查看
+more +/serachString 1.txt
+```
+
+进入more查看文件的状态后，一些操作的快捷键：
+
+```
+Enter 向下n行，需要定义。默认为1行
+Ctrl+F 向下滚动一屏
+空格键 向下滚动一屏
+Ctrl+B 返回上一屏
+= 输出当前行的行号
+V 调用vi编辑器
+!命令 调用Shell，并执行命令
+q 退出more
+```
+
+## Q17：mv
 
 Linux mv（英文全拼：move file）命令用来为文件或目录改名、或将文件或目录移入其它位置。
 
@@ -366,11 +485,15 @@ mv [options] source... directory
 ```
 
 ```
-// 举例1：移动到同一目录，相当于做了重命名操作
+// 举例1：移动某个文件到同一目录，相当于做了重命名操作
 mv avahi-daemon.bak avahi-daemon
+// 举例2：移动某个目录到指定目录（mv命令无需用-r移动目录）
+mv temp1/ temp2/
+// 举例3：移动多个文件或目录到指定目录
+mv temp1/ temp2/ temp3/
 ```
 
-## Q13：passwd
+## Q18：passwd
 
 Linux passwd命令用来更改使用者的密码
 
@@ -385,7 +508,51 @@ passwd root
 passwd testUser
 ```
 
-## Q14：su
+## Q19：pwd
+
+print working directory，打印当前目录（绝对目录）
+
+```
+// 举例1：打印当前目录
+pwd
+```
+
+## Q20：rm
+
+remove，删除文件或目录
+
+```
+// 语法
+rm [options] [文件或目录]
+```
+
+```
+// 举例1：删除指定文件
+rm 1.txt
+// 举例2：删除指定目录
+rm -r /home
+// 举例3：强制删除指定文件或目录（无需询问）
+rm -f /home
+rm -f 1.txt
+// 举例4：删除当前目录下的所有文件或子目录
+rm -rf *
+```
+
+## Q21：rmdir
+
+remove empty directory，删除空目录
+
+```
+// 语法，只能删除空目录
+rmdir [目录名]
+```
+
+```
+// 举例1：删除指定空文件夹
+rmdir /home
+```
+
+## Q22：su
 
 Linux su（英文全拼：swith user）命令用于变更为其他使用者的身份，除 root 外，需要键入该使用者的密码。
 
@@ -405,7 +572,7 @@ su root
 su colin
 ```
 
-## Q15：sudo
+## Q23：sudo
 
 Linux sudo命令以系统管理者的身份执行指令，也就是说，经由 sudo 所执行的指令就好像是 root 亲自执行。
 
@@ -416,7 +583,34 @@ Linux sudo命令以系统管理者的身份执行指令，也就是说，经由 
 sudo apt-get install xxx
 ```
 
-## Q16：tar
+## Q24：tac
+
+cat命令反过来就是tac，可以实现逆序查看文件。
+
+```
+// 举例1：逆序查看文件
+tac 1.txt
+// 举例2：tac没有-n选项，也就是其无法查看行号
+```
+
+## Q25：tail
+
+tail 命令可用于查看文件的内容，有一个常用的参数 **-f** 常用于查阅正在改变的日志文件。
+
+```
+tail [参数] [文件]  
+```
+
+```
+// 举例1：默认查看后10行
+tail 1.txt
+// 举例2：指定查看后6行
+tail —n 6 1.txt
+// 举例3：动态查看后10行，可用于查看日志文件
+tail -f 1.txt
+```
+
+## Q26：tar
 
 用作压缩或打包的命令，用作解压时，不同的option用于解压不同后缀的文件。
 
@@ -427,7 +621,7 @@ tar —xzf test.tar.gz
 tar -xf aosp-latest.tar
 ```
 
-## Q17：touch
+## Q27：touch
 
 Linux touch命令用于修改文件或者目录的时间属性，包括存取时间和更改时间。若文件不存在，系统会建立一个新的文件。
 
@@ -441,9 +635,13 @@ touch [-acfm][-d<日期时间>][-r<参考文件或目录>] [-t<日期时间>][--
 ```
 // 举例1：文件不存在时，可用于创建文件
 touch test.txt
+// 举例2：touch创建的文件名不建议有空格，如需有空格，需使用双引号
+touch "program files"
+// 举例3：如不使用双引号，会创建多个文件（下面的例子会分别创建program和files两个文件）
+touch program files
 ```
 
-## Q18：useradd
+## Q28：useradd
 
 Linux useradd 命令用于建立用户帐号。
 
@@ -465,7 +663,7 @@ useradd testUser
 useradd -m testUser
 ```
 
-## Q19：userdel
+## Q29：userdel
 
 userdel用于删除用户
 
@@ -483,7 +681,7 @@ userdel -r testUser
 userdel -f testUser
 ```
 
-## Q20：w
+## Q30：w
 
 **w[命令](https://www.linuxcool.com/)用于显示已经登陆系统的用户列表，并显示用户正在执行的指令。**
 
@@ -499,7 +697,7 @@ w
 
 ![image-20210505102246147](.\images\image-20210505102246147.png)
 
-## Q21：wget
+## Q31：wget
 
 wget命令用来从指定的URL下载文件。
 
@@ -515,7 +713,7 @@ wget (选项) (参数)
 wget -c https://mirrors.tuna.tsinghua.edu.cn/aosp-monthly/aosp-latest.tar
 ```
 
-## Q22：who
+## Q32：who
 
 Linux who命令用于显示系统中有哪些使用者正在上面，显示的资料包含了使用者 ID、使用的终端机、从哪边连上来的、上线时间、呆滞时间、CPU 使用量、动作等等。
 
@@ -636,6 +834,10 @@ sudo gedit /etc/apt/sources.list
 ## Q4：如何在windows中查看linux的文件
 
 可通过配置samba实现。
+
+## Q5：如何清屏
+
+ctrl+L或clear
 
 # 8. Linux用户管理
 
