@@ -267,7 +267,203 @@ char tlifs[4] = {'h', 'i', 112, '\0'};	// allowed
 
 在上述代码中，第一条语句不能通过编译，因为将浮点数转换为整型是缩窄操作，即使浮点数的小数点后面为零。第二条语句也不能通过编译，因为1122011超出了char变量的取值范围（这里假设char变量的长度为8位）。第三条语句可通过编译，因为虽然112是一个int值，但它在char变量的取值范围内。C++标准模板库（STL）提供了一种数组替代品—模板类vector，而C++11新增了模板类array。这些替代品比内置复合类型数组更复杂、更灵活，本章将简要地讨论它们，而第16章将更详细地讨论它们。
 
+## 4.2 字符串
 
+C++处理字符串的方式有两种。第一种来自C语言，常被称为C-风格字符串（C-style string）。本章将首先介绍它，然后介绍另一种基于string类库的方法。  
 
+C-风格字符串具有一种特殊的性质：以空字符（null character）结尾，空字符被写作\0，其ASCII码为0，用来标记字符串的结尾。例如，请看下面两个声明：
 
+```c++
+char dog[3] = {'d', 'o', 'g'};	// not a string
+char cat[4] = ['c', 'a', 't', '\0'];	// a string
+```
+
+这种方式创建字符串太繁琐，C风格字符串更常见的格式如下：
+
+``` c++
+char bird[11] = "Mr. Cheeps";	// 编译器自动补齐'\0'
+char fish[] = "Buddles";	// 编译器自动计算长度
+```
+
+如果指定的长度大于赋值的长度，编译器会自动补'\0'，如下图所示。处理字符串的函数（如cout，strlen）一般情况下是根据\0的位置，而不是字符数组的长度判断，所以，如果字符串的长度长于赋值的长度，不会带来问题，但会造成空间的浪费。
+
+![image-20220824201640770](D:\git\note_md_files\images\image-20220824201640770.png)
+
+Q：字符常量和字符串常量的区别？
+
+A：注意，字符串常量（使用双引号）不能与字符常量（使用单引号）互换。字符常量（如'S'）是字符串编码的简写表示。在ASCII系统上，'S'只是83的另一种写法，因此，下面的语句将83赋给shirt_size：  
+
+```C++
+char shirt_size = 'S';			// 合法
+```
+
+但"S"不是字符常量，它表示的是两个字符（字符S和\0）组成的字符串。更糟糕的是，"S"实际上表示的是字符串所在的内存地址。因此下面的语句试图将一个内存地址赋给shirt_size：  
+
+```C++
+char shirt_size = "S";			// 非法
+```
+
+### 4.2.3 字符串输入
+
+cin进行字符串读取的问题：
+
+如下代码：
+
+```C++
+#include <iostream>
+int main()
+{
+	using namespace std;
+	const int ArSize = 20;
+	char name[ArSize];
+	char dessert[ArSize];
+
+	cout << "Enter your name:\n";
+	cin >> name;
+	cout << "Enter your favorite dessert:\n";
+	cin >> dessert;
+	cout << "I have some delicous " << dessert;
+	cout << " for you, " << name << ".\n";
+
+	system("pause");
+	return 0;
+}
+```
+
+运行结果：
+
+```
+Enter your name:
+Alistair Dreeb
+Enter your favorite dessert:
+I have some delicous Dreeb for you, Alistair.
+请按任意键继续. . .
+```
+
+我们甚至还没有对“输入甜点的提示”作出反应，程序便把它显示出来了，然后立即显示最后一行。  
+
+cin是如何确定已完成字符串输入呢？由于不能通过键盘输入空字符，因此cin需要用别的方法来确定字符串的结尾位置。cin使用空白（空格、制表符和换行符）来确定字符串的结束位置，这意味着cin在获取字符数组输入时只读取一个单词。读取该单词后，cin将该字符串放到数组中，并自动在结尾添加空字符。  
+
+这个例子的实际结果是，cin把Alistair作为第一个字符串，并将它放到name数组中。这把Dreeb留在输入队列中。当cin在输入队列中搜索用户喜欢的甜点时，它发现了Dreeb，因此cin读取Dreeb，并将它放到dessert数组中（参见图4.4）。  
+
+![image-20220824204636210](D:\git\note_md_files\images\image-20220824204636210.png)
+
+### 4.2.4 每次读取一行字符串输入
+
+istream中的类（如cin）提供了一些面向行的类成员函数：getline( )和get( )。这两个函数都读取一行输入，直到到达换行符。然而，随后getline( )将丢弃换行符，而get( )将换行符保留在输入序列中。  
+
+一：getline()
+
+getline( )函数读取整行，它使用通过回车键输入的换行符来确定输入结尾。要调用这种方法，可以使用cin.getline( )。该函数有两个参数。第一个参数是用来存储输入行的数组的名称，第二个参数是要读的字符数。  使用示例如下：
+
+```C++
+#include <iostream>
+int main()
+{
+	using namespace std;
+	const int ArSize = 20;
+	char name[ArSize];
+	char dessert[ArSize];
+
+	cout << "Enter your name:\n";
+	cin.getline(name, ArSize);
+	cout << "Enter your favorite dessert:\n";
+	cin.getline(dessert, ArSize);
+	cout << "I have some delicous " << dessert;
+	cout << " for you, " << name << ".\n";
+
+	system("pause");
+	return 0;
+}
+```
+
+![image-20220824205600134](D:\git\note_md_files\images\image-20220824205600134.png)
+
+二：get()
+
+get()有两种函数重载，一种跟getline()相同，但区别在于，get()不会丢弃换行符，而是将其添加到输入队列中。
+
+```C++
+cin.get(name, Arsize);
+// 无法读取，因为get(两参数)不会丢弃换行符，这里读到换行符直接返回，且不消化输入队列中的换行符
+// 要解决此问题，需要在中间加一个get()（空参）调用
+cin.get(dessert, Arsize);	
+```
+
+另一种是空参的get()，其作用是处理下一个字符，包括换行符。
+
+此外，无论是getline()还是get()，其返回类型都是cin对象，所以可以按如下方式链式调用：
+
+```C++
+cin.get(name, Arsize).get();
+cin.getline(name1, Arsize).getline(name2, Arsize);
+```
+
+此外，还有单参的get()，可以将单个字符读取到字符变量内：
+
+```C++
+cin.get(ch);
+```
+
+## 4.3 string类简介
+
+string对象也可以像C风格字符串一样，用数组表示法访问指定位置的字符，例如：
+
+```C++
+string str = "cat";
+cout << str[2];
+```
+
+### 4.3.1 C++11字符串初始化
+
+正如您预期的，C++11也允许将列表初始化用于C-风格字符串和string对象 ：
+
+```C++
+char first_date[] = {"Le Chapon Dodu"};
+string third_date = {"The Bread Bowl"};
+```
+
+### 4.3.3 string类的其他操作
+
+在C++新增string类之前，程序员也需要完成诸如给字符串赋值等工作。对于C-风格字符串，程序员使用C语言库中的函数来完成这些任务。头文件cstring（以前为string.h）提供了这些函数。例如，可以使用函数strcpy( )将字符串复制到字符数组中，使用函数strcat( )将
+字符串附加到字符数组末尾：  
+
+```C++
+strcpy(charr1, charr2);		// copy charr2 to charr1
+strcat(charr1, charr2);		// append contents of charr2 to charr1
+strlen(charr1);				// get length of charr1
+```
+
+相应的，string进行上述操作的方式如下：
+
+```C++
+str1 = str2;		// 直接赋值，替代strcpy
+str1 += str2;		// 替代strcat()
+str1.size();		// 替代strlen()
+```
+
+### 4.3.4 string类I/O
+
+这一节主要了解两个点：
+
+1、C-风格字符串，如果没有初始化，其内容是未定义的。针对未定义的C-风格字符串执行strlen()，函数strlen( )从数组的第一个元素开始计算字节数，直到遇到空字符。在这个例子中，在数组末尾的几个字节后才遇到空字符。对于未被初始化的数据，第一个空字符的出现位置是随机的，因此您在运行该程序时，得到的数组长度很可能与此不同。  
+
+```C++
+	char charr[20];
+	cout << strlen(charr) << endl;		// 结果随机
+```
+
+2、cin.getline()双参函数，支持读取一行输入到指定C-风格字符串，但如需读取一行输入到string中，需采用如下方法：
+
+```C++
+	// 读取到C-风格字符串
+	char charr[20];
+	cout << "Enter a line of text:\n";
+	cin.getline(charr, 20);
+
+	// 读取到string
+	string str;
+	cout << "Enter another line of text:\n";
+	getline(cin, str);
+```
 
