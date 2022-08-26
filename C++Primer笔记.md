@@ -285,7 +285,16 @@ char bird[11] = "Mr. Cheeps";	// 编译器自动补齐'\0'
 char fish[] = "Buddles";	// 编译器自动计算长度
 ```
 
-如果指定的长度大于赋值的长度，编译器会自动补'\0'，如下图所示。处理字符串的函数（如cout，strlen）一般情况下是根据\0的位置，而不是字符数组的长度判断，所以，如果字符串的长度长于赋值的长度，不会带来问题，但会造成空间的浪费。
+```C++
+// 注意，C-风格字符串只允许在声明处赋值，声明后不允许等号赋值，如下写法报错：
+char str[20];
+str = "abcd";		// error
+
+// 可以考虑使用strcpy()
+strcpy(str, "abcd");
+```
+
+如果指定的长度大于赋值的长度，编译器会自动补'\0'，如下图所示。处理字符串的函数（如cout，strlen）一般情况是根据\0的位置，而不是字符数组的长度判断，所以，如果字符串的长度长于赋值的长度，不会带来问题，但会造成空间的浪费。
 
 ![image-20220824201640770](D:\git\note_md_files\images\image-20220824201640770.png)
 
@@ -423,6 +432,19 @@ char first_date[] = {"Le Chapon Dodu"};
 string third_date = {"The Bread Bowl"};
 ```
 
+### 4.3.2 赋值、拼接和附加
+
+C++允许字符串对象的拼接，但不允许两个字符串常量的拼接：
+
+```C++
+string a = "a";
+string b = "b";
+string c = a + b;
+string d = a + "f";
+
+string e = "a" + "b";			// error
+```
+
 ### 4.3.3 string类的其他操作
 
 在C++新增string类之前，程序员也需要完成诸如给字符串赋值等工作。对于C-风格字符串，程序员使用C语言库中的函数来完成这些任务。头文件cstring（以前为string.h）提供了这些函数。例如，可以使用函数strcpy( )将字符串复制到字符数组中，使用函数strcat( )将
@@ -467,3 +489,91 @@ str1.size();		// 替代strlen()
 	getline(cin, str);
 ```
 
+## 4.4 结构简介
+
+结构中的每一项被称为结构成员。
+
+如果您熟悉C语言中的结构，则可能已经注意到了，C++允许在声明结构变量时省略关键字struct：
+
+```C++
+struct inflatable goose;	// keyword struct required in C
+inflatable vincent;			// keyword struct not required in C++
+```
+
+### 4.4.2 C++11结构初始化
+
+与数组一样，C++11也支持将列表初始化用于结构，且等号（=）是可选的：
+
+```C++
+inflatable duck {"Daphne", 0.12, 9.98};
+```
+
+其次，如果大括号内未包含任何东西，各个成员都将被设置为零。例如，下面的声明导致mayor.volume和mayor.price被设置为零，且mayor.name的每个字节都被设置为零：
+
+```C++
+inflatable mayor {};
+```
+
+### 4.4.4 其他结构属性
+
+可以同时完成定义结构和创建结构变量的工作。为此，只需将变量名放在结束括号的后面即可：
+
+```C++
+struct perks
+{
+	int key_number;
+	char car[12];
+} mr_smith, ms_jones;	// two perks variables
+```
+
+甚至可以初始化以这种方式创建的变量：
+
+```C++
+struct perks
+{
+	int key_number;
+	char car[12];
+} mr_glitz =
+{
+	7,				// value for mr_glitz.key_number member
+	"Packard"		// value for mr_glitz.car member
+}
+```
+
+然而，将结构定义和变量声明分开，可以使程序更易于阅读和理解。
+
+还可以声明没有名称的结构类型，方法是省略名称，同时定义一种结构类型和一个这种类型的变量：
+
+```C++
+struct				// no tag
+{
+	int x;			// 2 members
+	int y;
+} position;			// a structure variable
+```
+
+这样将创建一个名为position的结构变量。可以使用成员运算符来访问它的成员（如position.x），但这种类型没有名称，因此以后无法创建这种类型的变量。本书将不使用这种形式的结构。
+
+## 4.5 共用体
+
+共用体（union）是一种数据格式，它能够存储不同的数据类型，但只能同时存储其中的一种类型。
+
+## 4.6 枚举
+
+C++的enum工具提供了另一种创建符号常量的方式，这种方式可以代替const。它还允许定义新类型，但必须按严格的限制进行。使用enum的句法与使用结构相似。例如，请看下面的语句：
+
+```C++
+enum spectrum {red, orange, yellow, green, blue, violet, indigo, ultraviolet};
+```
+
+这条语句完成两项工作。
+
+- 让spectrum成为新类型的名称；spectrum被称为枚举（enumeration），就像struct变量被称为结构一样。
+- 将red、orange、yellow等作为符号常量，它们对应整数值0～7。这些常量叫作枚举量（enumerator）。
+
+可以用枚举名来声明这种类型的变量：
+
+```C++
+spectrum band;
+band = blue;
+```
