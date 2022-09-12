@@ -1105,39 +1105,175 @@ C++从C语言继承了一个与字符相关的、非常方便的函数软件包�
 	cin >> a >> b;
 ```
 
+## 6.5 switch语句
 
+### 6.5.2 switch和if else
 
+如果既可以使用if else if语句，也可以使用switch语句，则当选项不少于3个时，应使用switch语句。因为此时就代码长度和执行速度而言，switch语句的效率更高。
 
+## 6.7 读取数字的循环
 
+本节介绍了cin读取内容不符合预期时的操作，首先，不符合预期时，cin为0，作为条件表达式判断时会被强转为false；其次如果在cin为0后，想继续接收输入，需要调用下cin.clear，下面是例子：
 
+```C++
+	int golf[MAX];
+	cout << "Please enter your golf scores.\n";
+	cout << "You must enter " << MAX << " rounds.\n";
+	int i;
+	for (i = 0; i < MAX; i++)
+	{
+		cout << "round #" << i + 1 << ": ";
+		while (!(cin >> golf[i]))
+		{
+			cin.clear();
+			while (cin.get() != '\n')
+				continue;
+			cout << "Please enter a number: ";
+		}
+	}
+```
 
+## 6.8 简单文件输入/输出
 
+### 6.8.1 文本I/O和文本文件
 
+这里再介绍一下文本I/O的概念。使用cin进行输入时，程序将输入视为一系列的字节，其中每个字节都被解释为字符编码。不管目标数据类型是什么，输入一开始都是字符数据——文本数据。然后，cin对象负责将文本转换为其他类型。为说明这是如何完成的，来看一些处理同一个输入行的代码。
 
+假设有如下示例输入行：
 
+38.5 19.2
 
+来看一下使用不同数据类型的变量来存储时，cin是如何处理该输入行的。首先，来看使用char数据类型的情况：
 
+```C++
+char ch;
+cin >> ch;
+```
 
+输入行中的第一个字符被赋给ch。在这里，第一个字符是数字3，其字符编码（二进制）被存储在变量ch中。输入和目标变量都是字符，因此不需要进行转换。注意，这里存储的数值3，而是字符3的编码。执行上述输入语句后，输入队列中的下一个字符为字符8，下一个输入操作将对其进行处理。
 
+接下来看看int类型：
 
+```C++
+int n;
+cin >> n;
+```
 
+在这种情况下，cin将不断读取，直到遇到非数字字符。也就是说，它将读取3和8，这样句点将成为输入队列中的下一个字符。cin通过计算发现，这两个字符对应数值38，因此将38的二进制编码复制到变量n中。
+接下来看看double类型：
 
+```C++
+double x;
+cin >> x;
+```
 
+在这种情况下，cin将不断读取，直到遇到第一个不属于浮点数的字符。也就是说，cin读取3、8、句点和5，使得空格成为输入队列中的下一个字符。cin通过计算发现，这四个字符对应于数值38.5，因此将38.5的二进制编码（浮点格式）复制到变量x中。
+接下来看看char数组的情况：
 
+```C++
+char word[50];
+cin >> word;
+```
 
+在这种情况下，cin将不断读取，直到遇到空白字符。也就是说，它读取3、8、句点和5，使得空格成为输入队列中的下一个字符。然后，cin将这4个字符的字符编码存储到数组word中，并在末尾加上一个空字符。这里不需要进行任何转换。
 
+最后，来看一下另一种使用char数组来存储输入的情况：
 
+```C++
+char word[50];
+cin.getline(word, 50);
+```
 
+在这种情况下，cin将不断读取，直到遇到换行符（示例输入行少于50个字符）。所有字符都将被存储到数组word中，并在末尾加上一个空字符。换行符被丢弃，输入队列中的下一个字符是下一行中的第一个字符。这里不需要进行任何转换。
 
+### 6.8.2 写入到文本文件中
 
+文件输入的库<fstream>与I/O库<iostram>的使用极其类似。
 
+文件输出的主要步骤如下：
+1．包含头文件fstream。
+2．创建一个ofstream对象。
+3．将该ofstream对象同一个文件关联起来。
+4．就像使用cout那样使用该ofstream对象。
 
+示例：
 
+```C++
+	ofstream outFile;
+	outFile.open("carinfo.txt");
+	
+	cout << "Enter the make and model of automobile: ";
+	cin.getline(automobile, 50);
+	cout << "Enter the model year: ";
+	cin >> year;
+	cout << "Enter the original asking price: ";
+	cin >> a_price;
+	d_price = 0.913 * a_price;
+	
+	outFile << fixed;			// 普通方式输出，不使用科学计数法
+	outFile.precision(2);		// 保留2位小数点
+	outFile.setf(ios_base::showpoint);		// 显示浮点小数点后面的零
+	outFile << "Make and model: " << automobile << endl;
+	outFile << "Year: " << year << endl;
+	outFile << "Was asking $" << a_price << endl;
+	outFile << "Now asking $" << d_price << endl;
+```
 
+### 6.8.3 读取文本文件
 
+与ofstream类似，ifstream用于读文件，且使用方法与cin极其类似。
 
+示例：
 
+```C++
+	char filename[SIZE];
+	ifstream inFile;
 
+	cout << "Enter name of data file: ";
+	cin.getline(filename, SIZE);
+	inFile.open(filename);
+	if (!inFile.is_open())
+	{
+		cout << "Could not open the file " << filename << endl;
+		cout << "Program terminating.\n";
+		exit(EXIT_FAILURE);
+	}
+	double value;
+	double sum = 0.0;
+	int count = 0;
+
+	inFile >> value;
+	while (inFile.good())
+	{
+		++count;
+		sum += value;
+		inFile >> value;
+	}
+	if (inFile.eof())
+		cout << "End of file reached.\n";
+	else if (inFile.fail())
+		cout << "Input terminated by data mismatch.\n";
+	else
+		cout << "Input terminated for unknown reason.\n";
+	if (count == 0)
+		cout << "No data processed.\n";
+	else
+	{
+		cout << "Items read: " << count << endl;
+		cout << "Sum: " << sum << endl;
+		cout << "Average: " << sum / count << endl;
+	}
+	inFile.close();
+```
+
+每读一次，进行一次合法性判断（good，eof，fail，bad等都是判断合法性的函数）。在需要一个bool值的情况下，inFile的结果为inFile.good( )，即true或false。所以上面的写法可以进一步简化为：
+
+```C++
+while (inFile >> value)
+{
+	// loop body
+}
+```
 
 
 
