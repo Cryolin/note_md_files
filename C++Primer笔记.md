@@ -864,6 +864,24 @@ array对象和数组存储在相同的内存区域（即栈）中，而vector对
 
 注意到可以将一个array对象赋给另一个array对象；而对于数组，必须逐元素复制数据。  
 
+补充一点：虽然三者用起来有点类似，都可以通过角标访问，但是只有数组的名字是地址，其他两个指代的是vector和array对象本身。所以在他们三个作为函数传参时，如果采用地址接收数组、vector和array，则数组直接传数组名即可，后两个需要通过&取地址传入，例如：
+
+```
+int arr1[2];
+vector<int> arr2(2);
+array<int, 2> arr3;
+
+void method1(int* arr1);
+void method2(vector<int>* arr2);
+void method3(array<int, 2>* arr3);
+
+method1(arr1);		// 数组名本身就是地址，直接传入即可
+method2(&arr2);		// vector需通过&传地址
+method3(&arr3);		// array需通过&传地址
+```
+
+
+
 # 第5章 循环和关系表达式
 
 ## 5.1 for循环
@@ -1275,11 +1293,129 @@ while (inFile >> value)
 }
 ```
 
+# 第7章 函数--C++的编程模块
+
+## 7.3 函数和数组
+
+### 7.3.2 将数组作为参数意味着什么
+
+```C++
+int main()
+{
+	int cookies[ArSize] = {1,2,4,8,16,32,64,128};
+	cout << sizeof cookies << endl;
+	
+	int sum = sum_arr(cookies, ArSize);
+}
+
+int sum_arr(int arr[], int n)
+{
+	cout << sizeof arr << end;
+}
+```
+
+cookies和arr指向同一个地址。但sizeof cookies的值为32，而sizeof arr为4。这是由于sizeof cookies是整个数组的长度，而sizeof arr只是指针变量的长度（上述程序运行结果是从一个使用4字节地址的系统中获得的）。顺便说一句，这也是必须显式传递数组长度，而不能在sum_arr()中使用sizeof arr的原因；指针本身并没有指出数组的长度。
+
+数组传给函数的是其首地址，且函数不知道长度。如下函数原型等价：
+
+```C++
+int sum_arr(int arr[], int n);
+int sum_arr(int* arr, int n)
+```
+
+### 7.3.3 更多数组函数示例
+
+const修饰指针该如何理解？
+
+思路一：看const修饰的是啥
+
+```C++
+const int* p;		// const修饰的*p，所以，*p不可修改
+int* const p;		// const修饰p，故p无法修改
+```
+
+思路二：
+
+```C++
+const int* p;		// *p是const int类型，所以*p是常量，无法修改
+int* const p;		// p饰const类型，p无法修改
+```
+
+数组作为函数传参时，如果不想让数组被修改，可以使用const修饰：
+
+```C++
+int sum_array(const int[] arr, int n);
+```
+
+上节说了，数组传参的时候，int[] arr 等价于int* arr，所以const int[] arr等价于 const int* arr，即arr指向的部分不可修改。
+
+### 7.3.4 使用数组区间的函数
+
+可以通过传入数组的首指针和尾指针遍历数组：
+
+```C++
+int main()
+{
+	int cookies[ArSize] = {1,2,4,8,16,32,64,128};
+	int sum = sum_arr(cookies, cookies + 20);
+}
+
+int sum_arr(const int* begin, const int* end)
+{
+	const int* pt;
+	int total = 0;
+	for (pt = begin; pt != end; pt++)
+		total += *pt;
+	return total;
+}
+```
+
+指针cookies和cookies+ 20定义了区间。首先，数组名cookies指向第一个元素。表达式cookies+ 19指向最后一个元素（即
+cookies[19]），因此，cookies + 20指向数组结尾后面的一个位置。
+
+C++禁止将const地址赋值给非const指针，否则可以通过非const指针修改const数据，const就没意义了，例如：
+
+```C++
+const float g_moon = 1.63;
+float* pm = &g_moon;		// invalid
+
+const int months[12] = {31,28,31,30,31,30,31,31,30,31,30,31};
+int sum(int arr[], int n);
+sum(months, 12);			// invalid
+```
+
+## 7.4 函数和二维数组
+
+int arr\[row][column]是一个row行，column列的二维数组，如果将其视为一维数组的话，是一个长度为row的，每个元素为int[column]的一维数组。如下两个等效：
+
+```C++
+int arr[r][c] == *(*(arr + r) + c)
 
 
+// 拆分下可以这么理解
+arr	// 长度为r的指针，指针指向的的元素都是int[c]的数组
+arr + r		// 偏移r个int[c]的位置的新指针，指向第r行的首地址
+*(arr + r) 	// 取出第r行的int[c]的数组
+*(arr + r) + c 	// 将指针指向第r行的第c个位置
+*(*(arr + r) + c)	// 取出第r行第c个位置的元素
+```
 
+## 7.5 函数和C-风格字符串
 
+### 7.5.1 将C-风格字符串作为参数的函数
 
+C-风格字符串作为参数传递时，无需传递长度，可以通过判断是否是'\0'判断是否到字符串结尾。
 
+处理函数中字符串的标准方式如下：
 
+```C++
+while(*str)				// quit when *str is '\0'
+{
+	statement;
+	str++;
+}
+```
 
+### 7.6 函数和结构
+
+本节提到了三个传参的方式：直接传递，地址传递和引用传递，其中，直接传递会在函数创建一份拷贝，造成额外的开销。
