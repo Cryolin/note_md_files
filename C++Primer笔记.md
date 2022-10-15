@@ -1481,45 +1481,144 @@ int x = 5;
 }
 ```
 
+## 8.2 引用变量
 
+引用变量的主要用途是用作函数的形参。通过将引用变量用作参数，函数将使用原始数据，而不是其副本。
 
+### 8.2.1 创建引用变量
 
+C++给&符号赋予了另一个含义，将其用来声明引用。例如，要将rodents作为rats变量的别名，可以这样做：
 
+```c++
+int rats;
+int& rodents = rats;
+```
 
+引用变量类型是int&，意为int类型的引用。引用变量与原变量的地址相同，值也相同，例如：
 
+```C++
+	int rats = 101;
+	int& rodents = rats;
+	cout << "rats = " << rats;
+	cout << ", rodents = " << rodents << endl;
 
+	rodents++;
+	cout << "rats = " << rats;
+	cout << ", rodents = " << rodents << endl;
 
+	cout << "rats address = " << &rats;
+	cout << ", rodents address = " << &rodents << endl;
+```
 
+打印：
 
+```
+rats = 101, rodents = 101
+rats = 102, rodents = 102
+rats address = 00000052B6EFF874, rodents address = 00000052B6EFF874
+```
 
+引用和指针的差别之一是：。引用必须在声明引用时将其初始化，而不能像指针那样，先声明，再赋值：
 
+```C++
+int rat;
+int& rodent;
+rodent = rat;		// No, you can't do this.
+```
 
+引用更接近const指针，必须在创建时进行初始化，一旦与某个变量关联起来，就将一直效忠于它。也就是说：
 
+```C++
+int& rodents = rats;
+```
 
+实际上是下述代码的伪装表示：
 
+```C++
+int* const pr = &rats;
+```
 
+引用在被创建时即关联了是谁的别名，后续无法再修改，例如：
 
+```C++
+	int rats = 10l;
+	int& rodents = rats;
 
+	cout << "rats = " << rats;
+	cout << ", rodents = " << rodents << endl;
 
+	cout << "rats address = " << &rats;
+	cout << ", rodents address = " << &rodents << endl;
 
+	int bunnies = 50;
+	rodents = bunnies;
+	cout << "bunnies = " << bunnies;
+	cout << ", rats = " << rats;
+	cout << ", rodents = " << rodents << endl;
 
+	cout << "bunnies address = " << &bunnies;
+	cout << ", rodents address =" << &rodents << endl;
+```
 
+打印：
 
+```
+rats = 10, rodents = 10
+rats address = 000000DD40D8FBE4, rodents address = 000000DD40D8FBE4
+bunnies = 50, rats = 50, rodents = 50
+bunnies address = 000000DD40D8FC24, rodents address =000000DD40D8FBE4
+```
 
+### 8.2.2 将引用作为函数参数
 
+函数按值传递导致被调用函数使用调用程序的值的拷贝，C++引入引用后新增了按引用传递的方式，省略了拷贝，提升了时间和空间效率。一般在传递结构体或类对象时，可以考虑传递引用。
 
+### 8.2.3 引用的属性和特别之处
 
+基本数据类型不建议使用引用，可在传参时增加const修饰：
 
+```C++
+double refcube(const double& ra);
+```
 
+引用的传参有着严格的要求，必须是类型一致的左值，例如：
 
+```C++
+double refcube(double& ra);
 
+double side = 3.0;
+refcube(side);		// 合法
+double* pd = &side;
+refcube(*pd);		// 合法
+double& rd = side;
+refcube(rd);		// 合法
 
+long edge = 5L;
+refcube(edge);		// 非法，类型不匹配
+refcube(side + 1.0);	// 非法，非左值
+```
 
+但是，如果函数接收的传参时const引用，则在**如下两种情况下**是能通过编译的。例如对于edge和side+1.0的传参，函数会创建一个临时变量，初始化为edge和side+1.0的值，然后，ra将成为该临时变量的引用。
 
+1、 实参的类型正确，但不是左值；
+2、 实参的类型不正确，但可以转换为正确的类型。
 
+```C++
+double refcube(const double& ra);
 
+double side = 3.0;
+refcube(side);		// 合法
+double* pd = &side;
+refcube(*pd);		// 合法
+double& rd = side;
+refcube(rd);		// 合法
 
+long edge = 5L;
+refcube(edge);		// 类型不匹配，创建临时变量
+refcube(side + 1.0);	// 非左值，创建临时变量
+```
 
+左值是什么呢？左值参数是可被引用的数据对象，例如，变量、数组元素、结构成员、引用和解除引用的指针都是左值。非左值包括字面常量（用引号括起的字符串除外，它们由其地址表示）和包含多项的表达式。在C语言中，左值最初指的是可出现在赋值语句左边的实体，但这是引入关键字const之前的情况。现在，常规变量和const变量都可视为左值，因为可通过地址访问它们。但常规变量属于可修改的左值，而const变量属于不可修改的左值。
 
 
 
