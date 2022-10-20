@@ -1620,25 +1620,136 @@ refcube(side + 1.0);	// 非左值，创建临时变量
 
 左值是什么呢？左值参数是可被引用的数据对象，例如，变量、数组元素、结构成员、引用和解除引用的指针都是左值。非左值包括字面常量（用引号括起的字符串除外，它们由其地址表示）和包含多项的表达式。在C语言中，左值最初指的是可出现在赋值语句左边的实体，但这是引入关键字const之前的情况。现在，常规变量和const变量都可视为左值，因为可通过地址访问它们。但常规变量属于可修改的左值，而const变量属于不可修改的左值。
 
+## 8.3 默认参数
 
+如何设置默认值呢？必须通过函数原型。由于编译器通过查看原型来了解函数所使用的参数数目，因此函数原型也必须将可能的默认参数告知程序。方法是将值赋给原型中的参数。例如，left( )的原型如下：
 
+```C++
+char* left(const char* str, int n = 1);
+```
 
+对于带参数列表的函数，必须从右向左添加默认值。也就是说，要为某个参数设置默认值，则必须为它右边的所有参数提供默认值：
 
+```C++
+int harpo(int n, int m = 4, int j = 5);				// valid
+int chico(int n, int m = 6, int j);					// invalid
+int groucho(int k = 1, int m = 2, int n = 3);		// valid
+```
 
+## 8.4 函数重载
 
+与java一样，C++通过函数签名判断是否重载。有一些细节需要注意：
 
+1、 如何判断函数调用匹配哪个重载？
 
+1. 类型匹配，直接匹配
+2. 类型不匹配，看是否能强制转换，如果有多个重载都能强转，则无法通过编译。如果只有一个可以强转，则选择该函数。
 
+```C++
+#include <iostream>
+using namespace std;
 
+void print(double d, int width);
+void print(long l, int width);
+void print(int i, int width);
 
+int main()
+{
+	unsigned int year = 3210;
+	print(year, 6);		// 报错：有多个print重载实例与参数列表匹配
 
+	return 0;
+}
+```
 
+2、 引用不算做重载
 
+```C++
+#include <iostream>
+using namespace std;
 
+double cube(double x);
+double cube(double& x);
 
+int main()
+{
+	double x = 1.0;
+	cout << cube(x) << endl;	// 报错，两个都匹配，编译器无法判断用哪个
 
+	return 0;
+}
+```
 
+3、const构成重载，非const可以赋值const，反之不行。
 
+```C++
+#include <iostream>
+using namespace std;
+
+void dribble(char* bits);
+void dribble(const char* cbits);
+void dabble(char* bits);
+void drivel(const char* bits);
+
+int main()
+{
+	const char p1[20] = "How's the weather";
+	char p2[20] = "How's business?";
+
+	dribble(p1);		// dribble(const char* cbits)
+	dribble(p2);		// dribble(char* bits)
+	dabble(p1);			// no match
+	dabble(p2);			// dabble(char* bits)
+	drivel(p1);			// drivel(const char* bits)
+	drivel(p2);			// drivel(const char* bits)
+
+	return 0;
+}
+```
+
+dribble()有两个重载，一个带const，一个不带。编译器会在调用的时候根据传参决定使用哪个。drivel只有一个接收const的重载，在传入p2时，可以将非const的参数赋值给const。
+
+注：本条同样适用于引用，即将上述代码中所有的*换成&后，可得到相同的结论。但是对于非引用非指针的普通变量，由于是值传递，不会对原值进行修改，所以const变量可以赋值给非const，const不构成重载，此时如果同时有const和非const函数，编译报错：
+
+```C++
+void dribble(char bits);
+void dribble(const char cbits);
+void dabble(char bits);
+
+int main()
+{
+	const char p1 = 'a';
+	char p2 = 'b';
+
+	dribble(p1);	// 对于非指针非引用变量，const不构成重载，编译报错
+	dribble(p2);	// 同上
+	dabble(p1);	// dabble(char bits)，值传递，操作的是拷贝数据而非原数据，故可以将const的p1赋值给非const的形参
+	dabble(p2);	// dabble(char bits)
+
+	return 0;
+}
+```
+
+4、函数重载与默认参数冲突时，编译器报错
+
+```C++
+#include <iostream>
+using namespace std;
+
+void dribble(char* bits);
+void dribble(char* bits, int n = 1);
+
+int main()
+{
+	char p[20] = "Hello World!";
+	dribble(p);		// 报错，有多个重载	
+
+	return 0;
+}
+
+```
+
+## 8.5 函数模板
 
 
 
