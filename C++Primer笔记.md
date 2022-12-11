@@ -1983,3 +1983,31 @@ int main()
 }
 ```
 
+### 8.5.6 函数模板的发展
+
+C++11新增关键字decltype，解决函数模板中无法确定类型的情况：
+
+```C++
+int x;
+decltype(x) y;		// y与x的类型相同
+
+template <typename T1, typename T2>
+void ft(T1 x, T2 y)
+{
+	decltype(x + y) xpy = x + y;
+}
+```
+
+deltype结合C++11新增对auto的用法，明确返回值：
+
+```C++
+auto h(int x, float y) -> double
+
+template <class T1, class T2>
+auto gt(T1 x, T2 y) -> decltype(x + y)
+{
+	...
+	return x + y;
+}
+```
+
