@@ -1367,7 +1367,7 @@ int sum_arr(const int* begin, const int* end)
 }
 ```
 
-指针cookies和cookies+ 20定义了区间。首先，数组名cookies指向第一个元素。表达式cookies+ 19指向最后一个元素（即
+指针cookies和cookies+20定义了区间。首先，数组名cookies指向第一个元素。表达式cookies+ 19指向最后一个元素（即
 cookies[19]），因此，cookies + 20指向数组结尾后面的一个位置。
 
 C++禁止将const地址赋值给非const指针，否则可以通过非const指针修改const数据，const就没意义了，例如：
@@ -1387,7 +1387,6 @@ int arr\[row][column]是一个row行，column列的二维数组，如果将其�
 
 ```C++
 int arr[r][c] == *(*(arr + r) + c)
-
 
 // 拆分下可以这么理解
 arr	// 长度为r的指针，指针指向的的元素都是int[c]的数组
@@ -1413,7 +1412,7 @@ while(*str)				// quit when *str is '\0'
 }
 ```
 
-### 7.6 函数和结构
+## 7.6 函数和结构
 
 本节提到了三个传参的方式：直接传递，地址传递和引用传递，其中，直接传递会在函数创建一份拷贝，造成额外的开销。
 
@@ -1748,17 +1747,239 @@ int main()
 
 ## 8.5 函数模板
 
+函数模板的语法：
 
+```C++
+// C++98新增typename
+template <typename T>
+void swap(T& a, T& b);
 
+// C++98前使用class
+template <class T>
+void swap(T& a, T& b);
+```
 
+注意，函数模板不能缩短可执行程序。对于程序清单8.11，最终仍将由两个独立的函数定义，就像以手工方式定义了这些函数一样。最终的代码不包含任何模板，而只包含了为程序生成的实际函数。使用模板的好处是，它使生成多个函数定义更简单、更可靠。
 
+### 8.5.2 模板的局限性
 
+假设有如下模板函数：
 
+```C++
+template <typename T>
+void f(T a, T b);
+```
 
+通常，代码假定可执行哪些操作。例如，下面的代码假定定义了赋值，但如果T为数组，这种假设将不成立：
 
+```C++
+a = b;
+```
 
+同样，下面的语句假设定义了<，但如果T为结构，该假设便不成立：
 
+```C++
+if (a > b)
+```
 
+另外，为数组名定义了运算符>，但由于数组名为地址，因此它比较的是数组的地址，而这可能不是您希望的。
 
+有两种方案可以解决这种问题，一是使用运算符重载，另一种是针对特定的类型使用显示具体化。
 
+### 8.5.3 显示具体化
+
+显示具体化是为了解决8.5.2节的问题引入的，其仍属于模板的范畴，只是制定了某个特定的模板类型，例如：
+
+```C++
+template <class T>
+void Swap(T& a, T& b);
+
+struct job
+{
+	char name[40];
+	double salary;
+	int floor;
+};
+
+template<> void Swap<job>(job& j1, job& j2);
+void Show(job& j);
+
+int main()
+{
+	cout.precision(2);
+	cout.setf(ios::fixed, ios::floatfield);
+	int i = 10, j = 20;
+	cout << "i, j = " << i << ", " << j << ".\n";
+	Swap(i, j);
+	cout << "Now i, j = " << i << ", " << j << ".\n";
+
+	job sue = { "Susan Yaffee", 73000.60, 7 };
+	job sidney{ "Sidney Taffee", 78060.72,9 };
+	cout << "Before job swapping:\n";
+	Show(sue);
+	Show(sidney);
+	Swap(sue, sidney);
+	cout << "After job swapping:\n";
+	Show(sue);
+	Show(sidney);
+
+	return 0;
+}
+
+template <class T>
+void Swap(T& a, T& b)
+{
+	T temp;
+	temp = a;
+	a = b;
+	b = temp;
+}
+
+template<> void Swap(job& j1, job& j2)
+{
+	double t1;
+	int t2;
+	t1 = j1.salary;
+	j1.salary = j2.salary;
+	j2.salary = t1;
+	t2 = j1.floor;
+	j1.floor = j2.floor;
+	j2.floor = t2;
+}
+
+void Show(job& j)
+{
+	cout << j.name << ": $" << j.salary
+		<< " on floor " << j.floor << endl;
+}
+```
+
+其中void Swap(T& a, T& b);是普通的函数模板，而template<> void Swap<job>(job& j1, job& j2);是显示具体化。
+
+```C++
+// 显示具体化可选的语法，简单来说，template后的<>是必须的
+template<> void Swap<job>(job& j1, job& j2);
+template<> void Swap<>(job& j1, job& j2);
+template<> void Swap(job& j1, job& j2);
+```
+
+当有多个重载匹配时（包括普通重载、模板重载）,编译器匹配的优先级：
+
+非模板函数 > 显示具体化 > 普通模板
+
+有些地方会把具体化specialization翻译为专用化
+
+### 8.5.4 实例化和具体化
+
+前文说过，模板中的函数并不是都会被编译器生成函数定义，编译器会在【所有的支持的模板】中【按需生成指定的函数定义】。
+
+而具体化就是给模板中的某一种特定类型增加了特殊的重载逻辑，供编译器选择。
+
+而【按需生成指定的函数定义】的过程，被称为实例化。
+
+举个简单的例子：
+
+```C++
+template <class T>
+void Swap(T& a, T& b);
+
+struct job
+{
+	char name[40];
+	double salary;
+	int floor;
+};
+
+template<> void Swap<job>(job& j1, job& j2);
+int main()
+{
+	int i = 10, j = 20;
+	Swap(i, j);
+
+	return 0;
+}
+```
+
+上面的例子中，有Swap的普通模板格式，没有指定任何具体的类型，但是我们通过显示具体化的方式，增加了job类型的模板重载。但是在main()函数中，调用Swap()时，传递了两个int类型的值，所以编译器只会生成int类型的函数实例化定义，而虽然我们做了job类型的函数具体化，但因为没有job的函数调用，所以编译器不会生成job的实例化。
+
+上面Swap(i, j)生成实例化的过程属于隐式实例化，如果需要通知编译器进行显示实例化，可以通过如下的语法：
+
+```C++
+template Swap<job>(job& j1, job& j2);
+```
+
+注意其余显示具体化语法上的区别主要在于<>的位置。进行显示实例化后，即使不进行Swap(j1, j2)的调用，编译器也会生成job的实例化函数定义。
+
+### 8.5.5 编译器选择使用哪个函数版本
+
+重载解析将寻找最匹配的函数。如果只存在一个这样的函数，则选择它；如果存在多个这样的函数，但其中只有一个是非模板函数，则选择该函数；如果存在多个适合的函数，且它们都为模板函数，但其中有一个函数比其他函数更具体，则选择该函数。如果有多个同样合适的非模板函数或模板函数，但没有一个函数比其他函数更具体，则函数调用将是不确定的，因此是错误的；当然，如果不存在匹配的函数，则也是错误。
+
+如何确定哪个函数更具体？这里举三个例子：
+
+1、指向非const数据的指针和引用优先与非const指针和引用参数匹配。也就是说，在recycle( )示例中，如果只定义了函数#3和#4是完全匹配的，则将选择#3，因为ink没有被声明为const。然而，const和非const之间的区别只适用于指针和引用指向的数据。也就是说，如果只定义了#1和#2，则将出现二义性错误。
+
+```C++
+struct blot {int a; char b[10]};
+blot ink = {25, "spots"};
+recycle(ink);
+
+// 1/2/3/4都是匹配的
+void recycle(blot);					// #1
+void recycle(const blot);			// #2
+void recycle(blot&);				// #3
+void recycle(const blot&);			// #4
+```
+
+2、一个完全匹配优于另一个的另一种情况是，其中一个是非模板函数，而另一个不是。在这种情况下，非模板函数将优先于模板函数（包括显式具体化）。如果两个完全匹配的函数都是模板函数，则较具体的模板函数优先。例如，这意味着显式具体化将优于使用模板隐式生成的具体化：
+
+即上文提到的非模板函数 > 显示具体化 > 普通模板
+
+3、一些更具体而是指编译器推断使用哪种类型时执行的转换最少。例如，请看下面两个模板：
+
+```C++
+template <class Type> void recycle(Type t);
+template <class Type> void recycle(Type* t);
+
+struct blot {int a; char b[10]};
+blot ink = {25, "spots"};
+recycle(&ink);
+```
+
+recycle(&ink)调用与#1模板匹配，匹配时将Type解释为blot *。recycle（&ink）函数调用也与#2模板匹配，这次Type被解释为ink。因此将两个隐式实例——recycle<blot *>(blot *)和recycle <blot>(blot *)发送到可行函数池中。
+
+在这两个模板函数中，recycle<blot *>(blot *)被认为是更具体的，因为在生成过程中，它需要进行的转换更少。也就是说，#2模板已经显式指出，函数参数是指向Type的指针，因此可以直接用blot标识Type；而#1模板将Type作为函数参数，因此Type必须被解释为指向blot的指针。也就是说，在#2模板中，Type已经被具体化为指针，因此说它“更具体”。
+
+此外，除了交给编译器选择外，还可以自己指定模板类型：
+
+```C++
+#include <iostream>
+using namespace std;
+
+template <typename T>
+T lesser(T a, T b)		// #1
+{
+	return a < b ? a : b;
+}
+
+int lesser(int a, int b)	// #2
+{
+	a = a < 0 ? -a : a;
+	b = b < 0 ? -b : b;
+	return a < b ? a : b;
+}
+
+int main()
+{
+	int m = 20;
+	int n = -30;
+	double x = 15.5;
+	double y = 25.9;
+	cout << lesser(m, n) << endl;		// #2
+	cout << lesser(x, y) << endl;		// #1 with double
+	cout << lesser<>(m, n) << endl;		// #1 with int
+	cout << lesser<int>(x, y) << endl;	// #1 with int
+
+	return 0;
+}
+```
 
