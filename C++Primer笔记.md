@@ -700,6 +700,29 @@ int* psome = new int[10];		// get a block of 10 ints
 delete[] psome;			// free a dynamic array
 ```
 
+c-style字符串是一个char指针，所以貌似如下写法是ok的：
+
+```C++
+	char temp[] = "abc";
+	char* str = new char;
+	strcpy(str, temp);
+	cout << str << endl;
+	delete str;
+```
+
+但实际上，上述new操作只创建了长度为sizeof(char)的堆空间，当调用strcpy时，试图往不属于heap buffer的内存写数据，运行时会报错：
+
+```
+Heap Corruption
+CRT detected that the application wrote to memory after end of heap buffer.
+```
+
+正确的写法需要在new时指定长度:
+
+```C++
+char* str = new char[20];
+```
+
 ## 4.8 指针、数组和指针算数
 
 ### 4.8.2 指针小结
@@ -1594,7 +1617,7 @@ refcube(edge);		// 非法，类型不匹配
 refcube(side + 1.0);	// 非法，非左值
 ```
 
-但是，如果函数接收的传参时const引用，则在**如下两种情况下**是能通过编译的。例如对于edge和side+1.0的传参，函数会创建一个临时变量，初始化为edge和side+1.0的值，然后，ra将成为该临时变量的引用。
+但是，如果函数接收的传参是const引用，则在**如下两种情况下**是能通过编译的。例如对于edge和side+1.0的传参，函数会创建一个临时变量，初始化为edge和side+1.0的值，然后，ra将成为该临时变量的引用。
 
 1、 实参的类型正确，但不是左值；
 2、 实参的类型不正确，但可以转换为正确的类型。
@@ -1630,6 +1653,16 @@ char* left(const char* str, int n = 1);
 int harpo(int n, int m = 4, int j = 5);				// valid
 int chico(int n, int m = 6, int j);					// invalid
 int groucho(int k = 1, int m = 2, int n = 3);		// valid
+```
+
+注意默认参数需要在声明时指定默认值，定义时不能再次指定，否则会报错：**重定义默认参数**
+
+```C++
+void print_str(const char* str, int flag = 0);	// 声明时指定默认参数
+void print_str(const char* str, int flag)		// 定义时不能指定默认参数
+{
+	cout << str << endl;
+}
 ```
 
 ## 8.4 函数重载
@@ -1776,7 +1809,7 @@ void f(T a, T b);
 a = b;
 ```
 
-同样，下面的语句假设定义了<，但如果T为结构，该假设便不成立：
+同样，下面的语句假设定义了>，但如果T为结构，该假设便不成立：
 
 ```C++
 if (a > b)
@@ -1908,7 +1941,7 @@ int main()
 template Swap<job>(job& j1, job& j2);
 ```
 
-注意其余显示具体化语法上的区别主要在于<>的位置。进行显示实例化后，即使不进行Swap(j1, j2)的调用，编译器也会生成job的实例化函数定义。
+注意显示实例化和显示具体化语法上的区别主要在于<>的位置。进行显示实例化后，即使不进行Swap(j1, j2)的调用，编译器也会生成job的实例化函数定义。
 
 ### 8.5.5 编译器选择使用哪个函数版本
 
@@ -1934,7 +1967,7 @@ void recycle(const blot&);			// #4
 
 即上文提到的非模板函数 > 显示具体化 > 普通模板
 
-3、一些更具体而是指编译器推断使用哪种类型时执行的转换最少。例如，请看下面两个模板：
+3、更具体是指编译器推断使用哪种类型时执行的转换最少。例如，请看下面两个模板：
 
 ```C++
 template <class Type> void recycle(Type t);
