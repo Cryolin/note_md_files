@@ -2044,3 +2044,199 @@ auto gt(T1 x, T2 y) -> decltype(x + y)
 }
 ```
 
+# 第9章 内存模型和名称空间
+
+## 9.1 单独编译
+
+和C语言一样，C++也允许甚至鼓励程序员将组件函数放在独立的文件中。第1章介绍过，可以单独编译这些文件，然后将它们链接成可执行的程序。（通常，C++编译器既编译程序，也管理链接器。）如果只修改了一个文件，则可以只重新编译该文件，然后将它与其他文件的编译版本链接。这使得大程序的管理更便捷。另外，大多数C++环境都提供了其他工具来帮助管理。例如，UNIX和Linux系统都具有make程序，可以跟踪程序依赖的文件以及这些文件的最后修改时间。运行make时，如果它检测到上次编译后修改了源文件，make将记住重新构建程序所需的步骤。
+
+基于上述情况，程序往往需要进行一定的分解，以便不同的功能组织在不同的文件分开编译。常见的分解策略如下：
+
+- 头文件：包含结构声明和使用这些结构的函数的原型。
+- 源代码文件：包含与结构有关的函数的代码。
+- 源代码文件：包含调用与结构相关的函数的代码。
+
+**如何理解头文件**？
+
+我们知道，预处理器针会将#include对应的头文件的内容直接替换原来的内容。对于编译器而言，看到的已经是替换后的内容了。所以，对于如下的依赖关系：
+
+![image-20221218091415284](D:\git\note_md_files\images\image-20221218091415284.png)
+
+file1.cpp和file2.cpp都include了coordin.h，预处理器完成coordin.h的内容替换后，file1.cpp和file2.cpp之间实际上没有什么联系了。那么哪些内容可以放到头文件中呢？
+
+首先，声明类的内容，例如函数原型、结构体声明、类声明、模板声明，都可以放到头文件，这是因为：
+
+1. 通过抽取到头文件，可以保证file1和file2用到的函数、结构体、类等是同一个，避免分别硬编码在file1和file2出现可能的不一致问题。
+2. 重复的声明不会导致问题，相反，如果file1和file2都使用到了某函数、某类、某结构体，那么在该函数中进行相应的声明是必要的，否则会导致编译报错。
+
+其次，对于常量/变量，#define或const定义的符号常量可以放到头文件中。一般的变量不可以放在头文件。
+
+最后，对于函数定义，内联函数可以放到头文件中，因为对于编译器来讲，其实被内联到可执行文件的，不会产生函数重定义。相对应的，普通的函数定义是不能放在头文件。
+
+**为什么可以重复声明，但是不可以重复定义呢？**
+
+回答这个问题，就要看下编译器链接的时候是怎么做的了。例如file1、file2以及头文件的内容如下：
+
+```C++
+// coordin.h
+int x = 1;
+static int y = 2;
+const int z = 3;
+void show(){};
+```
+
+```C++
+// file1.cpp
+#include "coordin.h"
+int main(){}
+```
+
+```C++
+// file2.cpp
+#include "coordin.h"
+void test(){};
+```
+
+我们知道，#include是做了替换，那么替换后的file1.cpp和file2.cpp如下：
+
+```C++
+// file1.cpp
+int x = 1;
+static int y = 2;
+const int z = 3;
+int main(){}
+void show(){};
+```
+
+```C++
+// file2.cpp
+int x = 1;
+static int y = 2;
+const int z = 3;
+void test(){};
+void show(){};
+```
+
+这里就用到了一些9.2节要学的【链接性】的知识了，根据9.2节可知，x是文件间可见的，y是单文件可见的，const修饰的常量也是内部链接的。所以x在file1.cpp和file2.cpp之间形成了重定义，y和z没有。此外，函数也是文件间可见的，同样也构成了重定义。
+
+**再看下#ifndef**
+
+如果只是上面举例中的file1.cpp/file2.cpp/coordin.h的包含关系，是不需要#ifdef的，#ifdef是为了解决下图中的问题：
+
+![image-20221218102152537](D:\git\note_md_files\images\image-20221218102152537.png)
+
+在上图中，file1.cpp同时包含了library.h和coordin.h，而library.h又包含了coordin.h，假设三个文件的内容如下：
+
+```C++
+// coordin.h
+struct polar
+{
+	double distance;
+	double angle;
+}
+```
+
+```C++
+// library.h
+#include "coordin.h"
+void show_polar(const polar& dapos);
+```
+
+```C++
+// file1.cpp
+#include "coordin.h"
+#include "library.h"
+int main(){}
+```
+
+在完成include替换后，file1.cpp变为：
+
+```C++
+struct polar
+{
+	double distance;
+	double angle;
+}
+struct polar
+{
+	double distance;
+	double angle;
+}
+void show_polar(const polar& dapos);
+int main(){}
+```
+
+可以看到，polar重复声明。如果引入#ifndef呢，三个文件是这样的
+
+```C++
+// coordin.h
+#ifndef COORDIN_H_
+#define COORDIN_H_
+struct polar
+{
+	double distance;
+	double angle;
+}
+#endif
+```
+
+```C++
+// library.h
+#include "coordin.h"
+#ifndef LIBRARY_
+#define LIBRARY_
+void show_polar(const polar& dapos);
+#endif
+```
+
+```C++
+// file1.cpp
+#include "coordin.h"
+#include "library.h"
+int main(){}
+```
+
+此时再看下file1.cpp的预处理过程，首先全部替换：
+
+```C++
+// file1.cpp 替换后
+#ifndef COORDIN_H_
+#define COORDIN_H_
+struct polar
+{
+	double distance;
+	double angle;
+}
+#endif
+
+#ifndef COORDIN_H_
+#define COORDIN_H_
+struct polar
+{
+	double distance;
+	double angle;
+}
+#endif
+
+#ifndef LIBRARY_
+#define LIBRARY_
+void show_polar(const polar& dapos);
+#endif
+
+int main(){}
+```
+
+第二次走到#ifndef COORDIN_H_时，由于COORDIN_H已经定义，所以不会重复定义，最终预处理完成后的代码如下：
+
+```C++
+// file1.cpp 替换后
+struct polar
+{
+	double distance;
+	double angle;
+}
+void show_polar(const polar& dapos);
+int main(){}
+```
+
+注意，在包含头文件时，我们使用“coordin.h”，而不是<coodin.h>。如果文件名包含在尖括号中，则C++编译器将在存储标准头文件的主机系统的文件系统中查找；但如果、文件名包含在双引号中，则编译器将首先查找当前的工作目录或源代码目录（或其他目录，这取决于编译器）。如果没有在那里找到头文件，则将在标准位置查找。因此在包含自己的头文件时，应使用引号而不是尖括号。
