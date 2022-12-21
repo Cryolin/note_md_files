@@ -159,6 +159,101 @@ C++提供了大量的整型，应使用哪种类型呢？通常，int被设置�
 
 但const比#define好。首先，它能够明确指定类型。其次，可以使用C++的作用域规则将定义限制在特定的函数或文件中（作用域规则描述了名称在各种模块中的可知程度，将在第9章讨论）。第三，可以将const用于更复杂的类型，如第4章将介绍的数组和结构。
 
+C++中，""框住的内容默认是const char*，并且同一个字符串其地址是固定的，例如：
+
+```C++
+	const char* str1 = "abc";
+	const char* str2 = "abc";
+	// 打印str1和str2地址相同
+	cout << (void*)str1 << endl;
+	cout << (void*)str2 << endl;
+```
+
+再拓展下，如下代码会报错：
+
+```C++
+	// 报错
+	// const char*的值不能用于初始化char*的实体
+	char* str = "abc";
+```
+
+表面上看，可以通过强转强制该代码编过：
+
+```C++
+	// 强转强制编过
+	char* str = (char*) "abc";
+```
+
+但是强转后的str指向的地址仍跟"abc"相同，这块内存是不可修改的，当试图修改时，运行时会报错：
+
+```C++
+	const char* str1 = "abc";
+	char* str2 = (char*)"abc";
+	cout << (void*)str1 << endl;
+	// str2跟str1的地址仍是相同的
+	cout << (void*)str2 << endl;
+
+	// 编译不报错，运行时报错
+	*str2 = 'b';
+```
+
+所以，在创建C-style数组时，不建议通过char*创建，还是老老实实通过[]创建吧，通过测试可知，[]创建的数组会开辟一块新的内存：
+
+```C++
+	const char* str1 = "abc";
+	char str2[10] = "abc";
+	// str1和str2地址不同
+	cout << (void*)str1 << endl;
+	cout << (void*)str2 << endl;
+```
+
+关于const修饰的位置，再展开讨论下：
+
+首先，我们知道
+
+```C++
+	int a = 1;
+	// 解引用不可修改
+	const int* p1 = &a;
+	// p2不可修改
+	int* const p2 = &a;
+```
+
+将上面例子的int修改为char后，稍微有点不好理解：
+
+```C++
+	// const修饰在前，意味着解引用不可修改
+	// str1跟字符串常量"abc"指向的地址一致，对该地址解引用不可修改
+	const char* str1 = "abc";
+	// 但是可以将str1指向其他的地址
+	// 将str1指向的地址从"abc"首地址改为"def"首地址
+	str1 = "def";
+```
+
+当const修饰数组时，相当于修饰了数组的每一个元素，例如：
+
+```c++
+	// 相当于数组arr中的每一个元素都是const int类型的
+	const int arr[2] = { 1,2 };
+	// arr[0] = 2;		// error
+	// arr[1] = 1;		// error
+```
+
+那么，当const修饰指针数组时，如下操作是可以的：
+
+```C++
+	const char* strs[2] = { "a", "b" };
+	strs[0] = "xixi";
+```
+
+那如果再加个const呢：
+
+```C++
+	const char* const strs[2] = { "a", "b" };
+```
+
+遇到这个不要慌，实际上，无非是strs中的每一个元素的类型都是const char* const罢了，根据之前总结的，第一个const意味着解引用不可修改，即数组中的每个元素对应的地址保存的字符串不能变；第二个const意味着指针指向的地址不能修改，那也就意味着此时再去执行strs[0] = "xixi"就会报错了。
+
 ## 3.3 浮点数
 
 浮点数的内部表示方法：
