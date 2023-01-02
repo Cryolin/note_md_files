@@ -3016,3 +3016,324 @@ int other()
 
 # 第10章 对象和类
 
+## 10.2 抽象和类
+
+### 10.2.2 C++中的类
+
+```C++
+class Stock
+{
+private:
+	std::string company;
+	long shares;
+	double share_val;
+	double total_val;
+	void set_tot() { total_val = shares * share_val; }
+public:
+	Stock();
+	Stock(const std::string& co, long n = 0, double pr = 0.0);
+	~Stock();
+	void buy(long num, double price);
+	void sell(long num, double price);
+	void update(double price);
+	void show() const;
+	const Stock& topval(const Stock& s) const;
+};
+```
+
+其中，private可以省略，因其是默认的访问控制。为了强调，本书都加上了private。结构体中的成员默认都是public的，与类不同。
+
+### 10.2.3 实现类成员函数
+
+成员函数定义与常规函数定义非常相似，它们有函数头和函数体，也可以有返回类型和参数。但是它们还有两个特殊的特
+征：
+
+- 定义成员函数时，使用作用域解析运算符（::）来标识函数所属的类；
+- 类方法可以访问类的private组件。
+
+其定义位于类声明中的函数都将自动成为内联函数，因此Stock::set_tot( )是一个内联函数。类声明常将短小的成员函数作为内联函数，set_tot( )符合这样的要求。如果愿意，也可以在类声明之外定义成员函数，并使其成为内联函数。为此，只需在类实现部分中定义函数时使用inline限定符即可：
+
+```c++
+inline void Stock::set_tot()
+{
+	...
+}
+```
+
+## 10.3 类的构造函数和析构函数
+
+### 10.3.2 使用构造函数
+
+C++提供了两种使用构造函数来初始化对象的方式。第一种方式是显式地调用构造函数：
+
+```C++
+Stock food = Stock("World Cabbage", 250, 1.25);
+```
+
+这将food对象的company成员设置为字符串“World Cabbage”，将shares成员设置为250，依此类推。
+
+另一种方式是隐式地调用构造函数：
+
+```c++
+Stock garment("Furry Mason", 50, 2.5);
+```
+
+这种格式更紧凑，它与下面的显式调用等价：
+
+```c++
+Stock garment = Stock("Furry Mason", 50, 2.5);
+```
+
+每次创建类对象（甚至使用new动态分配内存）时，C++都使用类构造函数。下面是将构造函数与new一起使用的方法：
+
+```c++
+Stock* pstock = new Stock("Electroshock Games", 18, 19.0);
+```
+
+这条语句创建一个Stock对象，将其初始化为参数提供的值，并将该对象的地址赋给pstock指针。在这种情况下，对象没有名称，但可以使用指针来管理该对象。
+
+此外，在C++11中，可将列表初始化语法用于类，只要提供与某个构造函数的参数列表匹配的内容，并用大括号将它们括起：
+
+```c++
+Stock hot_tip = {"Derivatives Plus Plus", 100, 45.0};
+Stock jock {"Sport Age Storage, Inc"};
+Stock temp{};
+```
+
+在前两个声明中，用大括号括起的列表与下面的构造函数匹配：
+
+```C++
+Stock::Stock(const std::string& co, long n = 0, double pr = 0.0);
+```
+
+因此，将使用该构造函数来创建这两个对象。创建对象jock时，第二和第三个参数将为默认值0和0.0。第三个声明与默认构造函数匹配，因此将使用该构造函数创建对象temp。
+
+### 10.3.3 默认构造函数
+
+当且仅当没有定义任何构造函数时，编译器才会提供默认构造函数。为类定义了构造函数后，程序员就必须为它提供默认构造函数。如果提供了非默认构造函数（如Stock(const char * co, int n, double pr)），但没有提供默认构造函数，则下面的声明将出错：
+
+```c++
+Stock stock1;	// not possible with current constructor
+```
+
+这样做的原因可能是想禁止创建未初始化的对象。然而，如果要创建对象，而不显式地初始化，则必须定义一个不接受任何参数的默认构造函数。定义默认构造函数的方式有两种。一种是给已有构造函数的所有参数提供默认值：
+
+```C++
+Stock(const string& co = "Error", int n = 0, double pr = 0.0);
+```
+
+另一种方式是通过函数重载来定义另一个构造函数——一个没有参数的构造函数：
+
+```c++
+Stock();
+```
+
+由于只能有一个默认构造函数，因此不要同时采用这两种方式，否则编译器报错：
+
+```C++
+Stock stock1;	// error, 类"Stock"包含多个默认构造函数
+```
+
+注意，不要使用如下方法调用默认构造函数，编译器会认为是声明了一个名为stock2的函数：
+
+```c++
+	Stock stock2();		// 声明一个名为stock2，返回值类型为Stock的函数
+```
+
+```C++
+	// 下面这些都是合法的
+	Stock stock1 = Stock();
+	Stock stock2;
+	Stock* pstock3 = new Stock();
+	Stock stock4 = {};
+	Stock stock5{};
+```
+
+如果没有给某个成员初始化赋值，那么其值是不会被默认赋值为0的，例如：
+
+```C++
+Person::Person(){}
+
+int main()
+{
+	Person p1;		// p1的int成员不会被赋值默认值0
+}
+```
+
+### 10.3.5 改进Stock类
+
+看一个例子：
+
+```C++
+#include <iostream>
+#include "10.4 stock10.h"
+
+int main()
+{
+	{
+		using std::cout;
+		cout << "Using constructors to create new objects\n";
+		Stock stock1("NanoSmart", 12, 20.0);
+		stock1.show();
+		Stock stock2 = Stock("Boffo Objects", 2, 2.0);
+		stock2.show();
+
+		cout << "Assigning stock1 to stock2:\n";
+		stock2 = stock1;
+		cout << "Listing stock1 and stock2:\n";
+		stock1.show();
+		stock2.show();
+
+		cout << "Using a constructor to reset an object\n";
+		stock1 = Stock("Nifty Foods", 10, 50.0);
+		cout << "Revised stock1:\n";
+		stock1.show();
+		cout << "Done\n";
+	}
+
+	return 0;
+}
+```
+
+首先看11行，这种写法在部分编译器下，会创建一个临时的Stock对象，然后赋值给stock2对象，完成赋值后再析构。
+
+其次看第15行，这里要知道C++中对象的赋值是一个深拷贝，每个成员都会复制到目标对象，所以stock1和stock2在赋值后地址是不同的。
+
+再看下第21行，stock1对象已经存在，因此这条语句不是对stock1进行初始化，而是将新值赋给它。这是通过让构造程序创建一个新的、临时的对象，然后将其内容复制给stock1来实现的。随后程序调用析构函数，以删除该临时对象。
+
+综上，最好采用Stock stock1("NanoSmart", 12, 20.0);的方式初始化，效率最高。
+
+最后，在25行代码块结束时，stock1和stock2对象要析构，这里注意先创建的后析构，由于stock1先创建，所以后析构。
+
+**const成员函数**
+
+请看下面的代码片段：
+
+```c++
+const Stock land = Stock("Kludgehorn Properties");
+land.show();
+```
+
+对于当前的C++来说，编译器将拒绝第二行。这是什么原因呢？因为show( )的代码无法确保调用对象不被修改——调用对象和const一样，不应被修改。我们以前通过将函数参数声明为const引用或指向const的指针来解决这种问题。但这里存在语法问题：show( )方法没有任何参数。相反，它所使用的对象是由方法调用隐式地提供的。需要一种新的语法——保证函数不会修改调用对象。C++的解决方法是将const关键字放在函数的括号后面。也就是说，show( )声明应像这样：
+
+```c++
+void show() const;
+```
+
+同样，函数定义的开头应像这样：
+
+```c++
+void Stock::show() const;
+```
+
+## 10.5 对象数组
+
+声明对象数组时，如未显示初始化类对象，也会调用默认构造函数：
+
+```c++
+Stock mystuff[4];		// 调用默认构造函数创建四个对象
+```
+
+如果类包含多个构造函数，则可以对不同的元素使用不同的构造函数：
+
+```C++
+const int STKS = 10;
+Stock stocks[STKS] = {
+	Stock("NanoSmart", 12.5, 20),
+	Stock(),
+	Stock("Monolithic Obelisks", 130, 3.25),
+};
+```
+
+上述代码使用Stock(const string & co, long n, double pr)初始化stock[0]和stock[2]，使用构造函数Stock( )初始化stock[1]。由于该声明只初始化了数组的部分元素，因此余下的7个元素将使用默认构造函数进行初始化。因此，要创建类对象数组，则这个类必须有默认构造函数。
+
+## 10.6 类作用域
+
+### 10.6.1 作用域为类的常量
+
+有时候，使符号常量的作用域为类很有用。例如，类声明可能使用字面值30来指定数组的长度，由于该常量对于所有对象来说都是相同的，因此创建一个由所有对象共享的常量是个不错的主意。您可能以为这样做可行：
+
+```c++
+class Bakery
+{
+private:
+	const int Months = 12;	// fails
+	double costs[Months];
+```
+
+但这是行不通的，因为声明类只是描述了对象的形式，并没有创建对象。因此，在创建对象前，将没有用于存储值的空间（实际上，C++11提供了成员初始化，但不适用于前述数组声明，第12章将介绍该主题）。然而，有两种方式可以实现这个目标，并且效果相同。
+
+第一种方式是在类中声明一个枚举。在类声明中声明的枚举的作用域为整个类，因此可以用枚举为整型常量提供作用域为整个类的符号名称。也就是说，可以这样开始Bakery声明：
+
+```c++
+class Bakery
+{
+private:
+	enum {Months = 12};
+	double costs[Months];
+```
+
+注意，用这种方式声明枚举并不会创建类数据成员。也就是说，所有对象中都不包含枚举。另外，Months只是一个符号名称，在作用域为整个类的代码中遇到它时，编译器将用30来替换它。
+
+C++提供了另一种在类中定义常量的方式——使用关键字static：
+
+```c++
+class Bakery
+{
+private:
+	static const int Months = 12;
+	double costs[Months];
+```
+
+这将创建一个名为Months的常量，该常量将与其他静态变量存储在一起，而不是存储在对象中。因此，只有一个Months常量，被所有Bakery对象共享。
+
+### 10.6.2 作用域内枚举
+
+传统的枚举存在一些问题，其中之一是两个枚举定义中的枚举量可能发生冲突。假设有一个处理鸡蛋和T恤的项目，其中可能包含类似下面这样的代码：
+
+```c++
+enum egg {Small, Medium, Large, Jumbo};
+enum t_shirt {Small, Medium, Large, Xlarge};
+```
+
+这将无法通过编译，因为egg Small和t_shirt Small位于相同的作用域内，它们将发生冲突。为避免这种问题，C++11提供了一种新枚举，其枚举量的作用域为类。这种枚举的声明类似于下面这样：
+
+```c++
+enum class egg {Small, Medium, Large, Jumbo};
+enum class t_shirt {Small, Medium, Large, Xlarge};
+```
+
+也可使用关键字struct代替class。无论使用哪种方式，都需要使用枚举名来限定枚举量：
+
+```c++
+egg choice = egg::Large;
+t_shirt Floyd = t_shirt::Large;
+```
+
+枚举量的作用域为类后，不同枚举定义中的枚举量就不会发生名称冲突了，而您可继续编写处理鸡蛋和T恤的项目。
+
+C++11还提高了作用域内枚举的类型安全。在有些情况下，常规枚举将自动转换为整型，如将其赋给int变量或用于比较表达式时，但作用域内枚举不能隐式地转换为整型：
+
+```c++
+enum egg_old {Small, Medium, Large, Jumbo};				// unscoped
+enum class t_shirt {Small, Medium, Large, Xlarge};		// scoped
+egg_old one = Medium;									// unscoped
+t_shirt rolf = t_shirt::Large;							// scoped
+int king = one;							// implicit type conversion for unscoped
+int ring = rolf;						// not allowed, no implicit type conversion
+if (king < Jumbo)						// allowed
+	cout << "Jumbo converted to in before comparison.\n";
+if (king < t_shirt::Medium)				// not allowed
+	cout << "Not allowed: < not defined for scoped enum.\n";
+```
+
+但在必要时，可进行显式类型转换：
+
+```c++
+int Frodo = int(t_shirt::Small);		// Frodo set to 0
+```
+
+
+
+
+
