@@ -3333,6 +3333,8 @@ if (king < t_shirt::Medium)				// not allowed
 int Frodo = int(t_shirt::Small);		// Frodo set to 0
 ```
 
+# 第11章 使用类
+
 
 
 
