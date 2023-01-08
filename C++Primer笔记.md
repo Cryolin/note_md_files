@@ -3226,6 +3226,28 @@ void show() const;
 void Stock::show() const;
 ```
 
+这里稍微补充一下，后面讲到运算符重载时，提到可以使用友元函数，例如：
+
+```c++
+// 解决Complex * double
+Complex Complex::operator*(double n)
+{
+	...
+}
+
+// 解决double * Complex
+Complex operator*(double n, const Complex& complex)
+{
+	return complex * n;
+}
+```
+
+上面的代码第10行也是编译失败的，原因在于complex * n相当于调用了complex.operator*(n)，而该方法没有被声明为const。需要如下声明方可通过编译（或者去掉第8行的const也可以）：
+
+```c++
+Complex Complex::operator*(double n) const
+```
+
 ## 10.5 对象数组
 
 声明对象数组时，如未显示初始化类对象，也会调用默认构造函数：
@@ -3335,7 +3357,432 @@ int Frodo = int(t_shirt::Small);		// Frodo set to 0
 
 # 第11章 使用类
 
+## 11.1 运算符重载
 
+运算符函数的格式如下：
 
+```c++
+operatorop(argument-list)
+```
 
+例如，operator +( )重载+运算符。op必须是有效的C++运算符，不能虚构一个新的符号。例如，不能有operator@( )这样的函数，因为C++中没有@运算符。然而，operator 函数将重载[ ]运算符，因为[ ]是数组索引运算符。例如，假设有一个Salesperson类，并为它定义了一个operator +( )成员函数，以重载+运算符，以便能够将两个Saleperson对象的销售额相加，则如果district2、sid和sara都是Salesperson类对象，便可以编写这样的等式：
 
+```c++
+district2 = sid + sara;
+```
+
+编译器发现，操作数是Salesperson类对象，因此使用相应的运算符函数替换上述运算符：
+
+```c++
+district2 = sid.operator+(sara);
+```
+
+## 11.2 计算时间：一个运算符重载示例
+
+如下函数定义域类Time中，用于将两个Time相加，返回一个Time对象：
+
+```c++
+Time Time::Sum(const Time& t) const
+{
+	Time sum;
+	sum.minutes = minutes + t.minutes;
+	sum.hours = hours + t.hours + sum.minutes / 60;
+	sum.minutes %= 60;
+	return sum;
+}
+```
+
+来看一下Sum( )函数的代码。注意参数是引用，但返回类型却不是引用。将参数声明为引用的目的是为了提高效率。如果按值传递Time对象，代码的功能将相同，但传递引用，速度将更快，使用的内存将更少。然而，返回值不能是引用。因为函数将创建一个新的Time对象（sum），来表示另外两个Time对象的和。返回对象（如代码所做的那样）将创建对象的副本，而调用函数可以使用它。然而，如果返回类型为Time &，则引用的将是sum对象。但由于sum对象是局部变量，在函数结束时将被删除，因此引用将指向一个不存在的对象。使用返回类型Time意味着程序将在删除sum之前构造它的拷贝，调用函数将得到该拷贝。
+不要返回指向局部变量或临时对象的引用。函数执行完毕后，局部变量和临时对象将消失，引用将指向不存在的数据。
+
+### 11.2.1 添加加法运算符
+
+上述Sum()函数可以转化为如下运算符重载：
+
+```c++
+Time Time::operator+(const Time& t) const
+{
+	Time sum;
+	sum.minutes = minutes + t.minutes;
+	sum.hours = hours + t.hours + sum.minutes / 60;
+	sum.minutes %= 60;
+	return sum;
+}
+```
+
+和Sum( )一样，operator +( )也是由Time对象调用的，它将第二个Time对象作为参数，并返回一个Time对象。因此，可以像调用Sum()那样来调用operator +( )方法：
+
+```c++
+total = coding.operator+(fixing);
+```
+
+但将该方法命令为operator +( )后，也可以使用运算符表示法：
+
+```c++
+total = coding + fixing;
+```
+
+这两种表示法都将调用operator +( )方法。注意，在运算符表示法中，运算符左侧的对象（这里为coding）是调用对象，运算符右边的对象（这里为fixing）是作为参数被传递的对象。
+
+可以将两个以上的对象相加吗？例如，如果t1、t2、t3和t4都是Time对象，可以这样做吗：
+
+```c++
+t4 = t1 + t2 + t3;
+```
+
+为回答这个问题，来看一些上述语句将被如何转换为函数调用。由于+是从左向右结合的运算符，因此上述语句首先被转换成下面这样：
+
+```c++
+t4  = t1.operator+(t2 + t3);
+```
+
+然后，函数参数本身被转换成一个函数调用，结果如下：
+
+```c++
+t4 = t1.operator+(t2.operator+(t3));
+```
+
+上述语句合法吗？是的。函数调用t2.operator+(t3)返回一个Time对象，后者是t2和t3的和。然而，该对象成为函数调用t1.operator+( )的参数，该调用返回t1与表示t2和t3之和的Time对象的和。总之，最后的返回值为t1、t2和t3之和，这正是我们期望的。
+
+### 11.2.2 重载限制
+
+多数C++运算符（参见表11.1）都可以用这样的方式重载。重载的运算符（有些例外情况）不必是成员函数，但必须至少有一个操作数是用户定义的类型。下面详细介绍C++对用户定义的运算符重载的限制。
+
+1．重载后的运算符必须至少有一个操作数是用户定义的类型，这将防止用户为标准类型重载运算符。因此，不能将减法运算符重载为计算两个double值的和，而不是它们的差。虽然这种限制将对创造性有所影响，但可以确保程序正常运行。
+
+2．使用运算符时不能违反运算符原来的句法规则。例如，不能将求模运算符（%）重载成使用一个操作数：
+
+```c++
+int x;
+Time shiva;
+% x;			// invalid for modulus operator
+% shiva;		// invalid for overloaded operator
+```
+
+同样，不能修改运算符的优先级。因此，如果将加号运算符重载成将两个类相加，则新的运算符与原来的加号具有相同的优先级。
+3．不能创建新运算符。例如，不能定义operator **( )函数来表示求幂。
+
+4．不能重载下面的运算符。
+
+- sizeof：sizeof运算符。
+- .：成员运算符。
+- . *：成员指针运算符。
+- ::：作用域解析运算符。
+- ?:：条件运算符。
+- typeid：一个RTTI运算符。
+- const_cast：强制类型转换运算符。
+- dynamic_cast：强制类型转换运算符。
+- reinterpret_cast：强制类型转换运算符。
+- static_cast：强制类型转换运算符。
+
+然而，表11.1中所有的运算符都可以被重载。
+
+5．表11.1中的大多数运算符都可以通过成员或非成员函数进行重载，但下面的运算符只能通过成员函数进行重载。
+
+- =：赋值运算符。
+- ( )：函数调用运算符。
+- [ ]：下标运算符。
+- ->：通过指针访问类成员的运算符。
+
+## 11.3 友元
+
+您知道，C++控制对类对象私有部分的访问。通常，公有类方法提供唯一的访问途径，但是有时候这种限制太严格，以致于不适合特定的编程问题。在这种情况下，C++提供了另外一种形式的访问权限：友元。友元有3种：
+
+- 友元函数；
+- 友元类；
+- 友元成员函数。
+
+介绍如何成为友元前，先介绍为何需要友元。在为类重载二元运算符时（带两个参数的运算符）常常需要友元。将Time对象乘以实数就属于这种情况，下面来看看。
+
+```c++
+	Time operator+(const Time& t) const;
+	Time operator-(const Time& t) const;
+	Time operator*(double n) const;
+```
+
+在前面的Time类示例中，重载的乘法运算符与其他两种重载运算符的差别在于，它使用了两种不同的类型。也就是说，加法和减法运算符都结合两个Time值，而乘法运算符将一个Time值与一个double值结合在一起。这限制了该运算符的使用方式。记住，左侧的操作数是调用对象。也就是说，下面的语句：
+
+```C++
+A = B * 2.75;
+```
+
+将被转换为下面的成员函数调用：
+
+```c++
+A = B.operator*(2.75);
+```
+
+但下面的语句又如何呢？
+
+```c++
+A = 2.75 * B;
+```
+
+从概念上说，2.75 * B应与B *2.75相同，但第一个表达式不对应于成员函数，因为2.75不是Time类型的对象。记住，左侧的操作数应是调用对象，但2.75不是对象。因此，编译器不能使用成员函数调用来替换该表达式。
+
+解决这个难题的一种方式是，告知每个人（包括程序员自己）只能按B * 2.75这种格式编写，不能写成2.75 * B。这是一种对服务器友好-客户警惕的（server-friendly, client-beware）解决方案，与OOP无关。
+
+然而，还有另一种解决方式——非成员函数（记住，大多数运算符都可以通过成员或非成员函数来重载）。非成员函数不是由对象调用的，它使用的所有值（包括对象）都是显式参数。这样，编译器能够将下面的表达式：
+
+```c++
+A = 2.75 * B;
+```
+
+与下面的非成员函数调用匹配：
+
+```
+A = operator*(2.75, B);
+```
+
+该函数的原型如下：
+
+```c++
+Time operator*(double m, const Time& t);
+```
+
+对于非成员重载运算符函数来说，运算符表达式左边的操作数对应于运算符函数的第一个参数，运算符表达式右边的操作数对应于运算符函数的第二个参数。而原来的成员函数则按相反的顺序处理操作数，也就是说，double值乘以Time值。
+
+使用非成员函数可以按所需的顺序获得操作数（先是double，然后是Time），但引发了一个新问题：非成员函数不能直接访问类的私有数据，至少常规非成员函数不能访问。然而，有一类特殊的非成员函数可以访问类的私有成员，它们被称为友元函数。
+
+### 11.3.1 创建友元
+
+创建友元函数的第一步是将其原型放在类声明中，并在原型声明前加上关键字friend：
+
+```c++
+friend Time operator*(double m, const Time& t);
+```
+
+该原型意味着下面两点：
+
+- 虽然operator *( )函数是在类声明中声明的，但它不是成员函数，因此不能使用成员运算符来调用；
+- 虽然operator *( )函数不是成员函数，但它与成员函数的访问权限相同。
+
+第二步是编写函数定义。因为它不是成员函数，所以不要使用Time::限定符。另外，不要在定义中使用关键字friend，定义应该如下：
+
+```c++
+Time operator*(double m, const Time& t)
+{
+	Time result;
+	long totalminutes = t.hours * mult * 60 + t.minutes * mult;
+	result.hours = totalminutes / 60;
+	result.minutes = totalminutes % 60;
+	return result;
+}
+```
+
+有了上述声明和定义后，下面的语句：
+
+```c++
+A = 2.75 * B;
+```
+
+将转换为如下语句，从而调用刚才定义的非成员友元函数：
+
+```c++
+A = operator*(2.75, B);
+```
+
+总之，类的友元函数是非成员函数，其访问权限与成员函数相同。
+
+实际上，按下面的方式对定义进行修改（交换乘法操作数的顺序），可以将这个友元函数编写为非友元函数：
+
+```c++
+Time operator*(double m, const Time& t)
+{
+	return t * m;		// use t.operator*(m)
+}
+```
+
+原来的版本显式地访问t.minutes和t.hours，所以它必须是友元。这个版本将Time对象t作为一个整体使用，让成员函数来处理私有值，因此不必是友元。然而，将该版本作为友元也是一个好主意。最重要的是，它将作为正式类接口的组成部分。其次，如果以后发现需要函数直接访问私有数据，则只要修改函数定义即可，而不必修改类原型。
+
+### 11.3.2 常用的友元：重载<<运算符
+
+提示：一般来说，要重载<<运算符来显示c_name的对象，可使用一个友元函数，其定义如下：
+
+```c++
+ostream& operator<<(ostream& os, const c_name& obj)
+{
+	os << ... ;
+	return os;
+}
+```
+
+## 11.5 再谈重载：一个矢量类
+
+### 11.5.2 为Vector类重载算术运算符
+
+一元负号运算符，它只使用一个操作数。将这个运算符用于数字（如.x）时，将改变它的符号。因此，将这个运算符用
+于矢量时，将反转矢量的每个分量的符号。更准确地说，函数应返回一个与原来的矢量相反的矢量（对于极坐标，长度不变，但方向相反）。下面是重载负号的原型和定义：
+
+```c++
+Vector operator-() const;
+Vector Vector::operator-() const
+{
+	return Vector(-x, -y);
+}
+
+// 使用一元 - 运算符
+Vector v1(1, 1);
+Vector v2 = -v1;
+```
+
+## 11.6 类的自动转换和强制类型转换
+
+在C++中，接受一个参数的构造函数为将类型与该参数相同的值转换为类提供了蓝图。因此，下面的构造函数用于将double类型的值转换为Stonewt类型：
+
+```C++
+Stonewt(double lbs);
+```
+
+也就是说，可以编写这样的代码：
+
+```c++
+Stonewt myCat;
+myCat = 19.6;
+```
+
+程序将使用构造函数Stonewt(double)来创建一个临时的Stonewt对象，并将19.6作为初始化值。随后，采用逐成员赋值方式将该临时对象的内容复制到myCat中。这一过程称为隐式转换，因为它是自动进行的，而不需要显式强制类型转换。
+
+只有接受一个参数的构造函数才能作为转换函数。下面的构造函数有两个参数，因此不能用来转换类型：
+
+```c++
+Stonewt(int stn, double lbs);
+```
+
+然而，如果给第二个参数提供默认值，它便可用于转换int：
+
+```c++
+Stonewt(int stn, double lbs = 0);
+```
+
+将构造函数用作自动类型转换函数似乎是一项不错的特性。然而，当程序员拥有更丰富的C++经验时，将发现这种自动特性并非总是合乎需要的，因为这会导致意外的类型转换。因此，C++新增了关键字explicit，用于关闭这种自动特性。也就是说，可以这样声明构造函数：
+
+```c++
+explicit Stonewt(double lbs);
+```
+
+这将关闭上述示例中介绍的隐式转换，但仍然允许显式转换，即显式强制类型转换：
+
+```c++
+Stonewt myCat;
+myCat = 19.6;		// not valid if Stonewt(double) is delcared as explicit
+myCat = Stonewt(19.6);		// ok
+myCat = (Stonewt) 19.6;		// ok
+```
+
+### 11.6.1 转换函数
+
+转换函数是用户定义的强制类型转换，可以像使用强制类型转换那样使用它们。例如，如果定义了从Stonewt到double的转换函数，就可以使用下面的转换：
+
+```c++
+Stonewt wolfe(285.7);
+double host = double (wolfe);
+double thinker = (double) wolfe;
+```
+
+也可以让编译器来决定如何做：
+
+```c++
+Stonewt wells(20, 3);
+double star = wells;		// implicit use of conversion function
+```
+
+编译器发现，右侧是Stonewt类型，而左侧是double类型，因此它将查看程序员是否定义了与此匹配的转换函数。（如果没有找到这样的定义，编译器将生成错误消息，指出无法将Stonewt赋给double。）
+
+那么，如何创建转换函数呢？要转换为typeName类型，需要使用这种形式的转换函数：
+
+```c++
+operator typeName();
+```
+
+- 转换函数必须是类方法；
+- 转换函数不能指定返回类型；
+- 转换函数不能有参数。
+
+例如，要添加将Stonewt对象转换为int和double类型的函数，需要将下面的原型添加到类声明中：
+
+```c++
+operator int();
+operator double();
+```
+
+**自动应用类型转换**
+
+看如下代码：
+
+```c++
+Stonewt poppins(9, 2.8);
+cout << "Poppins: " << int (poppins) << " pounds.\n";
+```
+
+假设Stonewt类同时定义了int和double两种转换函数，那么可以省略上面的强制类型转换吗？即：
+
+```C++
+Stonewt poppins(9, 2.8);
+cout << "Poppins: " << poppins << " pounds.\n";
+```
+
+答案是否定的。在p_wt示例中，上下文表明，poppins应被转换为double类型。但在cout示例中，并没有指出应转换为int类型还是double类型。在缺少信息时，编译器将指出，程序中使用了二义性转换。该语句没有指出要使用什么类型。
+
+有趣的是，如果类只定义了double转换函数，则编译器将接受该语句。这是因为只有一种转换可能，因此不存在二义性。
+
+赋值的情况与此类似。对于当前的类声明来说，编译器将认为下面的语句有二义性而拒绝它。
+
+```c++
+long gone = poppins;
+```
+
+在C++中，int和double值都可以被赋给long变量，所以编译器使用任意一个转换函数都是合法的。编译器不想承担选择转换函数的责任。然而，如果删除了这两个转换函数之一，编译器将接受这条语句。例如，假设省略了double定义，则编译器将使用int转换，将poppins转换为一个int类型的值。然后在将它赋给gone时，将int类型值转换为long类型。
+
+与转换构造函数一样，转换函数也提供了关闭隐式转换的方式，C++11可以将转换运算符声明为显式地：
+
+```c++
+class Stonewt
+{
+	...
+	explicit operator int() const;
+	explicit operator double() const;
+}
+```
+
+有了这些声明后，需要强制转换时将调用这些运算符。
+
+### 11.6.2 转换函数和友元函数
+
+先说结论，当调用某个对象的函数时（包括运算符重载），C++不会调用转换函数进行隐式转换。某个对象作为函数参数或返回值时，是可以进行隐式转换的。
+
+例如：
+
+```c++
+Stonewt jennySt(9, 12);
+double pennyD = 146.0;
+Stonewt total;
+total = pennyD + jennySt;
+```
+
+pennyD是double类型，如果提供了Stonewt(double)的构造函数，同时提供了operator+的成员函数，那么上面第四行能编译通过吗。答案是否定的，pennyD+jennySt试图调用pennyD.operator+(jennySt)，由于pennyD是double类型，需要通过转换构造函数Stonewt(double)隐式转换为Stonewt类型，但是，当调用某个对象的函数时，C++不会进行隐式转换，所以上面第四行无法编译通过。
+
+如果想编译通过，成员函数走不通，只能通过友元函数来实现。
+
+```c++
+friend Stonewt operator+(double x, Stonewt& s);	
+```
+
+**实现加法时的选择**
+
+如果想将double和Stonewt相加，有两种方式。
+
+方法一，将下面的函数定义为友元函数，同时提供Stonewt(double)构造函数将double类型的参数转换为Stonewt类型的参数。
+
+```c++
+operator+(const Stonewt&, const Stonewt&);
+```
+
+方法二，将加法运算符重载为一个显式使用double类型参数的函数：
+
+```c++
+Stonewt operator+(double x);		// member function	Stonewt + double
+friend Stonewt operator+(double x, Stonewt& s);		// double + Stonewt
+```
+
+每一种方法都有其优点。第一种方法（依赖于隐式转换）使程序更简短，因为定义的函数较少。这也意味程序员需要完成的工作较少，出错的机会较小。这种方法的缺点是，每次需要转换时，都将调用转换构造函数，这增加时间和内存开销。第二种方法（增加一个显式地匹配类型的函数）则正好相反。它使程序较长，程序员需要完成的工作更多，但运行速度较快。
