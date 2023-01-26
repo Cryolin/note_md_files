@@ -4706,3 +4706,1083 @@ cout 不能打印空指针，如下代码运行时报错：
 	cout << str;
 ```
 
+# 第13章 类继承
+
+## 13.1 一个简单的基类
+
+看如下两个构造函数写法的区别：
+
+```c++
+TableTennisPlayer::TableTennisPlayer(const string& fn,
+	const string& ln, bool ht) : firstname(fn),
+	lastname(ln), hasTable(ht) {}
+	
+TableTennisPlayer::TableTennisPlayer(const string& fn,
+	const string& ln, bool ht) {
+		firstname = fn;
+		lastname = ln;
+		hasTable = ht;
+	}
+```
+
+第二种写法首先为firstname调用string的默认构造函数，再调用string的赋值运算符将firstname设置为fn，但初始化列表语法可减少一个步骤，它直接使用string的复制构造函数将firstname初始化为fn。
+
+### 13.1.1 派生一个类
+
+C++中类继承的写法：
+
+```c++
+class RatedPlayer : public TableTennisPlayer
+{
+...
+}
+```
+
+冒号指出RatedPlayer类的基类是TableTennisplayer类。上述特殊的声明头表明TableTennisPlayer是一个公有基类，这被称为公有派生。派生类对象包含基类对象。使用公有派生，基类的公有成员将成为派生类的公有成员；基类的私有部分也将成为派生类的一部分，但只能通过基类的公有和保护方法访问（稍后将介绍保护成员）。
+
+### 13.1.2 构造函数：访问权限的考虑
+
+创建派生类对象时，程序首先创建基类对象。从概念上说，这意味着基类对象应当在程序进入派生类构造函数之前被创建。C++使用成员初始化列表语法来完成这种工作。例如，下面是第一个RatedPlayer构造函数的代码：
+
+```c++
+RatedPlayer::RatedPlayer(unsigned int r, const string& fn,
+	const string& ln, bool ht) : TableTennisPlayer(fn, ln, ht)
+{
+	rating = r;
+}
+```
+
+如果省略成员初始化列表，情况将如何呢？
+
+```c++
+RatedPlayer::RatedPlayer(unsigned int r, const string& fn,
+	const string& ln, bool ht) // what if no initializer list?
+{
+	rating = r;
+}
+```
+
+必须首先创建基类对象，如果不调用基类构造函数，程序将使用默认的基类构造函数，因此上述代码与下面等效：
+
+```c++
+RatedPlayer::RatedPlayer(unsigned int r, const string& fn,
+	const string& ln, bool ht) // : TableTennisPlayer()
+{
+	rating = r;
+}
+```
+
+除非要使用默认构造函数，否则应显式调用正确的基类构造函数。
+
+下面来看第二个构造函数的代码：
+
+```c++
+RatedPlayer::RatedPlayer(unsigned int r, const TableTennisPlayer& tp)
+	: TableTennisPlayer(tp)
+{
+	rating = r;
+}
+```
+
+这里也将TableTennisPlayer的信息传递给了TableTennisPlayer构造函数：
+
+```c++
+TableTennisPlayer(tp)
+```
+
+由于tp的类型为TableTennisPlayer &，因此将调用基类的复制构造函数。基类没有定义复制构造函数，但第12章介绍过，如果需要使用复制构造函数但又没有定义，编译器将自动生成一个。在这种情况下，执行成员复制的隐式复制构造函数是合适的，因为这个类没有使用动态内存分配（string成员确实使用了动态内存分配，但本书前面说过，成员复制将使用string类的复制构造函数来复制string成员）。
+
+如果愿意，也可以对派生类成员使用成员初始化列表语法。在这种情况下，应在列表中使用成员名，而不是类名。所以，第二个构造函数可以按照下述方式编写：
+
+```c++
+RatedPlayer::RatedPlayer(unsigned int r, const TableTennisPlayer& tp)
+	: TableTennisPlayer(tp), rating(r)
+{
+}
+```
+
+**注意**
+
+创建派生类对象时，程序首先调用基类构造函数，然后再调用派生类构造函数。基类构造函数负责初始化继承的数据成员；派生类构造函数主要用于初始化新增的数据成员。派生类的构造函数总是调用一个基类构造函数。可以使用初始化器列表语法指明要使用的基类构造函数，否则将使用默认的基类构造函数。
+派生类对象过期时，程序将首先调用派生类析构函数，然后再调用基类析构函数。
+
+### 13.1.4 派生类和基类之间的特殊关系
+
+派生类与基类之间有一些特殊关系。其中之一是派生类对象可以使用基类的方法，条件是方法不是私有的：、
+
+```c++
+RatedPlayer rplayer1(1140, "Malloy", "Duck", true);
+rplayer1.Name();		// 派生类使用基类函数
+```
+
+另外两个重要的关系是：基类指针可以在不进行显式类型转换的情况下指向派生类对象；基类引用可以在不进行显式类型转换的情况下引用派生类对象：
+
+```c++
+RatedPlayer rplayer1(1140, "Malloy", "Duck", true);
+TableTennisPlayer& rt = rplayer;
+TableTennisPlayer* pt = &rplayer;
+rt.Name();		// invoke Name() with reference
+pt->Name();		// invoke Name() with pointer
+```
+
+然而，基类指针或引用只能用于调用基类方法，因此，不能使用rt或pt来调用派生类的ResetRanking方法。
+
+通常，C++要求引用和指针类型与赋给的类型匹配，但这一规则对继承来说是例外。然而，这种例外只是单向的，不可以将基类对象和地址赋给派生类引用和指针：
+
+```c++
+TableTennisPlayer player("Betsy", "Bloop", true);
+RatedPlayer& rr = player;		// NOT ALLOWED
+RatedPlayer* pr = player;		// NOT ALLOWED
+```
+
+上述规则是有道理的。例如，如果允许基类引用隐式地引用派生类对象，则可以使用基类引用为派生类对象调用基类的方法。因为派生类继承了基类的方法，所以这样做不会出现问题。如果可以将基类对象赋给派生类引用，将发生什么情况呢？派生类引用能够为基对象调用派生类方法，这样做将出现问题。例如，将RatedPlayer::Rating( )方法用
+于TableTennisPlayer对象是没有意义的，因为TableTennisPlayer对象没有rating成员。
+
+如果基类引用和指针可以指向派生类对象，将出现一些很有趣的结果。其中之一是基类引用定义的函数或指针参数可用于基类对象或派生类对象。例如，在下面的函数中：
+
+```c++
+void Show(const TableTennisPlayer& rt)
+{
+	using std::cout;
+	cout << "Name: ";
+	rt.Name();
+	cout << "\nTable: ";
+	if (rt.HasTable())
+		cout << "yes\n";
+	else
+		cout << "no\n";
+}
+```
+
+形参rt是一个基类引用，它可以指向基类对象或派生类对象，所以可以在Show( )中使用TableTennisPlayer参数或Ratedplayer参数：
+
+```c++
+TableTennisPlayer player1("Tara", "Boomdea", false);
+RatedPlayer rplayer1(1140, "Malloy", "Duck", true);
+Show(player1);		// works with TableTennisPlayer argument
+Show(rplayer1);		// works with RatedPlayer argument
+```
+
+对于形参为指向基类的指针的函数，也存在相似的关系。它可以使用基类对象的地址或派生类对象的地址作为实参：
+
+```c++
+void Wohs(const TableTennisPlayer* pt);		// function with pointer parameter
+..
+TableTennisPlayer player1("Tara", "Boomdea", false);
+RatedPlayer rplayer1(1140, "Malloy", "Duck", true);
+Wohs(&player1);			// works with TableTennisPlayer* argument
+Wohs(&rplayer1);		// works with RatedPlayer* argument
+```
+
+引用兼容性属性也让您能够将基类对象初始化为派生类对象，尽管不那么直接。假设有这样的代码：
+
+```c++
+RatedPlayer olaf1(1840, "Olaf", "Loaf", true);
+TableTennisPlayer olaf2(olaf1);
+```
+
+要初始化olaf2，匹配的构造函数的原型如下：
+
+```c++
+TableTennisPlayer(const RatedPlayer&);		// doesn't exist
+```
+
+类定义中没有这样的构造函数，但存在隐式复制构造函数：
+
+```c++
+// implicit copy constructor
+TableTennisPlayer(const TableTennisPlayer&);
+```
+
+形参是基类引用，因此它可以引用派生类。这样，将olaf2初始化为olaf1时，将要使用该构造函数，它复制firstname、lastname和hasTable成员。换句话来说，它将olaf2初始化为嵌套在RatedPlayer对象olaf1中的TableTennisPlayer对象。、
+
+同样，也可以将派生对象赋给基类对象：
+
+```c++
+RatedPlayer olaf1(1840, "Olaf", "Loaf", true);
+TableTennisPlayer winner;
+winner = olaf1;		// assign derived to base object
+```
+
+在这种情况下，程序将使用隐式重载赋值运算符：
+
+```c++
+TableTennisPlayer& operator=(const TableTennisPlayer&) const;
+```
+
+基类引用指向的也是派生类对象，因此olaf1的基类部分被复制给winner。
+
+## 13.2 继承：is-a关系
+
+C++有3种继承方式：公有继承、保护继承和私有继承。
+
+## 13.3 多态公有继承
+
+RatedPlayer继承示例很简单。派生类对象使用基类的方法，而未做任何修改。然而，可能会遇到这样的情况，即希望同一个方法在派生类和基类中的行为是不同的。换句话来说，方法的行为应取决于调用该方法的对象。这种较复杂的行为称为多态——具有多种形态，即同一个方法的行为随上下文而异。有两种重要的机制可用于实现多态公有继承；
+
+- 在派生类中重新定义基类的方法。
+- 使用虚方法。
+
+### 13.3.1 开发Brass类和BrassPlus类
+
+先看如下程序：
+
+```c++
+// brass.h  -- bank account classes
+#ifndef BRASS_H_
+#define BRASS_H_
+#include <string>
+// Brass Account Class
+class Brass
+{
+private:
+	std::string fullName;
+	long acctNum;
+	double balance;
+public:
+	Brass(const std::string& s = "Nullbody", long an = -1,
+		double bal = 0.0);
+	void Deposit(double amt);
+	virtual void Withdraw(double amt);
+	double Balance() const;
+	virtual void ViewAcct() const;
+	virtual ~Brass() {}
+};
+
+//Brass Plus Account Class
+class BrassPlus : public Brass
+{
+private:
+	double maxLoan;
+	double rate;
+	double owesBank;
+public:
+	BrassPlus(const std::string& s = "Nullbody", long an = -1,
+		double bal = 0.0, double ml = 500,
+		double r = 0.11125);
+	BrassPlus(const Brass& ba, double ml = 500,
+		double r = 0.11125);
+	virtual void ViewAcct()const;
+	virtual void Withdraw(double amt);
+	void ResetMax(double m) { maxLoan = m; }
+	void ResetRate(double r) { rate = r; };
+	void ResetOwes() { owesBank = 0; }
+};
+
+#endif // BRASS_H_
+```
+
+- Brass类和BrassPlus类都声明了ViewAcct( )和Withdraw( )方法，但BrassPlus对象和Brass对象的这些方法的行为是不同的；
+- Brass类在声明ViewAcct( )和Withdraw( )时使用了新关键字virtual。这些方法被称为虚方法（virtual method）
+- Brass类还声明了一个虚析构函数，虽然该析构函数不执行任何操作。
+
+第一点介绍了声明如何指出方法在派生类的行为的不同。两个ViewAcct( )原型表明将有2个独立的方法定义。基类版本的限定名为Brass::ViewAcct( )，派生类版本的限定名为BrassPlus::ViewAcct()。程序将使用对象类型来确定使用哪个版本：
+
+```c++
+Brass dom("Dominic Banker", 11224, 4183.45);
+BrassPlus dot("Dorothy Banker", 12118, 2592.00);
+dom.ViewAcct();			// use Brass::viewAcct()
+dot.ViewAcct();			// use BrassPlus::viewAcct()
+```
+
+同样，Withdraw( )也有2个版本，一个供Brass对象使用，另一个供BrassPlus对象使用。对于在两个类中行为相同的方法（如Deposit()和Balance( )），则只在基类中声明。
+
+第二点（使用virtual）比第一点要复杂。如果方法是通过引用或指针而不是对象调用的，它将确定使用哪一种方法。如果没有使用关键字virtual，程序将根据引用类型或指针类型选择方法；如果使用了virtual，程序将根据引用或指针指向的对象的类型来选择方法。如果ViewAcct( )不是虚的，则程序的行为如下：
+
+```c++
+// behavior with non-virtual ViewAcct()
+// method chosen according to reference type
+Brass dom("Dominic Banker", 11224, 4183.45);
+BrassPlus dot("Dorothy Banker", 12118, 2592.00);
+Brass& b1_ref = dom;
+Brass& b2_ref = dot;
+b1_ref.viewAcct();			// use Brass::viewAcct()
+b2_ref.viewAcct();			// use Brass::viewAcct()
+```
+
+引用变量的类型为Brass，所以选择了Brass::ViewAcct( )。使用Brass指针代替引用时，行为将与此类似。
+
+如果ViewAcct( )是虚的，则行为如下：
+
+```c++
+// behavior with virtual ViewAcct()
+// method chosen according to reference type
+Brass dom("Dominic Banker", 11224, 4183.45);
+BrassPlus dot("Dorothy Banker", 12118, 2592.00);
+Brass& b1_ref = dom;
+Brass& b2_ref = dot;
+b1_ref.viewAcct();			// use Brass::viewAcct()
+b2_ref.viewAcct();			// use BrassPlus::viewAcct()
+```
+
+这里两个引用的类型都是Brass，但b2_ref引用的是一个BrassPlus对象，所以使用的是BrassPlus::ViewAcct( )。使用Brass指针代替引用时，行为将类似。
+
+#### 类实现
+
+派生类并不能直接访问基类的私有数据，而必须使用基类的公有方法才能访问这些数据。访问的方式取决于方法。构造函数使用一种技术，而其他成员函数使用另一种技术。
+
+派生类构造函数在初始化基类私有数据时，采用的是成员初始化列表语法。RatedPlayer类构造函数和BrassPlus构造函数都使用这种技术：
+
+```c++
+BrassPlus::BrassPlus(const string& s, long an, double bal,
+	double ml, double r) : Brass(s, an, bal)
+{
+	maxLoan = ml;
+    owesBank = 0.0;
+    rate = r;
+}
+
+BrassPlus::BrassPlus(const Brass& ba, double ml, double r)
+	: Brass(ba)		// uses implicit copy constructor
+{
+	maxLoan = ml;
+	owesBank = 0.0;
+	rate = r;
+}
+```
+
+这几个构造函数都使用成员初始化列表语法，将基类信息传递给基类构造函数，然后使用构造函数体初始化BrassPlus类新增的数据项。
+
+非构造函数不能使用成员初始化列表语法，但派生类方法可以调用公有的基类方法。例如，BrassPlus版本的ViewAcct( )核心内容如下（忽略了格式方面）:
+
+```c++
+// redefine how ViewAcct() works
+void BrassPlus::ViewAcct() const
+{
+...
+	Brass::ViewAcct();			// display base portion
+	cout << "Maximum loan: $" << maxLoan << endl;
+	cout << "Owed to bank: $" << owesBank << endl;
+	cout << "Loan Rate: " <<`100 * rate << "%\n";
+...
+}
+```
+
+换句话说，BrassPlus::ViewAcct( )显示新增的BrassPlus数据成员，并调用基类方法Brass::ViewAcct( )来显示基类数据成员。在派生类方法中，标准技术是使用作用域解析运算符来调用基类方法。
+
+代码必须使用作用域解析运算符。假如这样编写代码：
+
+```c++
+// redefine erroneously how ViewAcct() works
+void BrassPlus::ViewAcct() const
+{
+...
+	ViewAcct();		// oops! recursive(递归) call
+...
+}
+```
+
+如果代码没有使用作用域解析运算符，编译器将认为ViewAcct( )是BrassPlus::ViewAcct( )，这将创建一个不会终止的递归函数——这可不好。
+
+#### 为何需要虚析构函数
+
+```c++
+class Brass
+{
+public:
+	virtual ~Brass() {}
+};
+```
+
+在程序清单13.10中，使用delete释放由new分配的对象的代码说明了为何基类应包含一个虚析构函数，虽然有时好像并不需要析构函数。如果析构函数不是虚的，则将只调用对应于指针类型的析构函数。对于程序清单13.10，这意味着只有Brass的析构函数被调用，即使指针指向的是一个BrassPlus对象。如果析构函数是虚的，将调用相应对象类型的析构函数。因此，如果指针指向的是BrassPlus对象，将调用BrassPlus的析构函数，然后自动调用基类的析构函数。因此，使用虚析构函数可以确保正确的析构函数序列被调用。对于程序清单13.10，这种正确的行为并不是很重要，因为析构函数没有执行任何操作。然而，如果BrassPlus包含一个执行某些操作的析构函数，则Brass必须有一个虚析构函数，即使该析构函数不执行任何操作。
+
+## 13.4 静态联编和动态联编
+
+程序调用函数时，将使用哪个可执行代码块呢？编译器负责回答这个问题。将源代码中的函数调用解释为执行特定的函数代码块被称为函数名联编（binding）。在C语言中，这非常简单，因为每个函数名都对应一个不同的函数。在C++中，由于函数重载的缘故，这项任务更复杂。编译器必须查看函数参数以及函数名才能确定使用哪个函数。然而，C/C++编译器可以在编译过程完成这种联编。在编译过程中进行联编被称为静态联编（static binding），又称为早期联编（early binding）。然而，虚函数使这项工作变得更困难。正如在程序清单13.10所示的那样，使用哪一个函数是不能在编译时确定的，因为编译器不知道用户将选择哪种类型的对象。所以，编译器必须生成能够在程序运行时选择正确的虚方法的代码，这被称为动态联编（dynamic binding），又称为晚期联编（late binding）。
+
+### 13.4.1 指针和引用类型的兼容性
+
+通常，C++不允许将一种类型的地址赋给另一种类型的指针，也不允许一种类型的引用指向另一种类型：
+
+```c++
+double x = 2.5;
+int* pi = &x;	// invalid assignment, mismatched pointer types
+long& rl = x;	// invalid assignment, mismatched reference type
+```
+
+然而，正如您看到的，指向基类的引用或指针可以引用派生类对象，而不必进行显式类型转换。例如，下面的初始化是允许的：
+
+```c++
+BrassPlus dilly("Annie Dill", 493222, 2000);
+Brass* pb = &dilly;		// OK
+Brass& rb = dilly;		// OK
+```
+
+将派生类引用或指针转换为基类引用或指针被称为向上强制转换（upcasting），这使公有继承不需要进行显式类型转换。该规则是is-a关系的一部分。BrassPlus对象都是Brass对象，因为它继承了Brass对象所有的数据成员和成员函数。所以，可以对Brass对象执行的任何操作，都适用于BrassPlus对象。因此，为处理Brass引用而设计的函数可以对BrassPlus对象执行同样的操作，而不必担心会导致任何问题。将指向对象的指针作为函数参数时，也是如此。向上强制转换是可传递的，也就是说，如果从BrassPlus派生出BrassPlusPlus类，则Brass指针或引用可以引用Brass对象、BrassPlus对象或BrassPlusPlus对象。
+
+相反的过程——将基类指针或引用转换为派生类指针或引用——称为向下强制转换（downcasting）。如果不使用显式类型转换，则向下强制转换是不允许的。原因是is-a关系通常是不可逆的。派生类可以新增数据成员，因此使用这些数据成员的类成员函数不能应用于基类。例如，假设从Employee类派生出Singer类，并添加了表示歌手音域的数据成员和用于报告音域的值的成员函数range( )，则将range( )方法应用于Employee对象是没有意义的。但如果允许隐式向下强制转换，则可能无意间将指向Singer的指针设置为一个Employee对象的地址，并使用该指针来调用range( )方法（参见图13.4）。
+
+对于使用基类引用或指针作为参数的函数调用，将进行向上转换。请看下面的代码段，这里假定每个函数都调用虚方法ViewAcct( )：
+
+```c++
+void fr(Brass& rb);		// uses rb.ViewAcct()
+void fp(Brass* pb);		// uses pb->ViewAcct()
+void fv(Brass b);		// uses b.ViewAcct()
+int main()
+{
+	Brass b("Billy Bee", 123432, 10000.0);
+	BrassPlus bp("Betty Beep", 232313, 12345.0);
+	fr(b);		// uses Brass::ViewAcct()
+	fr(bp);		// uses BrassPlus::ViewAcct()
+	fp(b);		// uses Brass::ViewAcct()
+	fp(bp);		// uses BrassPlus::ViewAcct()
+	fv(b);		// uses Brass::ViewAcct()
+	fv(bp);		// uses Brass::ViewAcct()
+}
+```
+
+按值传递导致只将BrassPlus对象的Brass部分传递给函数fv( )。但随引用和指针发生的隐式向上转换导致函数fr( )和fp( )分别为Brass对象和BrassPlus对象使用Brass::ViewAcct( )和BrassPlus::ViewAcct( )。
+
+### 13.4.2 虚成员函数和动态联编
+
+在大多数情况下，动态联编很好，因为它让程序能够选择为特定类型设计的方法。因此，您可能会问：
+
+- 为什么有两种类型的联编？
+- 既然动态联编如此之好，为什么不将它设置成默认的？
+- 动态联编是如何工作的？
+
+#### 为什么有两种类型的联编以及为什么默认为静态联编
+
+如果动态联编让您能够重新定义类方法，而静态联编在这方面很差，为何不摒弃静态联编呢？原因有两个——效率和概念模型。
+
+首先来看效率。为使程序能够在运行阶段进行决策，必须采取一些方法来跟踪基类指针或引用指向的对象类型，这增加了额外的处理开销（稍后将介绍一种动态联编方法）。例如，如果类不会用作基类，则不需要动态联编。同样，如果派生类（如RatedPlayer）不重新定义基类的任何方法，也不需要使用动态联编。在这些情况下，使用静态联编更合理，效率也更高。由于静态联编的效率更高，因此被设置为C++的默认选择。Strousstrup说，C++的指导原则之一是，不要为不使用的特性付出代价（内存或者处理时间）。仅当程序设计确实需要虚函数时，才使用它们。
+
+接下来看概念模型。在设计类时，可能包含一些不在派生类重新定义的成员函数。例如，Brass::Balance( )函数返回账户结余，不应该重新定义。不将该函数设置为虚函数，有两方面的好处：首先效率更高；其次，指出不要重新定义该函数。这表明，仅将那些预期将被重新定义的方法声明为虚的。
+
+#### 虚函数的工作原理
+
+C++规定了虚函数的行为，但将实现方法留给了编译器作者。不需要知道实现方法就可以使用虚函数，但了解虚函数的工作原理有助于更好地理解概念，因此，这里对其进行介绍。
+
+通常，编译器处理虚函数的方法是：给每个对象添加一个隐藏成员。隐藏成员中保存了一个指向函数地址数组的指针。这种数组称为虚函数表（virtual function table，vtbl）。虚函数表中存储了为类对象进行声明的虚函数的地址。例如，基类对象包含一个指针，该指针指向基类中所有虚函数的地址表。派生类对象将包含一个指向独立地址表的指针。如果派生类提供了虚函数的新定义，该虚函数表将保存新函数的地址；如果派生类没有重新定义虚函数，该vtbl将保存函数原始版本
+的地址。如果派生类定义了新的虚函数，则该函数的地址也将被添加到vtbl中（参见图13.5）。注意，无论类中包含的虚函数是1个还是10个，都只需要在对象中添加1个地址成员，只是表的大小不同而已。
+
+![image-20230126170737977](D:\git\note_md_files\images\image-20230126170737977.png)
+
+调用虚函数时，程序将查看存储在对象中的vtbl地址，然后转向相应的函数地址表。如果使用类声明中定义的第一个虚函数，则程序将使用数组中的第一个函数地址，并执行具有该地址的函数。如果使用类声明中的第三个虚函数，程序将使用地址为数组中第三个元素的函数。
+
+总之，使用虚函数时，在内存和执行速度方面有一定的成本，包括：
+
+- 每个对象都将增大，增大量为存储地址的空间；
+- 对于每个类，编译器都创建一个虚函数地址表（数组）
+- 对于每个函数调用，都需要执行一项额外的操作，即到表中查找地址。
+
+虽然非虚函数的效率比虚函数稍高，但不具备动态联编功能。
+
+### 13.4.3 有关虚函数注意事项
+
+#### 析构函数
+
+析构函数应当是虚函数，除非类不用做基类。例如，假设Employee是基类，Singer是派生类，并添加一个char *成员，该成员指向由new分配的内存。当Singer对象过期时，必须调用~Singer( )析构函数来释放内存。
+
+请看下面的代码：
+
+```c++
+Employee* pe = new Singer;		// legal because Employee is base for Singer
+...
+delete pe;			// ~Employee() or ~Singer() ?
+```
+
+如果使用默认的静态联编，delete语句将调用~Employee( )析构函数。这将释放由Singer对象中的Employee部分指向的内存，但不会释放新的类成员指向的内存。但如果析构函数是虚的，则上述代码将先调用~Singer析构函数释放由Singer组件指向的内存，然后，调用～Employee( )析构函数来释放由Employee组件指向的内存。
+
+这意味着，即使基类不需要显式析构函数提供服务，也不应依赖于默认构造函数，而应提供虚析构函数，即使它不执行任何操作：
+
+```c++
+virtual ~BaseClass() {}
+```
+
+顺便说一句，给类定义一个虚析构函数并非错误，即使这个类不用做基类；这只是一个效率方面的问题。
+
+#### 重新定义将隐藏方法
+
+假设创建了如下所示的代码：
+
+```c++
+class Dwelling
+{
+public:
+	virtual void showperks(int a) const;
+...
+};
+
+class Hovel : public Dwelling
+{
+public:
+	virtual void showperks() const;
+...
+}
+```
+
+这将导致问题，可能会出现类似于下面这样的编译器警告：
+
+```
+Warning: Hovel::showperks(void) hides Dwelling::showperks(int)
+```
+
+也可能不会出现警告。但不管结果怎样，代码将具有如下含义：
+
+```c++
+Hovel trump;
+trump.showperks();			// valid
+trump.showperks(5);			// invalid
+```
+
+新定义将showperks( )定义为一个不接受任何参数的函数。重新定义不会生成函数的两个重载版本，而是隐藏了接受一个int参数的基类版本。总之，重新定义继承的方法并不是重载。如果在派生类中重新定义函数，将不是使用相同的函数特征标覆盖基类声明，而是隐藏同名的基类方法，不管参数特征标如何。
+
+这引出了两条经验规则：第一，如果重新定义继承的方法，应确保与原来的原型完全相同，但如果返回类型是基类引用或指针，则可以修改为指向派生类的引用或指针（这种例外是新出现的）。这种特性被称为返回类型协变（covariance of return type），因为允许返回类型随类类型的变化而变化：
+
+```c++
+class Dwelling
+{
+public:
+// a base method
+	virtual Dwelling& build(int n);
+...
+};
+
+class Hovel : public Dwelling
+{
+public:
+// a derived method with a convariant return type
+	virtual Hovel& build(int n);		// same function signature, 编译器不会告警
+...
+}
+```
+
+注意，这种例外只适用于返回值，而不适用于参数。
+
+第二，如果基类声明被重载了，则应在派生类中重新定义所有的基类版本。
+
+```c++
+class Dwelling
+{
+public:
+// three overloaded showperks()
+	virtual void showperks(int a) const;
+	virtual void showperks(double x) const;
+	virtual void showperks() const;
+...
+};
+
+class Hovel : public Dwelling
+{
+public:
+// three redefined showperks()
+	virtual void showperks(int a) const;
+	virtual void showperks(double x) const;
+	virtual void showperks() const;
+...
+}
+```
+
+如果只重新定义一个版本，则另外两个版本将被隐藏，派生类对象将无法使用它们。注意，如果不需要修改，则新定义可只调用基类版本：
+
+```c++
+void Hovel::showperks() const { Dwelling::showperks(); }
+```
+
+## 13.5 访问控制：protected
+
+关键字protected与private相似，在类外只能用公有类成员来访问protected部分中的类成员。private和protected之间的区别只有在基类派生的类中才会表现出来。派生类的成员可以直接访问基类的保护成员，但不能直接访问基类的私有成员。因此，对于外部世界来说，保护成员的行为与私有成员相似；但对于派生类来说，保护成员的行为与公有成员相似。
+
+例如，假如Brass类将balance成员声明为保护的：
+
+```c++
+class Brass
+{
+protected:
+	double balance;
+...
+};
+```
+
+在这种情况下，BrassPlus类可以直接访问balance，而不需要使用Brass方法。例如，可以这样编写BrassPlus::Withdraw( )的核心代码：
+
+```c++
+void BrassPlus::Withdraw(double amt)
+{
+	if (amt < 0)
+        cout << "Withdrawal amount must be positive; "
+        	<< "withdrawal canceled.\n";
+	else if (amt < balance) 	// access balance directly
+        balance -= amt;
+    eles if (amt <= balance + maxLoan - owesBank)
+	{
+		double advance = amt - balance;
+		owesBank += advance * (1.0 + rate);
+		cout << "Bank advance: $" << advance << endl;
+		cout << "Finance charge: $" << advance * rate << endl;
+		Deposit(advance);
+		balance -= amt;
+	}
+	else
+		cout << "Credit limit exceeded. Transaction cancelled.\n";
+}
+```
+
+使用保护数据成员可以简化代码的编写工作，但存在设计缺陷。例如，继续以BrassPlus为例，如果balance是受保护的，则可以按下面的方式编写代码：
+
+```c++
+void BrassPlus::Reset(double amt)
+{
+	balance = amt;
+}
+```
+
+Brass类被设计成只能通过Deposit( )和Withdraw( )才能修改balance。但对于BrassPlus对象，Reset( )方法将忽略Withdraw( )中的保护措施，实际上使balance成为公有变量。
+
+最好对类数据成员采用私有访问控制，不要使用保护访问控制；同时通过基类方法使派生类能够访问基类数据。
+
+## 13.6 抽象基类
+
+至此，介绍了简单继承和较复杂的多态继承。接下来更为复杂的是抽象基类（abstract base class，ABC）。我们来看一些可使用ABC的编程情况。
+
+```c++
+class BaseEllipse // abstract base class
+{
+private:
+	double x;
+	double y;
+	...
+public:
+	BaseEllipse(double x0 = 0, double y0 = 0) : x(x0), y(y0) {}
+	virtual ~BaseEllipse() {}
+	void Move(int nx, int ny) { x = nx; y = ny; }
+	virtual double Area() const = 0;	// a pure-virtual function
+}
+```
+
+当类声明中包含纯虚函数时，则不能创建该类的对象。这里的理念是，包含纯虚函数的类只用作基类。要成为真正的ABC，必须至少包含一个纯虚函数。原型中的=0使虚函数成为纯虚函数。这里的方法Area()没有定义，但C++甚至允许纯虚函数有定义。例如，也许所有的基类方法都与Move( )一样，可以在基类中进行定义，但您仍需要将这个类声明为抽象的。在这种情况下，可以将原型声明为虚的：
+
+```c++
+void Move(int nx, ny) = 0;
+```
+
+这将使基类成为抽象的，但您仍可以在实现文件中提供方法的定义：
+
+```c++
+void BaseEllipse::Move(int nx, ny) { x = nx; y = ny; }
+```
+
+## 13.7 继承和动态内存分配
+
+继承是怎样与动态内存分配（使用new和delete）进行互动的呢？例如，如果基类使用动态内存分配，并重新定义赋值和复制构造函数，这将怎样影响派生类的实现呢？这个问题的答案取决于派生类的属性。如果派生类也使用动态内存分配，那么就需要学习几个新的小技巧。下面来看看这两种情况。
+
+### 13.7.1 第一种情况：派生类不使用new
+
+假设基类使用了动态内存分配：
+
+```c++
+// Base Class Using DMA
+class baseDMA
+{
+private:
+	char* label;
+	int rating;
+public:
+	baseDMA(const char* l = "null", int r = 0);
+	baseDMA(const baseDMA& rs);
+	virtual ~baseDMA();
+	baseDMA& operator=(const baseDMA& rs);
+...
+}
+```
+
+声明中包含了构造函数使用new时需要的特殊方法：析构函数、复制构造函数和重载赋值运算符。
+
+现在，从baseDMA派生出lackDMA类，而后者不使用new，也未包含其他一些不常用的、需要特殊处理的设计特性：
+
+```c++
+// derived class without DMA
+class lackDMA : public baseDMA
+{
+private:
+	char color[40];
+public:
+...
+}
+```
+
+是否需要为lackDMA类定义显式析构函数、复制构造函数和赋值运算符呢？不需要。
+
+首先，来看是否需要析构函数。如果没有定义析构函数，编译器将定义一个不执行任何操作的默认析构函数。实际上，派生类的默认析构函数总是要进行一些操作：执行自身的代码后调用基类析构函数。因为我们假设lackDMA成员不需执行任何特殊操作，所以默认析构函数是合适的。
+
+接着来看复制构造函数。第12章介绍过，默认复制构造函数执行成员复制，这对于动态内存分配来说是不合适的，但对于新的lacksDMA成员来说是合适的。因此只需考虑继承的baseDMA对象。要知道，成员复制将根据数据类型采用相应的复制方式，因此，将long复制到long中是通过使用常规赋值完成的；但复制类成员或继承的类组件时，则是使用该类的复制构造函数完成的。所以，lacksDMA类的默认复制构造函数使用显式baseDMA复制构造函数来复制lacksDMA对象的baseDMA部分。因此，默认复制构造函数对于新的lacksDMA成员来说是合适的，同时对于继承的baseDMA对象来说也是合适的。
+
+对于赋值来说，也是如此。类的默认赋值运算符将自动使用基类的赋值运算符来对基类组件进行赋值。因此，默认赋值运算符也是合适的。
+
+派生类对象的这些属性也适用于本身是对象的类成员。例如，第10章介绍过，实现Stock类时，可以使用string对象而不是char数组来存储公司名称。标准string类和本书前面创建的String类一样，也采用动态内存分配。现在，读者知道了为何这不会引发问题。Stock的默认复制构造函数将使用string的复制构造函数来复制对象的company成员；Stock的默认赋值运算符将使用string的赋值运算符给对象的company成员赋值；而Stock的析构函数（默认或其他析构函数）将自动调用string的析构函数。
+
+### 13.7.2 第二种情况：派生类使用new
+
+假设派生类使用了new：
+
+```c++
+// derived class with DMA
+class hasDMA : public baseDMA
+{
+private:
+	char* style;	//	use new in constructors
+public:
+...
+};
+```
+
+在这种情况下，必须为派生类定义显式析构函数、复制构造函数和赋值运算符。下面依次考虑这些方法。
+
+派生类析构函数自动调用基类的析构函数，故其自身的职责是对派生类构造函数执行工作的进行清理。因此，hasDMA析构函数必须释放指针style管理的内存，并依赖于baseDMA的析构函数来释放指针label管理的内存。
+
+```c++
+baseDMA::~baseDMA()		// takes care of baseDMA stuff
+{
+	delete[] label;
+}
+
+hasDMA::~hasDMA()		// takes care of hasDMA stuff
+{
+	delete[] style;
+}
+```
+
+接下来看复制构造函数。BaseDMA的复制构造函数遵循用于char数组的常规模式，即使用strlen( )来获悉存储C-风格字符串所需的空间、分配足够的内存（字符数加上存储空字符所需的1字节）并使用函数strcpy( )将原始字符串复制到目的地：
+
+```c++
+baseDMA::baseDMA(const baseDMA& rs)
+{
+	label = new char[std::strlen(rs.label) + 1];
+	std::strcpy(label, rs.label);
+	rating = rs.rating;
+}
+```
+
+hasDMA复制构造函数只能访问hasDMA的数据，因此它必须调用baseDMA复制构造函数来处理共享的baseDMA数据：
+
+```c++
+hasDMA::hasDMA(const hasDMA& hs)
+	: baseDMA(hs)
+{
+	style = new char[std::strlen(hs.style) + 1];
+    std::strcpy(style, hs.style);
+}
+```
+
+需要注意的一点是，成员初始化列表将一个hasDMA引用传递给baseDMA构造函数。没有参数类型为hasDMA引用的baseDMA构造函数，也不需要这样的构造函数。因为复制构造函数baseDMA有一个baseDMA引用参数，而基类引用可以指向派生类型。因此，baseDMA复制构造函数将使用hasDMA参数的baseDMA部分来构造新对象的baseDMA部分。
+
+接下来看赋值运算符。BaseDMA赋值运算符遵循下述常规模式：
+
+```c++
+baseDMA& baseDMA::operator=(const baseDMA& rs)
+{
+	if (this == &rs)
+		return *this;
+	delete[] label;
+	label = new char[std::strlen(rs.label) + 1];
+	std::strcpy(label, rs.label);
+	rating = rs.rating;
+	return *this;
+}
+```
+
+由于hasDMA也使用动态内存分配，所以它也需要一个显式赋值运算符。作为hasDMA的方法，它只能直接访问hasDMA的数据。然而，派生类的显式赋值运算符必须负责所有继承的baseDMA基类对象的赋值，可以通过显式调用基类赋值运算符来完成这项工作，如下所示：
+
+```c++
+hasDMA& hasDMA::operator=(const hasDMA& hs)
+{
+	if (this == &hs)
+		return *this;
+	baseDMA::operator=(hs);		// copy base portion
+	delete[] style;
+	style = new char[std::strlen(hs.style) + 1];
+	std::strcpy(style, hs.style);
+	return *this;
+}
+```
+
+下述语句看起来有点奇怪：
+
+```c++
+baseDMA::operator=(hs);
+```
+
+但通过使用函数表示法，而不是运算符表示法，可以使用作用域解析运算符。实际上，该语句的含义如下：
+
+```c++
+*this = hs;		// use baseDMA::operator=()
+```
+
+当然编译器将忽略注释，所以使用后面的代码时，编译器将使用hasDMA ::operator=( )，从而形成递归调用。使用函数表示法使得赋值运算符被正确调用。
+
+总之，当基类和派生类都采用动态内存分配时，派生类的析构函数、复制构造函数、赋值运算符都必须使用相应的基类方法来处理基类元素。这种要求是通过三种不同的方式来满足的。对于析构函数，这是自动完成的；对于构造函数，这是通过在初始化成员列表中调用基类的复制构造函数来完成的；如果不这样做，将自动调用基类的默认构造函数。对于赋值运算符，这是通过使用作用域解析运算符显式地调用基类的赋值运算符来完成的。
+
+### 13.7.3 使用动态内存分配和友元的继承示例
+
+先看如下程序：
+
+```c++
+// dma.h  -- inheritance and dynamic memory allocation
+#ifndef DMA_H_
+#define DMA_H_
+#include <iostream>
+
+//  Base Class Using DMA
+class baseDMA
+{
+private:
+	char* label;
+	int rating;
+
+public:
+	baseDMA(const char* l = "null", int r = 0);
+	baseDMA(const baseDMA& rs);
+	virtual ~baseDMA();
+	baseDMA& operator=(const baseDMA& rs);
+	friend std::ostream& operator<<(std::ostream& os,
+		const baseDMA& rs);
+};
+
+class hasDMA :public baseDMA
+{
+private:
+	char* style;
+public:
+	hasDMA(const char* s = "none", const char* l = "null",
+		int r = 0);
+	hasDMA(const char* s, const baseDMA& rs);
+	hasDMA(const hasDMA& hs);
+	~hasDMA();
+	hasDMA& operator=(const hasDMA& rs);
+	friend std::ostream& operator<<(std::ostream& os,
+		const hasDMA& rs);
+};
+
+#endif
+```
+
+看下两个友元函数时如何实现的：
+
+```c++
+std::ostream& operator<<(std::ostream& os, const baseDMA& rs)
+{
+	os << "Label: " << rs.label << std::endl;
+	os << "Rating: " << rs.rating << std::endl;
+	return os;
+}
+
+std::ostream& operator<<(std::ostream& os, const hasDMA& hs)
+{
+	os << (const baseDMA&)hs;
+	os << "Style: " << hs.style << std::endl;
+	return os;
+}
+```
+
+在上述代码中，需要注意的新特性是，派生类如何使用基类的友元。例如，请考虑下面这个hasDMA类的友元：
+
+```c++
+	friend std::ostream& operator<<(std::ostream& os,
+		const hasDMA& rs);
+```
+
+作为hasDMA类的友元，该函数能够访问style成员。然而，还存在一个问题：该函数如不是baseDMA类的友元，那它如何访问成员lable和rating呢？答案是使用baseDMA类的友元函数operator<<( )。下一个问题是，因为友元不是成员函数，所以不能使用作用域解析运算符来指出要使用哪个函数。这个问题的解决方法是使用强制类型转换，以便匹配原型时能够选择正确的函数。因此，代码将参数const hasDMA &转换成类型为const baseDMA &的参数：
+
+```c++
+std::ostream& operator<<(std::ostream& os, const hasDMA& hs)
+{
+	os << (const baseDMA&)hs;
+	os << "Style: " << hs.style << std::endl;
+	return os;
+}
+```
+
+## 13.8 类设计回顾
+
+### 13.8.1 编译器生成的成员函数
+
+#### 默认构造函数
+
+假设Star是一个类，则下述代码需要使用默认构造函数：
+
+```c++
+Star rigel;		// create an object without explicit initialization
+
+// 声明数组的同时会直接创建对象
+Star pleiades[6];	// create an array of objects
+```
+
+#### 复制构造函数
+
+在下述情况下，将使用复制构造函数：
+
+- 将新对象初始化为一个同类对象；
+- 按值将对象传递给函数；
+- 函数按值返回对象；
+- 编译器生成临时对象。
+
+#### 赋值运算符
+
+```c++
+Star dogstart;
+dogstart = "abc";
+```
+
+编译器不会生成将一种类型赋给另一种类型的赋值运算符。如果希望能够将字符串赋给Star对象，则方法之一是显式定义下面的运算符：
+
+```c++
+Star& Star::operator=(const char*) {...}
+```
+
+另一种方法是使用转换函数（参见下一节中的“转换”小节）将字符串转换成Star对象，然后使用将Star赋给Star的赋值函数。第一种方法的运行速度较快，但需要的代码较多，而使用转换函数可能导致编译器出现混乱。
+
+第18章将讨论C++11新增的两个特殊方法：移动构造函数和移动赋值运算符。
+
+### 13.8.2 其他的类方法
+
+#### 转换函数
+
+应理智地使用转换函数，仅当它们有帮助时才使用。另外，对于某些类，包含转换函数将增加代码的二义性。例如，假设已经为第11章的Vector类型定义了double转换，并编写了下面的代码：
+
+```c++
+Vector ius(6.0, 0.0);
+Vector lux = ius + 20.2;		// ambiguous
+```
+
+编译器可以将ius转换成double并使用double加法，或将20.2转换成vector（使用构造函数之一）并使用vector加法。但除了指出二义性外，它什么也不做。
+
+#### 按值传递对象与传递引用
+
+通常，编写使用对象作为参数的函数时，应按引用而不是按值来传递对象。这样做的原因之一是为了提高效率。按值传递对象涉及到生成临时拷贝，即调用复制构造函数，然后调用析构函数。调用这些函数需要时间，复制大型对象比传递引用花费的时间要多得多。如果函数不修改对象，应将参数声明为const引用。
+
+按引用传递对象的另外一个原因是，在继承使用虚函数时，被定义为接受基类引用参数的函数可以接受派生类。
+
+#### 使用const
+
+通常，可以将返回引用的函数放在赋值语句的左侧，这实际上意味着可以将值赋给引用的对象。但可以使用const来确保引用或指针返回的值不能用于修改对象中的数据：
+
+```c++
+const Stock& Stock::topval(const Stock& s) const
+{
+	if (s.total_val > total_val)
+		return s;		// argument object
+	else
+		return *this;	// invoking object
+}
+```
+
+该方法返回对this或s的引用。因为this和s都被声明为const，所以函数不能对它们进行修改，这意味着返回的引用也必须被声明为const。
+
+注意，如果函数将参数声明为指向const的引用或指针，则不能将该参数传递给另一个函数，除非后者也确保了参数不会被修改。
+
+### 13.8.3 公有继承的考虑因素
+
+#### 什么不能被继承
+
+构造函数是不能继承的，也就是说，创建派生类对象时，必须调用派生类的构造函数。然而，派生类构造函数通常使用成员初始化列表语法来调用基类构造函数，以创建派生对象的基类部分。如果派生类构造函数没有使用成员初始化列表语法显式调用基类构造函数，将使用基类的默认构造函数。在继承链中，每个类都可以使用成员初始化列表将信息传递给相邻的基类。C++11新增了一种让您能够继承构造函数的机制，但默认仍不继承构造函数。
+
+析构函数也是不能继承的。然而，在释放对象时，程序将首先调用派生类的析构函数，然后调用基类的析构函数。如果基类有默认析构函数，编译器将为派生类生成默认析构函数。通常，对于基类，其析构函数应设置为虚的。
+
+赋值运算符是不能继承的，原因很简单。派生类继承的方法的特征标与基类完全相同，但赋值运算符的特征标随类而异，这是因为它包含一个类型为其所属类的形参。赋值运算符确实有一些有趣的特征，下面介绍它们。
+
+#### 赋值运算符
+
+将派生类对象赋给基类对象将会如何呢？（注意，这不同于将基类引用初始化为派生类对象。）请看下面的例子：
+
+```c++
+Brass blips;		// base class
+BrassPlus snips("Rafe Plosh", 91191, 3993.19, 600.0, 0.12);		// derived class
+blips = snips;
+```
+
+这将使用哪个赋值运算符呢？赋值语句将被转换成左边的对象调用的一个方法：
+
+```c++
+blips.operator=(snips);
+```
+
+其中左边的对象是Brass对象，因此它将调用Brass ::operator=（const Brass &）函数。is-a关系允许Brass引用指向派生类对象，如Snips。赋值运算符只处理基类成员，所以上述赋值操作将忽略Snips的maxLoan成员和其他BrassPlus成员。总之，可以将派生对象赋给基类对象，但这只涉及基类的成员。
+
+相反的操作将如何呢？即可以将基类对象赋给派生类对象吗？请看下面的例子：
+
+```c++
+Brass gp("Griff Hexbait", 21234, 1200);
+BrassPlus temp;
+temp = gp;
+```
+
+上述赋值语句将被转换为如下所示：
+
+```c++
+temp.operator=(gp);
+```
+
+左边的对象是BrassPlus对象，所以它调用BrassPlus::operator=（const BrassPlus &）函数。然而，派生类引用不能自动
+引用基类对象，因此上述代码不能运行，除非有下面的转换构造函数：
+
+```c++
+BrassPlus(const Brass&);
+```
+
+与BrassPlus类的情况相似，转换构造函数可以接受一个类型为基类的参数和其他参数，条件是其他参数有默认值：
+
+```c++
+BrassPlus(const Brass& ba, double ml = 500, double r = 0.1);
+```
+
+如果有转换构造函数，程序将通过它根据gp来创建一个临时BrassPlus对象，然后将它用作赋值运算符的参数。
+
+另一种方法是，定义一个用于将基类赋给派生类的赋值运算符：
+
+```c++
+BrassPlus& BrassPlus::operator=(const Brass&) {...}
+```
+
+该赋值运算符的类型与赋值语句完全匹配，因此无需进行类型转换。
+
+总之，问题“是否可以将基类对象赋给派生对象？”的答案是“也许”。如果派生类包含了这样的构造函数，即对将基类对象转换为派生类对象进行了定义，则可以将基类对象赋给派生对象。如果派生类定义了用于将基类对象赋给派生对象的赋值运算符，则也可以这样做。如果上述两个条件都不满足，则不能这样做，除非使用显式强制类型转换。
+
+#### 虚方法
+
+请注意，不适当的代码将阻止动态联编。例如，请看下面的两个函数：
+
+```c++
+void show(const Brass& rba)
+{
+	rba.ViewAcct();
+	cout << endl;
+}
+
+void inadequate(Brass ba)
+{
+	ba.ViewAcct();
+	cout << endl;
+}
+```
+
+第一个函数按引用传递对象，第二个按值传递对象。
+
+现在，假设将派生类参数传递给上述两个函数：
+
+```c++
+BrassPlus buzz("Buzz Parsec", 00001111, 4300);
+show(buzz);
+inadequate(buzz);
+```
+
+show( )函数调用使rba参数成为BrassPlus对象buzz的引用，因此，rba.ViewAcct( )被解释为BrassPlus版本，正如应该的那样。但在inadequate( )函数中（它是按值传递对象的），ba是Brass（constBrass &）构造函数创建的一个Brass对象（自动向上强制转换使得构造函数参数可以引用一个BrassPlus对象）。因此，在inadequate( )中，ba.ViewAcct( )是Brass版本，所以只有buzz的Brass部分被显示。
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
