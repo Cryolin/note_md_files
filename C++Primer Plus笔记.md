@@ -5768,13 +5768,453 @@ inadequate(buzz);
 
 show( )函数调用使rba参数成为BrassPlus对象buzz的引用，因此，rba.ViewAcct( )被解释为BrassPlus版本，正如应该的那样。但在inadequate( )函数中（它是按值传递对象的），ba是Brass（constBrass &）构造函数创建的一个Brass对象（自动向上强制转换使得构造函数参数可以引用一个BrassPlus对象）。因此，在inadequate( )中，ba.ViewAcct( )是Brass版本，所以只有buzz的Brass部分被显示。
 
+# 第14章 C++中的代码重用
 
+## 14.1 包含对象成员的类
 
+### 14.1.2 Student类的设计
 
+![image-20230205213746805](D:\git\note_md_files\images\image-20230205213746805.png)
 
+使用公有继承时，类可以继承接口，可能还有实现（基类的纯虚函数提供接口，但不提供实现）。获得接口是is-a关系的组成部分。而使用组合，类可以获得实现，但不能获得接口。不继承接口是has-a关系的组成部分。
 
+### 14.1.3 Student类示例
 
+C++包含让程序员能够限制程序结构的特性——使用explicit防止单参数构造函数的隐式转换，使用const限制方法修改数据，等等。这样做的根本原因是：在编译阶段出现错误优于在运行阶段出现错误。
 
+#### 1．初始化被包含的对象
+
+对于继承的对象，构造函数在成员初始化列表中使用类名来调用特定的基类构造函数。对于成员对象，构造函数则使用成员名。例如，请看程序清单14.3的最后一个构造函数：
+
+```c++
+Student(const char* str, const double* pd, int n)
+	: name(str), scores(pd, n),  {}
+```
+
+因为该构造函数初始化的是成员对象，而不是继承的对象，所以在初始化列表中使用的是成员名，而不是类名。初始化列表中的每一项都调用与之匹配的构造函数，即name(str)调用构造函数string(const char *)，scores(pd, n)调用构造函数ArrayDb(const double *, int)。
+
+如果不使用初始化列表语法，情况将如何呢？C++要求在构建对象的其他部分之前，先构建继承对象的所有成员对象。因此，如果省略初始化列表，C++将使用成员对象所属类的默认构造函数。
+
+当初始化列表包含多个项目时，这些项目被初始化的顺序为它们被声明的顺序，而不是它们在初始化列表中的顺序。例如，假设Student构造函数如下：
+
+```c++
+Student(const char* str, const double* pd, int n)
+	: scores(pd, n), name(str) {}
+```
+
+则name成员仍将首先被初始化，因为在类定义中它首先被声明。对于这个例子来说，初始化顺序并不重要，但如果代码使用一个成员的值作为另一个成员的初始化表达式的一部分时，初始化顺序就非常重要了。
+
+## 14.2 私有继承
+
+使用公有继承，基类的公有方法将成为派生类的公有方法。总之，派生类将继承基类的接口；这是is-a关系的一部分。使用私有继承，基类的公有方法将成为派生类的私有方法。总之，派生类不继承基类的接口。正如从被包含对象中看到的，这种不完全继承是has-a关系的一部分。
+
+### 14.2.1 Student类示例（新版本）
+
+要进行私有继承，请使用关键字private而不是public来定义类（实际上，private是默认值，因此省略访问限定符也将导致私有继承）。Student类应从两个类派生而来，因此声明将列出这两个类：
+
+```c++
+class Student : private std::string, private std::valarray<double>
+{
+public:
+	...
+};
+```
+
+#### 1．初始化基类组件
+
+隐式地继承组件而不是成员对象将影响代码的编写，因为再也不能使用name和scores来描述对象了，而必须使用用于公有继承的技术。例如，对于构造函数，包含将使这样的构造函数：
+
+```c++
+Student(const char* str, const double* pd, int n)
+	: name(str), scores(pd, n) {}		// 使用成员名
+```
+
+对于继承类，新版本的构造函数将使用成员初始化列表语法，它使用类名而不是成员名来标识构造函数：
+
+```c++
+Student(const char* str, const double* pd, int n)
+	: std::string(str), ArrayDb(pd, n) {}	// 使用类名
+```
+
+在这里，ArrayDb是std::valarray<double>的别名。
+
+#### 2．访问基类的方法
+
+使用包含时将使用对象名来调用方法，而使用私有继承时将使用类名和作用域解析运算符来调用方法。
+
+```c++
+// 包含
+double Student::Average() const
+{
+	if (Scores.size() > 0)
+		return Scores.sum() / Scores.size();
+	else
+		return 0;
+}
+```
+
+```c++
+// 继承
+double Student::Average() const
+{
+	if (ArrayDb::size() > 0)
+		return ArrayDb::sum() / ArrayDb::size();
+	else
+		return 0;
+}
+```
+
+#### 3．访问基类对象
+
+使用作用域解析运算符可以访问基类的方法，但如果要使用基类对象本身，该如何做呢？
+
+答案是使用强制类型转换。由于Student类是从string类派生而来的，因此可以通过强制类型转换，将Student对象转换为string对象；结果为继承而来的string对象。本书前面介绍过，指针this指向用来调用方法的对象，因此*this为用来调用方法的对象，在这个例子中，为类型为Student的对象。为避免调用构造函数创建新的对象，可使用强制类型转换来创建一个引用：
+
+```c++
+const string& Student::Name() const
+{
+	return (const string&)*this;
+}
+```
+
+### 14.2.2 使用包含还是私有继承
+
+由于既可以使用包含，也可以使用私有继承来建立has-a关系，那么应使用种方式呢？大多数C++程序员倾向于使用包含。首先，它易于理解。类声明中包含表示被包含类的显式命名对象，代码可以通过名称引用这些对象，而使用继承将使关系更抽象。其次，继承会引起很多问题，尤其从多个基类继承时，可能必须处理很多问题，如包含同名方法的独立的基类或共享祖先的独立基类。总之，使用包含不太可能遇到这样的麻烦。另外，包含能够包括多个同类的子对象。如果某个类需要3个string对象，可以使用包含声明3个独立的string成员。而继承则只能使用一个这样的对象（当对象都没有名称时，将难以区分）。
+
+然而，私有继承所提供的特性确实比包含多。例如，假设类包含保护成员（可以是数据成员，也可以是成员函数），则这样的成员在派生类中是可用的，但在继承层次结构外是不可用的。如果使用组合将这样的类包含在另一个类中，则后者将不是派生类，而是位于继承层次结构之外，因此不能访问保护成员。但通过继承得到的将是派生类，因此它
+能够访问保护成员。
+
+另一种需要使用私有继承的情况是需要重新定义虚函数。派生类可以重新定义虚函数，但包含类不能。使用私有继承，重新定义的函数将只能在类中使用，而不是公有的。
+
+通常，应使用包含来建立has-a关系；如果新类需要访问原有类的保护成员，或需要重新定义虚函数，则应使用私有继承。
+
+### 14.2.3 保护继承
+
+保护继承是私有继承的变体。保护继承在列出基类时使用关键字protected：
+
+```c++
+class Student : protected std::string,
+				protected std::valarray<double>
+{...};
+```
+
+使用保护继承时，基类的公有成员和保护成员都将成为派生类的保护成员。和私有私有继承一样，基类的接口在派生类中也是可用的，但在继承层次结构之外是不可用的。当从派生类派生出另一个类时，私有继承和保护继承之间的主要区别便呈现出来了。使用私有继承时，第三代类将不能使用基类的接口，这是因为基类的公有方法在派生类中将变成私有方法；使用保护继承时，基类的公有方法在第二代中将变成受保护的，因此第三代派生类可以使用它们。
+
+表14.1总结了公有、私有和保护继承。隐式向上转换（implicit upcasting）意味着无需进行显式类型转换，就可以将基类指针或引用指向派生类对象。
+
+| 特征             | 公有继承             | 保护继承               | 私有继承             |
+| ---------------- | -------------------- | ---------------------- | -------------------- |
+| 公有成员变成     | 派生类的公有成员     | 派生类的保护成员       | 派生类的私有成员     |
+| 保护成员变成     | 派生类的保护成员     | 派生类的保护成员       | 派生类的私有成员     |
+| 私有成员变成     | 只能通过基类接口访问 | 只能通过基类接口访问   | 只能通过基类接口访问 |
+| 能否隐式向上转换 | 是                   | 是（但只能在派生类中） | 否                   |
+
+### 14.2.4 使用using重新定义访问权限
+
+假设要让基类的方法在派生类外面可用，方法之一是定义一个使用该基类方法的派生类方法。例如，假设希望Student类能够使用valarray类的sum( )方法，可以在Student类的声明中声明一个sum( )方法，然后像下面这样定义该方法：
+
+```c++
+double Student::sum() const		// public Student method
+{
+	return std::valarray<double>::sum();	// use privately-inherited method
+}
+```
+
+另一种方法是，将函数调用包装在另一个函数调用中，即使用一个using声明（就像名称空间那样）来指出派生类可以使用特定的基类成员，即使采用的是私有派生。例如，假设希望通过Student类能够使用valarray的方法min( )和max( )，可以在studenti.h的公有部分加入如下using声明：
+
+```c++
+class Student : private std::string, private std::valarray<double>
+{
+...
+public:
+	using std::valarray<double>::min;
+	using std::valarray<double>::max;
+}
+```
+
+上述using声明使得valarray<double>::min( )和valarray<double>::max( )可用，就像它们是Student的公有方法一
+样：
+
+```c++
+cout << "high score: " << ada[i].max() << endl;
+```
+
+注意，using声明只使用成员名——没有圆括号、函数特征标和返回类型。例如，为使Student类可以使用valarray的operator 方法，只需在Student类声明的公有部分包含下面的using声明：
+
+```c++
+using std::valarray<double>::operator[];
+```
+
+这将使两个版本（const和非const）都可用。
+
+## 14.3 多重继承
+
+MI描述的是有多个直接基类的类。与单继承一样，公有MI表示的也是is-a关系。例如，可以从Waiter类和Singer类派生出SingingWaiter类：
+
+```c++
+class SingingWaiter : public Waiter, public Singer {...};
+```
+
+请注意，必须使用关键字public来限定每一个基类。这是因为，除非特别指出，否则编译器将认为是私有派生：
+
+```c++
+class SingingWaiter : public Waiter, Singer {...};		// Singer is a private base
+```
+
+MI可能会给程序员带来很多新问题。其中两个主要的问题是：从两个不同的基类继承同名方法；从两个或更多相关基类那里继承同一个类的多个实例。为解决这些问题，需要使用一些新规则和不同的语法。因此，与使用单继承相比，使用MI更困难，也更容易出现问题。
+
+下面来看一个例子，并介绍有哪些问题以及如何解决它们。要使用MI，需要几个类。我们将定义一个抽象基类Worker，并使用它派生出Waiter类和Singer类。然后，便可以使用MI从Waiter类和Singer类派生出SingingWaiter类（参见图14.3）。这里使用两个独立的派生来使基类（Worker）被继承，这将导致MI的大多数麻烦。
+
+![image-20230205220431314](D:\git\note_md_files\images\image-20230205220431314.png)
+
+这种设计看起来是可行的：使用Waiter指针来调用Waiter::Show()和Waiter::Set( )；使用Singer指针来调用Singer::Show( )和Singer::Set( )。然后，如果添加一个从Singer和Waiter类派生出的SingingWaiter类后，将带来一些问题。具体地说，将出现以下问题。
+
+- 有多少Worker？
+- 哪个方法？
+
+### 14.3.1 有多少Worker
+
+假设首先从Singer和Waiter公有派生出SingingWaiter：
+
+```c++
+class SingWaiter : public Singer, public Waiter {...};
+```
+
+因为Singer和Waiter都继承了一个Worker组件，因此SingingWaiter将包含两个Worker组件（参见图14.4）。
+
+正如预期的，这将引起问题。例如，通常可以将派生类对象的地址赋给基类指针，但现在将出现二义性：
+
+```c++
+SingingWaiter ed;
+Worker* pw = &ed;	// 二义性
+```
+
+通常，这种赋值将把基类指针设置为派生对象中的基类对象的地址。但ed中包含两个Worker对象，有两个地址可供选择，所以应使用类型转换来指定对象：
+
+```c++
+Worker* pw1 = (Waiter *) &ed;	// the Worker in Waiter
+Worker* pw2 = (Singer *) &ed;	// the Worker in Singer
+```
+
+![image-20230205220820329](D:\git\note_md_files\images\image-20230205220820329.png)
+
+#### 1．虚基类
+
+虚基类使得从多个类（它们的基类相同）派生出的对象只继承一个基类对象。例如，通过在类声明中使用关键字virtual，可以使Worker被用作Singer和Waiter的虚基类（virtual和public的次序无关紧要）
+
+```c++
+class Singer : virtual public Worker {...}
+class Woiter : public virtual Worker {...}
+```
+
+然后，可以将SingingWaiter类定义为：
+
+```c++
+class SingingWaiter : public Singer, public Waiter {...};
+```
+
+现在，SingingWaiter对象将只包含Worker对象的一个副本。从本质上说，继承的Singer和Waiter对象共享一个Worker对象，而不是各自引入自己的Worker对象副本（请参见下图）。因为SingingWaiter现在只包含了一个Worker子对象，所以可以使用多态。
+
+![image-20230205221058156](D:\git\note_md_files\images\image-20230205221058156.png)
+
+#### 2．新的构造函数规则
+
+使用虚基类时，需要对类构造函数采用一种新的方法。对于非虚基类，唯一可以出现在初始化列表中的构造函数是即时基类构造函数。但这些构造函数可能需要将信息传递给其基类。例如，可能有下面一组构造函数：
+
+```c++
+class A
+{
+	int a;
+public:
+	A (int n = 0) {a = n;}
+	...
+};
+
+class B : public A
+{
+	int b;
+public:
+	B(int m = 0, int n = 0) : A(n) {b = m;}
+	...
+};
+
+class C : public B
+{
+	int c;
+public:
+	C(int q = 0, int m = 0, int n = 0) : B(m, n) {c = q;}
+	...
+};
+```
+
+C类的构造函数只能调用B类的构造函数，而B类的构造函数只能调用A类的构造函数。这里，C类的构造函数使用值q，并将值m和n传递给B类的构造函数；而B类的构造函数使用值m，并将值n传递给A类的构造函数。
+
+如果Worker是虚基类，则这种信息自动传递将不起作用。例如，对于下面的MI构造函数：
+
+```c++
+SingingWaiter(const Worker & wk, int p = 0, int v = Singer::other)
+		: Waiter(wk, p), Singer(wk, v) {} 	//有缺陷的
+```
+
+存在的问题是，自动传递信息时，将通过2条不同的途径（Waiter和 Singer）将wk传递给Worker对象。为避免这种冲突，C++在基类是虚拟的时，禁止信息通过中间类自动传递给基类。因此，上述构造函数将初始化成员panache和 voice，但wk参数中的信息将不会传递给子对象Waiter。不过，编译器必须在构造派生对象之前构造基类对象组件；在上述情况下，编译器将使用Worker 的默认构造函数。
+
+如果不希望默认构造函数来构造虚基类对象，则需要显式地调用所需的基类构造函数。因此，构造函数应该是这样：
+
+```c++
+SingingWaiter(const Worker & wk, int p = 0, int v = Singer::other)
+		: Worker(wk), Waiter(wk, p), Singer(wk, v) {}
+```
+
+上述代码将显式地调用构造函数worker ( const Worker &)。请注意，这种用法是合法的，对于虚基类，必须这样做；但对于非虚基类，则是非法的。
+
+### 14.3.2 哪个方法
+
+除了修改类构造函数规则外，Ml通常还要求调整其他代码。假设要在SingingWaiter类中扩展Show()方法。因为SingingWaiter对象没有新的数据成员，所以可能会认为它只需使用继承的方法即可。这引出了第一个问题。假设没有在SingingWaiter类中重新定义Show()方法，并试图使用SingingWaiter对象调用继承的 Show()方法：
+
+```c++
+SingingWaiter newhire ("Elise Hawks", 2005, 6, soprano);
+newhire.Show(); 		//有歧义的
+```
+
+对于单继承，如果没有重新定义Show()，则将使用最近祖先中的定义。而在多重继承中，每个直接祖先都有一个 Show()函数，这使得上述调用是二义性的。
+
+可以使用作用域解析操作符来澄清编程者的意图：
+
+```c++
+SingingWaiter newhire ("Elise Hawks", 2005, 6, soprano);
+newhire.Singer::Show(); //使用Singer的
+```
+
+不过，更好的方法是在. SingingWaiter中重新定义Show()，并指出要使用哪个Show()。例如，如果希望SingingWaiter对象使用Singer 版本的 Show()，则可以这样做：
+
+```c++
+void SingingWaiter::Show() 
+{
+	Singer::Show();
+}
+```
+
+对于单继承来说，让派生方法调用基类的方法是可以的。例如，假设HeadWaiter类是从Waiter类派生而来的，则可以使用下面的定义序列，其中每个派生类使用其基类显示信息，并添加自己的信息：
+
+```c++
+void Worker::Show() const
+{
+	cout << "Name: " << fullname << endl;
+	cout << "Employee ID: " << id << endl;
+}
+
+void Waiter::Show() const
+{
+	Worker::Show();
+	cout << "Panache rating: " << panache << "\n";
+}
+
+void HeadWaiter::Show() const
+{
+	Waiter::Show();
+	cout << "Presence rating: " << presence << "\n";
+}
+```
+
+不过，这种递增的方式对SingingWaiter范例无效。方法：
+
+```c++
+void SingingWaiter::Show()
+{
+	Singer::Show();
+}
+```
+
+可以通过同时调用Waiter版本的Show()来补救：
+
+```c++
+void SingingWaiter::Show()
+{
+	Singer::Show();
+	Waiter::Show();
+}
+```
+
+这将显示姓名和 ID两次，因为 Singer::Show()和 Waiter::Show()都调用了Worker::Show()。
+
+如何解决呢?一种办法是使用模块化方式，而不是递增方式，即提供一个只显示Worker组件的方法和一个只显示Waiter组件或Singer组件（而不是Waiter和 Worker组件〉的方法。然后，在SingingWaiter::Show()方法中将组件组合起来。例如，可以这样做：
+
+```c++
+void Worker::Data() const
+{
+	cout << "Name: " << fullname << endl;
+	cout << "Employee ID: " << id << endl;
+}
+
+void Waiter::Data() const
+{
+	cout << "Panache rating: " << panache << endl;
+}
+
+void Singer::Data() const
+{
+	cout << "Vocal range: " << pv[voice] << endl;
+}
+
+void SingingWaiter::Show() const
+{
+	cout << "Category: singing waiter\n";
+	Worker::Data();
+	Data();
+}
+```
+
+另一种办法是将所有的数据组件都设置为保护的，而不是私有的，不过使用保护方法（而不是保护数据）将可以更严格地控制对数据的访问。
+
+下面介绍其他一些有关MI的问题。
+
+#### 1．混合使用虚类和非虚基类
+
+再来看一下通过多种途径继承一个基类的派生类的情况。如果基类是虚基类，派生类将包含基类的一个子对象；如果基类不是虚基类，派生类将包含多个子对象。当虚基类和非虚基类混合时，情况将如何呢？例如，假设类B被用作类C和D的虚基类，同时被用作类X和Y的非虚基类，而类M是从C、D、X和Y派生而来的。在这种情况下，类M从虚派生祖先（即类C和D）那里共继承了一个B类子对象，并从每一个非虚派生祖先（即类X和Y）分别继承了一个B类子对象。因此，它包含三个B类子对象。当类通过多条虚途径和非虚途径继承某个特定的基类时，该类将包含一个表示所有的虚途径的基类子对象和分别表示各条非虚途径的多个基类子对象。
+
+#### 2．虚基类和支配
+
+使用虚基类将改变C++解析二义性的方式。使用非虚基类时，规则很简单。如果类从不同的类那里继承了两个或更多的同名成员(数据或方法)，则使用该成员名时，如果没有用类名进行限定，将导致二义性。但如果使用的是虚基类，则这样做不一定会导致二义性。在这种情况下，如果某个名称优先于(dominates )其他所有名称，则使用它时，即便不使用限定符，也不会导致二义性。
+
+那么，一个成员名如何优先于另一个成员名呢？派生类中的名称优先于直接或间接祖先类中的相同名称。例如，在下面的定义中：
+
+```c++
+class B
+{
+public:
+	short q();
+	...
+};
+
+class C : virtual public A
+{
+public:
+	long q();
+	int omb()
+	...
+};
+
+class D : public C
+{
+	...
+};
+
+class E: virtual public B
+{
+private:
+	int omb()
+	...
+};
+
+class F : public D, public E
+{
+	...
+};
+```
+
+类C中的q()定义优先于类B中的q()定义，因为类C是从类B派生而来的。因此，F中的方法可以使用q()来表示C::q()。而任何一个omb()定义都不优先于其他omb()定义，因为C和E都不是对方的基类。所以，在F中使用非限定的omb()将导致二义性。
+
+虚拟二义性规则与访问规则无关，也就是说，即使E::omb()是私有的，不能在F类中直接访问，但使用omb()仍将导致二义性。同样，即使C::q()是私有的，它也将优先于D::q()。在这种情况下，可以在类F中调用B::q()，但如果不限定q()，则将意味着要调用不可访问的C::q()。
 
 
 
