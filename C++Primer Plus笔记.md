@@ -1536,7 +1536,351 @@ while(*str)				// quit when *str is '\0'
 
 ## 7.10 函数指针
 
-这段内容直接看原书。
+如果未提到函数指针，则对C或C++函数的讨论将是不完整的。我们将大致介绍一下这个主题，将完整的介绍留给更高级的图书。
+
+与数据项相似，函数也有地址。函数的地址是存储其机器语言代码的内存的开始地址。通常，这些地址对用户而言，既不重要，也没有什么用处，但对程序而言，却很有用。例如，可以编写将另一个函数的地址作为参数的函数。这样第一个函数将能够找到第二个函数，并运行它。与直接调用另一个函数相比，这种方法很笨拙，但它允许在不同的时间传递不同函数的地址，这意味着可以在不同的时间使用不同的函数。
+
+### 7.10.1 函数指针的基础知识
+
+首先通过一个例子来阐释这一过程。假设要设计一个名为estimate()的函数，估算编写指定行数的代码所需的时间，并且希望不同的程序员都将使用该函数。对于所有的用户来说，estimate()中的一部分代码都是相同的，但该函数允许每个程序员提供自己的算法来估算时间。为实现这种目标，采用的机制是，将程序员要使用的算法函数的地址传递给estimate()。为此，必须能够完成下面的工作：
+
+- 获取函数的地址；
+- 声明一个函数指针；
+- 使用函数指针来调用函数。
+
+#### 1．获取函数的地址
+
+获取函数的地址很简单：只要使用函数名（后面不跟参数）即可。也就是说，如果think()是一个函数，则think就是该函数的地址。要将函数作为参数进行传递，必须传递函数名。一定要区分传递的是函数的地址还是函数的返回值：
+
+```c++
+process(think); //passes address of think() to process()
+thought(think()); //passes return value of think() to thought()
+```
+
+process()调用是的process()函数能够在其内部调用think()函数。thought()调用首先调用think()函数，然后将think()的返回值传递给thought()函数。
+
+#### 2．声明函数指针
+
+声明指向某种数据类型的指针时，必须指定指针指向的类型。同样，声明指向函数的指针时，也必须指定指针指向的函数类型。这意味着声明应指定函数的返回类型以及函数的特征标（参数列表）。也就是说，声明应像函数原型那样指出有关函数的信息。例如，假设 Pam leCoder 编写了一个估算时间的函数，其原型如下：
+
+```C++
+double pam(int);    // prototype
+```
+
+则正确的指针类型声明如下：
+
+```C++
+double (*pf)(int);      // pf points to a function that
+                        // takes one int argument and that
+                        // returns type double
+```
+
+这与`pam()`声明类似，这是将`pam`替换为了`(*pf)`。由于`pam`是函数，因此`(*pf)`也是函数。而如果`(*pf)`是函数，则`pf`就是函数指针。
+
+**提示**：通常，要声明指向特定类型的函数指针，可以首先编写这种函数的原型，然后用`(*pf)`替换函数名。这样`pf`就是这类函数的指针。
+
+为提供正确的运算符优先级，必须在声明中使用括号将`*pf`括起。括号的优先级比`*`运算符高，因此`*pf(int)`意味着`pf()`是一个返回指针的函数，而`(*pf)(int)`意味着`pf`是一个指向函数的指针：
+
+```C++
+double (*pf)(int);      // pf points to a function that returns double
+double *pf(int);        // pf() a function that returns a pointer-to-double
+```
+
+正确地声明`pf`后，便可将相应函数的地址赋给它：
+
+```C++
+double pam(int);
+double (*pf)(int);
+pf = pam;           // pf now points to the pam() function
+```
+
+注意：`pam()`的特征标和返回类型必须与`pf`相同。
+假设要将将要编写的代码行数和估算算法（如`pam()`函数）的地址传递给`estimate()`，则其原型将如下：
+
+```C++
+void estimate(int lines, double (*pf)(int));
+```
+
+上述声明指出，第二个参数是一个函数指针，它指向的函数接受一个`int`参数，并返回一个`double`值。要让`estimate()`使用`pam()`函数，需要将`pam()`的地址传递给它：
+
+```C++
+eatimate(50, pam);      // function call telling estimate() to use pam()
+```
+
+显然，使用函数指针时，比较棘手的是编写原型，而传递地址则非常简单。
+
+#### 3．使用指针来调用函数
+
+现在进入最后一步，即使用指针来调用被指向的函数。线索来自指针声明。`(*pf)`扮演的角色与函数名相同，因此使用`(*pf)`时，只需将它看作函数名即可：
+
+```C++
+double pam(int);
+double (*pf)(int);
+pf = pam;               // pf now points to the pam() function
+double x = pam(4);      // call pam() using the function name
+double y = (*pf)(5)     // call pam() using the pointer pf
+double y = pf(5)        // also call pam() using the pointer pf
+```
+
+实际上，C++ 也允许像使用函数名那样使用`pf`，第一种格式虽然不太好看，但它给出了强有力的提示——代码正在使用函数指针。
+
+**历史与逻辑** 为何`pf`和`(*pf)`等价呢？一种学派认为，由于`pf`是函数指针，而`*pf`是函数，因此应将`(*pf)()`用作函数调用。另一种党派认为，由于函数名是指向该函数的指针，指向函数的指针的行为应与函数名相似，因此应将`pf()`用作函数调用。C++ 进行了折衷——两种方式者是正确的，或者至少是允许的，虽然它们在逻辑上是互相冲突的。
+
+### 7.10.2 函数指针示例
+
+程序清单7.18演示了如何使用函数指针。它两次调用estimate( )函数，一次传递betsy( )函数的地址，另一次则传递pam( )函数的地址。在第一种情况下，estimate( )使用betsy( )计算所需的小时数；在第二种情况下，estimate( )使用pam( )进行计算。这种设计有助于今后的程序开发。当Ralph为估算时间而开发自己的算法时，将不需要重新编写estimate( )。相反，他只需提供自己的ralph( )函数，并确保该函数的特征标和返回类型正确即可。当然，重新编写estimate( )也并不是一件非常困难的工作，但同样的原则也适用于更复杂的代码。另外，函数指针方式使得Ralph能够修改estimate( )的行为，虽然他接触不到estimate( )的源代码。
+
+```c++
+#include <iostream>
+using namespace std;
+double betsy(int);
+double pam(int);
+
+void estimate(int lines, double (*pf)(int));
+
+int main()
+{
+	int code;
+	cout << "How many lines of code do you need? ";
+	cin >> code;
+	cout << "Here's Besty's estimate:\n";
+	estimate(code, betsy);
+	cout << "Here's Pam's estimate:\n";
+	estimate(code, pam);
+
+	system("pause");
+	return 0;
+}
+
+double betsy(int lns)
+{
+	return 0.05 * lns;
+}
+
+double pam(int lns)
+{
+	return 0.03 * lns + 0.0004 * lns * lns;
+}
+
+void estimate(int lines, double (*pf)(int))
+{
+	cout << lines << " lines will take ";
+	cout << (*pf)(lines) << " hour(s)\n";
+
+	// 如下写法也是合理的
+	//cout << (*pf)(lines) << " hour(s)\n";
+}
+```
+
+### 7.10.3 深入探讨函数指针
+
+下面是一些函数的原型，它们的特征标和返回类型相同：
+
+```C++
+const double * f1(const double ar[], int n);
+const double * f2(const double [], int);
+const double * f3(const double *, int);
+```
+
+接下来，假设要声明一个指针，它可指向这三个函数之一。假定该指针名为`pa`，则只需将目标函数原型中的函数名替换为`(*pa)`：
+
+```C++
+const double (*p1)(const double *, int);
+```
+
+可在声明的同时进行初始化：
+
+```C++
+const double (*p1)(const double *, int) = f1;
+```
+
+使用C++11 的自动类型推断功能时，代码要简单得多：
+
+```C++
+auto p2 = f2;       // C++11 automatic type deduction
+```
+
+现在看下面的语句：
+
+```C++
+cout << (*p1)(av,3) << ": " << *(*p1)(av,3) << endl;
+cout << p2(av,3) << ": " << *p2(av,3) << endl;
+```
+
+`(*p1)(av,3)`和`p2(av,3)`都调用指向的函数（这里是`f1()`和`f2()`），因此，显示的是这两个函数的返回值，返回值的类型是`const double *`（即`double`值的地址），因此前半部分显示的都是一个`double`值的地址，为查看存储在这些地址的实际值，需要将运算符`*`应用于这些地址，如表达式`*(*p1)(av,3`和`*p2(av,3)`所示。
+鉴于需要使用三个函数，如果有一个函数指针数组将很方便，这样，就可以使用`for`循环通过指针依次调用每个函数。如何声明这样的数组呢？显然，这种声明应类似于单个函数指针的声明，但必须在某个地方加上`[3]`，以指出这是一个包含三个函数指针的数组。问题是在什么地方加上`[3]`，答案如下（包含初始化）：
+
+```C++
+const double * (*pa[3])(const double *, int) = {f1, f2, f3};
+```
+
+为什么将`[3]`放在这个地方呢？`pa`是一个包含三个元素的数组，而要声明这样的数组，首先要声明`pa[3]`。该声明的的其他部分指出了数组包含的元素是什么样的。运算符`[]`的优先级高于`*`，因此`*pa[3]`表明`pa`是一个包含三个指针的数组。上述声明的其他部分指出了每个指针指向的是什么：特征标为`const double *, int`，且返回类型为`const double *`的函数。因此，`pa`是一个包含三个指针的数组，其中每个指针都指向这样的函数，即将`const double *, int`作为参数，并返回一个`const double *`。
+这里能否使用`auto`呢？不能。自动类型推断只能用于单值初始化，而不能用于初始化列表。但声明`pa`后，声明同样类型的数组就很简单了：
+
+```C++
+auto pb = pa;
+```
+
+数组名是指向第一个元素的指针，因此`pa`和`pb`都是指向函数指针的指针。
+如何使用它们来调用函数呢？`pa[i]`和`pb[i]`都表示数组中的指针，因此可将任何一种函数调用的表示法用于它们：
+
+```C++
+const double * px = pa[0](av,3);
+const double * py = (*pb[1])(av,3);
+```
+
+要获得指向的`double`值，可以使用运算符`*`：
+
+```C++
+double x = *pa[0](av,3);
+double y = *(*pb[1])(av,3);
+```
+
+可做的另一件事是创建指向整个数组的指针。由于数组名`pa`是指向函数指针的指针，因此指向数组的指针将是这样的指针，即它指向指针的指针。由于可使用单个值对其进行初始化，因此可以使用`auto`：
+
+```C++
+auto pc = &pa;      // C++11 atuomatic type deduction
+```
+
+如果声明该怎么办？显然，这种声明应类似于`pa`的声明，但由于增加了一层间接，因此需要在某个地方添加一个`*`。具体地说，如果这个指针名为`pd`，则需要指出它是一个指针，而不是数组。这意味着声明的核心部分应为`(*pd)[3]`，其中的括号让标识符`pd`和`*`先结合：
+
+```C++
+*pd[3]      // an array of 3 pointers
+(*pd)[3]    // a pointer to an array of 3 elements
+```
+
+换名话说，`pd`是一个指针，它指向一个包含三个元素的数组。这些元素是什么呢？由`pa`的声明的其他部分描述，结果如下：
+
+```C++
+const double * (*(*pd)[3])(const double *, int) = &pa;
+```
+
+要调用函数，需认识到这样一点：既然`pd`指向数组，那么`*pd`就是数组，而`(*pd)[i]`是数组中的元素，即函数指针。因此，较简单的函数调用是`(*pd)[i](av,3)`，而`*(*pd)[i](av,3)`是返回的指针指向的值。也可以使用第二种使用指针调用函数的语法：使用`(*(*pd)[i])(av,3)`来调用函数，而`*(*(*pd)[i])(av,3)`是指向的`double`值。
+请注意`pa`（它是数组名，表示地址）和`&pa`之间的差别。在大多数情况下，`pa`都是数组第一个元素的地址，即`&pa[0]`。因此，它是单个指针的地址。但`&pa`是整个数组（即三个指针块）的地址。从数字上说，`pa`和`&pa`的值相同，但它们的类型不同。一种差别是，`pa+1`为数组中下一个元素的地址，而`&pa+1`为数组`pa`后面一个数组长度内存块的地址。另一个差别是，要得到第一个元素的值，只需对`pa`解除一次引用，但需要对`&pa`解除两次引用：
+
+```C++
+**&pa == *pa == pa[0]
+```
+
+程序清单7.19 arfupt.cpp
+
+```C++
+// arfupt.cpp -- an array of function pointers
+#include <iostream>
+// various notations, same signatures
+const double * f1(const double ar[], int n);
+const double * f2(const double [], int);
+const double * f3(const double *, int);
+ 
+int main()
+{
+    using namespace std;
+    double av[3] = {1112.3, 1542.6, 2227.9};
+    
+    // pointer to a function
+    const double * (*p1)(const double *, int) = f1;
+    auto p2 = f2;
+    // pre-C++ can use the following code instead
+    // const double *(*p2)(const double *, int) = f2;
+    cout << "Using pointers to functions:\n";
+    cout << " Address Value\n";
+    cout << (*p1)(av,3) << ": " << *(*p1)(av,3) << endl;
+    cout << p2(av,3) << ": " << *p2(av,3) << endl;
+    
+    // pa an array of pointers
+    // auto doesn't work with list initialization
+    const double * (*pa[3])(const double *, int) = {f1, f2, f3};
+    // but it does work for initializing to a single value
+    // pb a pointer to first dlement of pa
+    auto pb = pa;
+    // pre-C++11 can use the following code instead
+    // const double *(**pb)(const double *, int) = pa; 
+    cout << "\nUsing an array of pointers to functions:\n";
+    cout << " Address Value\n";
+    for (int i = 0; i < 3; i++)
+        cout << pa[i](av,3) << ": " << *pa[i](av,3) << endl;
+    cout << "\nUsing a pointer to a pointer to a function:\n";
+    cout << " Address Value\n";
+    for (int i = 0; i < 3; i++)
+        cout << pb[i](av,3) << ": " << *pb[i](av,3) << endl;
+        
+    // what about a pointer to an array of function pointers
+    cout << "\nUsing pointers to an array of pointers:\n";
+    cout << " Address Value\n";
+    // easy way to declare pc
+    auto pc = &pa;
+    // pre-C++11 cna use the following code instead
+    // const double * (*(*pc)[3])(const double *, int) = &pa;
+    cout << (*pc)[0](av,3) << ": " << *(*pc)[0](av,3) << endl;
+    // hard way to declard pd
+    const double *(*(*pd)[3])(const double *, int) = &pa;
+    // store return value in pdb
+    const double * pdb = (*pd)[1](av,3);
+    cout << pdb << ": " << *pdb << endl;
+    // alternative notation
+    cout << (*(*pd)[2])(av,3) << ": " << *(*(*pd)[2])(av,3) << endl;
+    return 0;
+}
+
+// some rather dull functions
+
+const double * f1(const double * ar, int n)
+{
+    return ar;
+}
+
+const double * f2(const double ar[], int n)
+{
+    return ar+1;
+}
+
+const double * f3(const double ar[], int n)
+{
+    return ar+2;
+}
+```
+
+显示的地址为数组`av`中`double`值的存储位置。
+
+**感谢 auto**：C++11 的目标之一是让 C++ 更容易使用，从而让程序员将主要精力放在设计而不是细节上。自动类型推断演示了这一点。
+
+```C++
+auto pc = &pa;                                  // C++11 automatic type deduction
+const double * (*(*pc)[3])(const double *, int) = &pa; // C++98, do it yourself
+```
+
+自动类型推断功能表明，编译器的角色发生了改变。在 C++98 中，编译器利用其知识帮助您发现错误，而在 C++11 中，编译器利用其知识帮助您进行正确的声明。
+存在一个潜在的缺点。自动类型推断确保变量的类型与赋给它的初值类型一致，但您提供的初值的类型可能不对：
+
+```C++
+auto pc = *pc;      //oops! used *pa instead of &pa
+```
+
+上述声明导致`pc`的类型与`*pa`一致，后面使用它时假定其类型与`&pa`相同，这将导致编译错误。
+
+### 7.10.4 使用typedef进行简化
+
+除`auto`外，C++ 还提供了其他简化声明的工具。关键字`typedef`可以创建类型别名：
+
+```C++
+typedef const real;     // makes real another name for double
+```
+
+这里采用的方法是，将别名当做标识符进行声明，并在开关使用关键字`typedef`。因此，可将`p_fun`声明为函数指针类型的别名：
+
+```C++
+typedef const double * (*p_fun)(const double *, int);   // p_fun now a type name
+p_fun p1 = f1;      // p1 points to the f1() function
+```
+
+然后使用这个别名来简化代码：
+
+```C++
+p_fun pa[3] = {f1, f2, f3};     // pa an array of 3 funtion pointers
+p_fun (*pd)[3] = &pa;           // pd points to an array of 3 function pointers
+```
+
+使用`typedef`可减少输入量，让您编写代码时不容易犯错，并让程序更容易理解。
 
 # 第8章 函数探幽
 
@@ -6215,6 +6559,873 @@ class F : public D, public E
 类C中的q()定义优先于类B中的q()定义，因为类C是从类B派生而来的。因此，F中的方法可以使用q()来表示C::q()。而任何一个omb()定义都不优先于其他omb()定义，因为C和E都不是对方的基类。所以，在F中使用非限定的omb()将导致二义性。
 
 虚拟二义性规则与访问规则无关，也就是说，即使E::omb()是私有的，不能在F类中直接访问，但使用omb()仍将导致二义性。同样，即使C::q()是私有的，它也将优先于D::q()。在这种情况下，可以在类F中调用B::q()，但如果不限定q()，则将意味着要调用不可访问的C::q()。
+
+## 14.4 类模板
+
+### 14.4.1 定义类模板
+
+以第10章的 Stack 类为基础来建立模板。原来的类声明如下：
+
+```c++
+typedef unsigned long Item;
+
+class Stack{
+private:
+	enum {MAX=10};		// constant specific to class
+	Item items[MAX];		// holds stack items
+	int top;						// index for top stakc item
+public:
+	Stack();
+	bool isemtpy() const;
+	bool isfull() const;
+	// push() returns fasle if stack already is full, true otherwise
+	bool push(const Item & item);		// add item to stack
+	// pop() returns false if stack already is empty, true otherwise
+	bool pop(Item & item);		// pop top into item
+};
+```
+
+采用模板时，将使用模板定义替换 Stack 声明，使用模板成员函数替换 Stack 的成员函数。和模板函数一样，模板类以下面这样的代码开头：
+
+```c++
+template < class Type>
+```
+
+关键字 template 告诉编译器，将要定义一个模板。尖括号中的内容相当于函数的参数列表。
+
+较新的C++实现允许在这种情况下使用不太容易混淆的关键字typename代替class：
+
+```c++
+template<typename Type>	// newer choice
+```
+
+下面的程序列出了类模板和成员函数模板。知道这些模板不是类和成员函数定义至关重要。它们是 C++ 编译器指令，说明了如何生成类和成员函数定义。模板的具体实现——如用来处理 string 对象的栈类——被称为实例化（instantiation）或具体化（specialization）。不能将模板成员函数放在独立的实现文件中（以前，C++标准确实提供了关键字 export，让您能够将模板成员函数放在独立的实现文件中，但支持该关键字的编译器不多；C++11不再这样使用关键字export，而将其保留用于其他用途）。由于模板不是函数，它们不能单独编译。模板必须与特定的模板实例化请求一起使用。为此，最简单的方法是将所有模板信息放在一个头文件中，并在要使用这些模板的文件中包含该头文件。
+
+```c++
+// stacktp.h -- a stack template
+#ifndef STACKTP_H_
+#define STACKTP_H_
+
+template<class Type>
+class Stack{
+private:
+    enum {MAX = 10};    // constant specific to class
+    Type items[MAX];    // holds stack items
+    int top;            // index for top stack item
+public:
+    Stack();
+    bool isempty();
+    bool isfull();
+    bool push(const Type & item);   // add item to stack
+    bool pop(Type & item);          // pop top into item
+};
+
+template<class Type>
+Stack<Type>::Stack(){
+    top = 0;
+}
+
+template<class Type>
+bool Stack<Type>::isempty(){
+    return top == 0;
+}
+
+template<class Type>
+bool Stack<Type>::isfull(){
+    return top==MAX;
+}
+
+template<class Type>
+bool Stack<Type>::push(const Type & item){
+    if(top<MAX){
+        items[top++] = item;
+        return true;
+    }
+    else{
+        return false;
+    }
+}
+
+template<class Type>
+bool Stack<Type>::pop(Type & item){
+    if (top > 0){
+        item = items[--top];
+        return true;
+    }
+    else{
+        return false;
+    }
+}
+#endif
+```
+
+### 14.4.2 使用模板类
+
+仅在程序包含模板模板不能生成模板类，而必须请求实例化。为此，需要声明一个类型为模板类的对象，方法是使用所需的具体类型替换泛型名。例如，下面的代码创建两个栈，一个用于存储 int，另一个用于存储 string 对象:
+
+```c++
+Stack<int> kernels;				// create a stack of ints
+Stack<string> colonels;			// create a stack of string objects
+```
+
+注意，必须显式地提供所需的类型，这与常规的函数模板是不同的，因为编译器可以根据函数的参数类型来确定要生成哪种函数：
+
+```c++
+template<class T>
+void simple(T t) { cout << t << '\n'; }
+...
+simple(s);		// generate void simple(int)
+simple("two")	// generate void simple(const char *)
+```
+
+### 14.4.4 数组模板示例和非类型参数
+
+首先介绍一个允许指定数组大小的简单数组模板。一种方法是在类中使用动态数组和构造函数参数来提供元素数目，最后一个版本的 Stack 模板采用的就是这种方法。另一种方法是使用模板参数来提供常规数组的大小，C++11 新增的模板 array 就是这样做的。下面的程序演示了如何做。
+
+```c++
+// arraytp.h --  Array Template
+#ifndef ARRAYTP_H_
+#define ARRAYTP_H_
+
+#include<iostream>
+#include<cstdlib>
+
+template <class T, int n>
+class ArrayTP{
+private:
+    T ar[n];
+public:
+    ArrayTP() {};
+    explicit ArrayTP(const T & v);
+    virtual T & operator[](int i);
+    virtual T operator[](int i) const;
+};
+
+template <class T, int n>
+ArrayTP<T,n>::ArrayTP(const T & v){
+    for (int i = 0; i < n; i++){
+        ar[i] = v;
+    }
+}
+
+template <class T, int n>
+T & ArrayTP<T,n>::operator[](int i){
+    if (i < 0 || i >= n){
+        std::cerr << "Error in array limits: " << i
+            << " is out of range\n";
+        std::exit(EXIT_FAILURE);
+    }
+    return ar[i];
+}
+
+template <class T, int n>
+T ArrayTP<T,n>::operator[](int i) const{
+    if (i < 0 || i >= n){
+        std::cerr << "Error in array limits: " << i
+            << " is out of range\n";
+    }
+    return ar[i];
+}
+#endif
+```
+
+请注意以上程序的模板头：
+
+```c++
+template<class T, int n>
+```
+
+关键字 class（或在这种上下文中等价的关键字 typename）指出 T 为类型参数，int 指出 n 的类型为 int。这种参数（指定特殊的类型而不是用作泛型名）称为非类型（non-type）或表达式（expression）参数。假设有下面的声明：
+
+```c++
+ArrayTP<double, 12> egweights;
+```
+
+这将导致编译器定义名为 ArrayTP<double,12>的类，并创建一个类型为 ArrayTP<double, 12> 的 eggweight 对象。定义类时，编译器将使用 double 替换 T，使用12替换n。
+
+表达式参数有一些限制。表达式参数可以是整型、枚举、引用或指针。因此，double m 是不合法的。但 double * rm 和 double *pm 是合法的。另外，模板代码不能修改参数的值，也不能使用参数的地址。所以，在 ArrayTP 模板中不能使用诸如 n++ 和 &n 等表达式。另外，实例化模板时，用作表达式参数的值必须是常量表达式。
+
+与 Stack 中使用的构造函数方法相比，这种改变数组大小的方法有一个优点。构造函数方法使用的是通过 new 和 delete 管理的堆内存，而表达式参数方法使用的是为自动变量维护的内存栈。这样，执行速度将更快，尤其是在使用了很多小型数组时。
+
+表达式参数方法的主要缺点是，每种数组大小都将生成自己的模板。也就是说，下面的声明将生成两个独立的类声明：
+
+```c++
+ArrayTP<double, 12> eggweights;
+ArrayTP<double, 13> donuts;
+```
+
+但下面的声明只生成一个类声明，并将数组大小信息传递给类的构造函数：
+
+```c++
+Stack<int> eggs(12);
+Stack<int> dunkers(13);
+```
+
+另一个区别是，构造函数方法更通用，这是因为数组大小是作为类成员（而不是硬编码）存储在定义中的。这样可以将一种尺寸的数组赋给另一种尺寸的数组，也可以创建允许数组大小可变的类。
+
+### 14.4.5 模板多功能性
+
+#### 1．递归使用模板
+
+一个模板多功能性的例子是，可以递归使用模板。例如，对于前面的数组模板定义，可以这样使用它：
+
+```c++
+ArrayTP< ArrayTP<int,5>, 10> twodee;
+```
+
+这使得 twodee 是一个包含 10 个元素的数组，其中每个元素都是一个包含5个int元素的数组.与之等价的常规数组声明如下：
+
+```c++
+int twodee[10][5];
+```
+
+#### 3．默认类型模板参数
+
+类模板的另一项新特性是，可以为参数提供默认值：
+
+```c++
+template <class T1, class T2 = int> class Topo { ... };
+```
+
+这样，如果省略 T2 的值，编译器将使用 int:
+
+```c++
+Topo<double, double> m1;		// T1 is double, T2 is double
+Topo<double>m2;					// T1 is double, T2 is int
+```
+
+第 16 章将讨论的标准模板库经常使用该特性，将默认类型设置为类。
+
+虽然可以为类模板类型参数提供默认值，但不能为函数模板参数提供默认值。然而，可以为非类型参数提供默认值，这对于类模板和函数模板都是适用的。
+
+### 14.4.6 模板的具体化
+
+类模板与函数模板很相似，因为可以有隐式实例化、显式实例化和显式具体化，它们统称为具体化（specialization）。模板以泛型的方式描述类，而具体化是使用具体的类型生成类声明。
+
+#### 1．隐式实例化
+
+到目前为止，本章所有的模板示例使用的都是隐式实例化（implicit instantiation），即它们声明一个或多个对象，指出所需的类型，而编译器使用通用模板提供的处方生成具体的类定义：
+
+```c++
+ArrayTP<int, 100> stuff;		// implicit instantiation
+```
+
+编译器在需要对象之前，不会生成类的隐式实例化：
+
+```c++
+ArrayTP<double, 30> * pt;		// a pointer, no object needed yet
+pt = new ArrayTP<double, 30>;	// now an object is needed
+```
+
+第二条语句导致编译器生成类定义，并根据该定义创建一个对象。
+
+#### 2．显式实例化
+
+当使用关键字 template 并指出所需类型来声明类时，编译器将生成类声明的显式实例化（explicit instantiation）。声明必须位于模板定义所在的名称空间中。例如，下面的声明将 ArrayTP<string, 100> 声明为一个类：
+
+```c++
+template class ArrayTP<string, 100>;	// generate ArrayTP<string, 100> class
+```
+
+在这种情况下，虽然没有创建或提及类对象，编译器也将生成类声明（包括方法定义）。和隐式实例化一样，也将根据通用模板来生成具体化。
+
+#### 3．显式具体化
+
+显式具体化（explicit specialiaztion）是特定类型（用于替换模板中的泛型）的定义。有时候，可能需要在为特殊类型实例化时，对模板进行修改，使其行为不同。在这种情况下，可以创建显式具体化。例如，假设已经为用于表示排序后数组的类（元素在加入时被排序）定义了一个模板：
+
+```c++
+template<typename T>
+class SortedArray {
+	... // details omitted
+}
+```
+
+另外，假设模板使用>运算符来对值进行比较。对于数字，这管用；如果 T 表示一种类，则只要定义了 T::operator>() 方法，这也管用；但如果T是由 const char * 表示的字符串，这将不管用。实际上，模板倒是可以正常工作，但字符串将按地址（按照字母顺序）排序。这要求类定义使用 strcmp()，而不是>来对值进行比较。在这种情况下，可以提供一个显式模板具体化，这将采用为具体类型定义的模板，而不是为泛型定义的模板。当具体化模板和通用模板都与实例化请求匹配时，编译器将使用具体化版本。
+
+具体化类模板定义的格式如下：
+
+```c++
+template <> class Classname<specialized-type-name> { ... };
+```
+
+要使用新的表示法提供一个专供 const char * 类型使用的 SortedArray 模板，可以使用类似于下面的代码：
+
+```c++
+template <> class SortedArray<const char *>{
+	... // details omitted
+};
+```
+
+其中的实现代码将使用 strcmp() 而不是> 来比较数组值。现在，当请求 const char * 类型的 SortedArray 模板时，编译器将使用上述专用的定义，而不是通用的模板定义：
+
+```c++
+SortedArray<int> scores;			// use general definition
+SortedArray<const char *> dates;	// use specialized definition
+```
+
+#### 4．部分具体化
+
+C++ 还允许部分具体化（partial specialization），即部分限制模板的通用性。例如，部分具体化可以给类型参数之一指定具体的类型：
+
+```c++
+// general template
+template <class T1, class T2> class Pair { ... };
+// spcialization with T2 set to int
+template <class T1> class Pair<T1, int> { ... };
+```
+
+关键字 template 后面的 <> 声明的是没有被具体化的类型参数。因此，上述第二个声明将 T2 具体化为 int，但 T1 保持不变。注意，如果指定所有的类型，则 <> 内将为空，这将导致显式具体化：
+
+```c++
+// specialiaztion with T1 and T2 set to int
+template<> class Pair <int, int> { ... };
+```
+
+如果有多个模板可供选择，编译器将使用具体化程度最高的模板。给定上述三个模板，情况如下：
+
+```c++
+Pair<double, double> p1;	// use general Pair template
+Pair<double, int> p2;		// use Pair<T1, int> partial specializtion
+Pair<int, int> p3;			// use Pair<int, int> explicit specialization
+```
+
+也可以通过为指针提供特殊版本来部分具体化现有的模板：
+
+```c++
+template<class T>		// general version
+class Feeb { ... };
+template<class T*>		// pointer partial specialization
+class Feeb { ... };		// modified code
+```
+
+如果没有进行部分具体化，则第二个声明将使用通用模板，将 T 转换为 char* 类型。如果进行了部分具体化，则第二个声明将使用具体化模板，将T转换为char。
+
+部分具体化特性使得能够设置各种限制。例如，可以这样做：
+
+```c++
+// general template
+template <class T1, class T2, class T3> class Trio { ... };
+// specialization with T3 set to T2
+template<class T1, class T2> class Trio<T1,T2,T2> { ... };
+// specialzation with T2 and T3 set to T1*
+template<class T1> class Trio<T1, T1*, T1*> { .. };
+```
+
+给定上述声明，编译器将作出如下选择：
+
+```c++
+Trio<int, short, char *> t1;		// use general template
+Trio<int, short>;					// use Trio<T1, T2, T2>
+Trio<char, char*, char*> t3;		// use Trio<T1, T1*, T1*>
+```
+
+### 14.4.7 成员模板
+
+模板可用作结构、类或模板类的成员。要完全实现 STL 的设计，必须使用这项特性。下面的程序是一个简短的模板类示例，该模板类将另一个模板类和模板函数作为其成员。
+
+```c++
+// tempmemb.cpp -- template members
+#include<iostream>
+
+using std::cout;
+using std::endl;
+
+template<typename T>
+class beta{
+private:
+    template <typename V> // nested template class member
+    class hold{
+    private:
+        V val;
+    public:
+        hold(V v = 0) : val(v) {}
+        void show() const { cout << val << endl; }
+        V Value() const { return val; }
+    };
+    hold<T> q;      // template object
+    hold<int> n;    // template object
+public:
+    beta( T t, int i) : q(t), n(i) {}
+    template<typename U>    // template method
+    U blab(U u, T t) { return (n.Value()+q.Value())*u / t;}
+    void Show() const { q.show(); n.show(); }
+};
+
+int main(){
+    beta<double> guy(3.5, 3);
+    cout << "T was set to double\n";
+    guy.Show();
+    cout << "V was set to T, which is double, then V was set to int\n";
+
+    cout << guy.blab(10, 2.3) << endl;
+    cout << "U was set to int\n";
+
+    cout << guy.blab(10.0, 2.3) << endl;
+    cout << "U was set to double\n";
+
+    cout << "Done\n";
+
+    return 0;
+}
+```
+
+在上面的程序中，hold模板是在私有部分声明的，因此只能在 beta 类中访问它。beta 类使用 hold 模板声明了两个数据成员：
+
+```c++
+hold<T> q;		// template object
+hold<int> n;	// template object
+```
+
+n 是基于 int 类型的 hold 对象，而 q 成员是基于 T 类型（beta模板参数）的hold 对象。在 main() 中，下述声明使得T表示的是 double，因此q的类型为 hold<double>：
+
+```c++
+beta<double> guy(3.5, 3);
+```
+
+blab() 方法的 U 类型由该方法被调用时的参数值显式确定，T 类型由对象的实例化类型确定。在这个例子中，guy的声明将 T 的类型设置为 double，而下述方法调用的第一个参数将 U 的类型设置为 int（参数10对应的类型）：
+
+```c++
+cout << guy.blab(10, 2.5) << endl;
+```
+
+### 14.4.8 将模板用作参数
+
+您知道，模板可以包含类型参数（如typename T）和非类型参数（如 int n）。模板还可以包含本身就是模板的参数，这种参数是模板新增的特性，用于实现 STL。
+
+在下面的程序中，开头的代码如下：
+
+```c++
+template <template <typename T> class Thing>
+class Crab{
+...
+};
+```
+
+模板参数是 template<typename T> class Thing，其中 template<typename T> class 是类型，Thing 是参数。这意味着什么呢？假设有下面的声明：
+
+```c++
+Crab<King> legs;
+```
+
+为使上述声明被接受，模板参数King必须是一个模板类，其声明与模板参数Thing的声明匹配：
+
+```c++
+template<typename T>
+class King {
+	...
+};
+```
+
+在下面的程序中，Crab 的声明声明了两个对象：
+
+```c++
+Thing<int> s1;
+Thing<double> s2;
+```
+
+前面的 legs 声明将用 King<int> 替换 Thing<int>，用King<double> 替换 Thing<double>。然而，下面的程序清单包含下面的声明：
+
+```c++
+Crab<Stack> nebula;
+```
+
+因此，Thing<int> 将被实例化为 Stack<int>，而 Thing<double> 将被实例化为 Stack<double>。总之，模板参数 Thing 将被替换为声明 Crab 对象时被用作模板参数的模板类型。
+
+Crab 类的声明对 Thing 代表的模板类做了另外 3 个假设，即这个类包含一个 push() 方法，包含一个 pop() 方法，且这些方法有特定的接口。Crab 类可以使用任何与 Thing 类型声明匹配，并包含方法 push() 和 pop() 的模板类。本章恰巧有一个这样的类——stacktp.h 中定义的 Stack 模板，因此这个例子将使用它。
+
+```c++
+// tempparm.cpp - template as parameters
+#include <iostream>
+#include"14.13_stacktp.h"
+
+template < template <typename T> class Thing>
+class Crab{
+private:
+    Thing<int> s1;
+    Thing<double> s2;
+public:
+    Crab() { };
+    // assume the thing class push() and pop() members
+    bool push(int a, double x) { return s1.push(a) && s2.push(x); }
+    bool pop(int &a, double & x) { return s1.pop(a) && s2.pop(x); }
+};
+
+int main(){
+    using std::cout;
+    using std::cin;
+    using std::endl;
+    Crab<Stack> nebula; // Stack must match template <typename T> class thing
+    int ni;
+    double nb;
+    cout << "Enter int double pairs, such as 4 3.5 (0 0 to end):\n";
+    while (cin >> ni >> nb && ni > 0 && nb > 0){
+        if (!nebula.push(ni,nb)){
+            break;
+        }
+    }
+    while (nebula.pop(ni,nb))
+        cout << ni << ", " << nb << endl;
+    cout << "Done.\n";
+
+    return 0;
+}
+```
+
+可以混合使用模板参数和常规参数，例如，Crab 类的声明可以像下面这样打头：
+
+```c++
+template<template <typename T> class Thing, typename U, typename V>
+class Crab{
+private:
+	Thing<U> s1;
+	Thing<V> s2;
+	...
+```
+
+现在，成员 s1 和 s2 可存储的数据类型为泛型，而不是用硬编码指定的类型。这要求将程序中的 nebula 的声明修改成下面这样：
+
+```c++
+Crab<Stack, int, double> nebula;		// T = Stack, U = int, V =  double
+```
+
+模板参数T表示一种模板类型，而类型参数U和V表示非模板类型。
+
+### 14.4.9 模板类和友元
+
+模板类声明也可以有友元。模板的友元分3类：
+
+- 非模板友元；
+- 约束（bound）模板友元，即友元的类型取决于类被实例化时的类型；
+- 非约束（unbound）模板友元，即友元的所有具体化都是类的每一个具体化的友元。
+
+#### 1．模板类的非模板友元函数
+
+在模板类中将一个常规函数声明为友元：
+
+```c++
+template <class T>
+class HasFriend{
+public:
+	friend void counts();		// friend to all HasFriend instantiations
+	...
+};
+```
+
+上述声明使 counts() 函数成为模板所有实例化的友元。例如，它将是类HasFriend<int>和HasFriend<string>的友元。
+
+counts() 函数不是通过对象调用的（它是友元，不是成员函数），也没有对象参数，那么它如何访问 HasFriend 对象呢？有很多种可能性。它可以访问全局对象；可以使用全局指针访问非全局对象；可以创建自己的对象；可以访问独立于对象的模板类的静态数据成员。
+
+假设要为友元函数提供模板类参数，可以如下所示来进行友元声明吗？
+
+```c++
+friend void report(HasFriend &);	// possible?
+```
+
+答案是不可以。原因是不存在 HasFriend 这样的对象，而只有特定的具体化，如 HasFriend<short> 。要提供模板类参数，必须指明具体化。例如，可以这样做：
+
+```c++
+template<class T>
+class HasFriend{
+	friend void report(HasFriend<T> &);	// bound template friend
+	...
+};
+```
+
+也就是说，带 HasFriend<int> 参数的 report() 将成为 HasFriend<int> 类的友元。同样，带 HasFriend<double> 参数的 report() 将是 report() 的一个重载版本——它是 HasFriend<double> 类的友元。
+
+注意，report() 本身并不是模板函数，而只是使用一个模板作参数。这意味着必须为要使用的友元定义显式具体化：
+
+```c++
+void report(HasFriend<short> &) { ... };		// explicit specialization for short
+void report(HasFriend<int> & ) { ... };			// explicit specialization for int
+```
+
+下面的程序说明了上面几点。HasFriend 模板有一个静态成员 ct。这意味着这个类的每一个特定的具体化都将有自己的静态成员。count() 方法是所有 HasFriend 具体化的友元，它报告两个特定的具体化（HasFriend<int> 和 HasFriend<double>）的 ct 的值。该程序还提供两个 report() 函数，它们分别是某个特定 HasFriend 具体化的友元。
+
+```c++
+// frnd2tmp.cpp -- template class with non-template friends
+
+#include <ctime>
+#include<iostream>
+using std::cout;
+using std::endl;
+
+template<typename T>
+class HasFriend{
+private:
+    T item;
+    static int ct;
+public:
+    HasFriend(const T & i) : item(i) { ct++; }
+    ~HasFriend() { ct--; }
+    friend void counts();
+    friend void report(HasFriend<T> &); // template parameter
+};
+
+// each specialization has its own static data member
+template<typename T>
+int HasFriend<T>::ct = 0;
+
+// non-template friend to all HasFriend<T> classes
+void counts(){
+    cout << "int count: " << HasFriend<int>::ct << "; ";
+    cout << "double count: " << HasFriend<double>::ct << endl;
+}
+
+// non-template friend to the HasFriend<int> class
+void report(HasFriend<int> & hf){
+    cout << "HasFriend<int>: " << hf.item << endl;
+}
+
+// non-template friend to the HasFriend<double class
+void report(HasFriend<double> & hf){
+    cout << "HasFriend<double>: " << hf.item << endl;
+}
+
+int main(){
+    cout << "No objects declared: ";
+    counts();
+    HasFriend<int>hfil(10);
+    cout <<"After hfil declared: ";
+    counts();
+    HasFriend<int>hfil2(20);
+    cout << "After hfil2 declared: ";
+    counts();
+    HasFriend<double>hfdb(10.5);
+    cout << "After hfdb declared: ";
+    counts();
+    report(hfil);
+    report(hfil2);
+    report(hfdb);
+
+    return 0;
+}
+```
+
+#### 2．模板类的约束模板友元函数
+
+可以修改前一个示例，使友元函数本身成为模板。具体地说，为约束模板友元作准备，要使类的每一个具体化都获得与友元匹配的具体化。这比非模板友元要复杂些，包含以下 3 步。
+
+首先，在类定义的前面声明每个模板函数。
+
+```c++
+template<typename T> void counts();
+template<typename T> void report(T &);
+```
+
+然后，在函数中再次将模板声明为友元。这些语句根据类模板参数的类型声明具体化：
+
+```c++
+template <typename TT>
+class HasFriendT{
+...
+	friend void counts<TT>();
+	friend void report<>(HasFriendT<TT> &);
+};
+```
+
+声明中的<>指出这是模板具体化。对于 report()，<> 可以为空，因为可以从函数参数推断出如下模板类型参数：
+
+```c++
+HasFriendT<TT>
+```
+
+然而，也可以使用：
+
+```c++
+report<HasFriendT<TT> > (HasFriendT<TT> &)
+```
+
+但counts() 函数没有参数，因此必须使用模板参数语法（<TT>）来指明其具体化。还需要注意的是，TT 是 HasFriendT 类的参数类型。
+
+同样，理解这些声明的最佳方式也是设想声明一个具体化的对象时，它们将变成什么样。例如，假设声明了这样一个对象：
+
+```c++
+HasFriendT<int> squack;
+```
+
+编译器将用 int 替换 TT，并生成下面的类定义：
+
+```c++
+class HasFriendT<int>{
+...
+	friend void counts<int>();
+	friend void reports<>(HasFriendT<int> &);
+};
+```
+
+基于 TT 的具体化将变为 int，基于 HasFriend<TT> 的具体化将变为 HasFriend<int>。因此，模板具体化 counts<int>() 和 report<HasFriendT<int>() 被声明为 HasFriendT<int>类的友元。
+
+程序必须满足的第三个要求是，为友元提供模板定义。下面的程序说明了这3个方面。请注意，上一个程序包含1个count()函数，它是所有 HasFriend 类的友元；而下面的程序包含两个 count() 函数，它们分别是某个被实例化的类类型的友元。因为 count() 函数调用没有可被编译器用来推断出所需具体化的函数参数，所以这些调用使用 count<int> 和 count<double>() 指明具体化。但对于 report() 调用，编译器可以从参数类型推断出要使用的具体化。使用<>格式也能获得同样的效果：
+
+```c++
+report<HasFriendT<int> >(hfil2);		// same as report(hfil2);
+```
+
+```c++
+// tmp2tmp.cpp -- template friends to a template class
+#include<iostream>
+using std::cout;
+using std::endl;
+
+// template prototypes
+template<typename T> void counts();
+template<typename T> void report(T &);
+
+// template class
+template <typename TT>
+class HasFriendT{
+private:
+    TT item;
+    static int ct;
+public:
+    HasFriendT(const TT & i) : item(i) { ct++; }
+    ~HasFriendT() { ct--;}
+    friend void counts<TT>();
+    friend void report<>(HasFriendT<TT> &);
+};
+
+template<typename T>
+int HasFriendT<T>::ct = 0;
+
+// template friend functions definitions
+template<typename T>
+void counts(){
+    cout << "template size: " << sizeof(HasFriendT<T>) << ": ";
+    cout << "template counts(): " << HasFriendT<T>::ct << endl;
+}
+
+template<typename T>
+void report(T & hf){
+    cout << hf.item << endl;
+}
+
+int main(){
+    counts<int>();
+    HasFriendT<int> hfil(10);
+    HasFriendT<int> hfil2(20);
+    HasFriendT<double> hfdb(10.5);
+    report(hfil); // generate report(HasFriendT<int> &)
+    report(hfil2);  // generate report(HasFriendT<int> &)
+    report(hfdb);   // generate report(HasFriendT<double> &)
+    cout << "counts<int>() output: \n";
+    counts<int>();
+    cout << "counts<double>() output: \n";
+    counts<double>();
+
+    return 0;
+}
+```
+
+#### 3．模板类的非约束模板友元函数
+
+前一节中的约束模板友元函数是在类外面声明的模板的具体化。int 类具体化获得 int 函数具体化，依此类推。通过在类内部声明模板，可以创建非约束友元函数，即每个函数具体化都是每个类具体化的友元。对于非约束友元，友元模型类型参数与模板类类型参数是不同的：
+
+```c++
+template<typename T>
+class ManyFriend{
+...
+	template <typename C, typename D> friend void show2(C &, D & );
+};
+```
+
+下面的程序是一个使用非约束友元的例子。其中，函数调用 show2(hfi1, hfi2) 与下面的具体化匹配：
+
+```c++
+void show2<ManyFriend<int> & , ManyFriend<int> &>
+					(ManyFriend<int> & c, ManyFriend<int> & d);
+```
+
+因为它是所有ManyFriend具体化的友元，所以能够访问所有具体化的item成员，但它只访问了ManyFriend<int>对象。
+
+同样，show2(hfd, hfi2)与下面具体化匹配：
+
+```
+void show2<ManyFriend<double> & , ManyFriend<int> &>
+					(ManyFriend<double> & c, ManyFriend<int> & d);
+```
+
+它也是所有 ManyFriend 具体化的友元。并访问了 ManyFriend<int> 对象的 item 成员和 ManyFriend<double> 对象的 item 成员。
+
+```c++
+// manyfrnd.cpp -- unbound template friend to a template class
+#include<iostream>
+
+using std::cout;
+using std::endl;
+
+template<typename T>
+class ManyFriend{
+private:
+    T item;
+public:
+    ManyFriend(const T & i) : item(i) { }
+    template <typename C, typename D> friend void show2(C &, D &);
+};
+
+template <typename C, typename D> void show2(C & c, D & d){
+    cout << c.item << ", " << d.item << endl;
+}
+
+int main(){
+    
+    ManyFriend<int> hfil(10);
+    ManyFriend<int> hfil2(20);
+    ManyFriend<double> hfdb(10.5);
+    cout << "hfil, hfil2: ";
+    show2(hfil, hfil2);
+    cout << "hfdb, hfil2: ";
+    show2(hfdb, hfil2);
+
+    return 0;
+}
+```
+
+### 14.4.10 模板别名（C++11）
+
+如果能为类型指定别名，将很方便，在模板设计中尤其如此。可使用 typedef 为模板具体化指定别名：
+
+```c++
+// define three typedef aliases
+typedef std::array<double, 12> arrd;
+typedef std::array<int, 12> arri;
+typedef std::array<std::string, 12> arrst;
+arrd gallons;	// gallons is type std::array<double, 12>
+arri days;		// days is type std::array<int, 12>
+arrst months;	// months is type std::array<std::string, 12>
+```
+
+C++11 新增了一项功能——使用模板提供一系列别名，如下所示：
+
+```c++
+template<tyename T>
+	using arrtype = std::array<T, 12>;	// template to create multiple aliases
+```
+
+这将 arrtype 定义为一个模板别名，可使用它来指定类型，如下所示：
+
+```c++
+arrtype<double> gallons;		// gallons is type std::array<double, 12>
+arrtype<int> days;				// days is type std::array<int, 12>
+arrtype<std::string> months;	// months is type std::array<std::string, 12>
+```
+
+总之，arrtype<T> 表示类型 std::array<T, 12>。
+
+C++ 11 允许将语法 using = 用于非模板。用于非模板时，这种语法与常规 typedef 等价：
+
+```c++
+typedef const char * pc1;		// typedef syntax
+using pc2 = const char *;		// using = syntax
+typedef const int *(*pa1)[10];	// typedef syntax
+using pa2 = const int *(*)[10];	// using = syntax
+```
+
+
+
+
+
+
 
 
 
