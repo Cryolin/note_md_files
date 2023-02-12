@@ -5154,7 +5154,7 @@ RatedPlayer::RatedPlayer(unsigned int r, const TableTennisPlayer& tp)
 
 ### 13.1.4 派生类和基类之间的特殊关系
 
-派生类与基类之间有一些特殊关系。其中之一是派生类对象可以使用基类的方法，条件是方法不是私有的：、
+派生类与基类之间有一些特殊关系。其中之一是派生类对象可以使用基类的方法，条件是方法不是私有的：
 
 ```c++
 RatedPlayer rplayer1(1140, "Malloy", "Duck", true);
@@ -5240,7 +5240,7 @@ TableTennisPlayer(const RatedPlayer&);		// doesn't exist
 TableTennisPlayer(const TableTennisPlayer&);
 ```
 
-形参是基类引用，因此它可以引用派生类。这样，将olaf2初始化为olaf1时，将要使用该构造函数，它复制firstname、lastname和hasTable成员。换句话来说，它将olaf2初始化为嵌套在RatedPlayer对象olaf1中的TableTennisPlayer对象。、
+形参是基类引用，因此它可以引用派生类。这样，将olaf2初始化为olaf1时，将要使用该构造函数，它复制firstname、lastname和hasTable成员。换句话来说，它将olaf2初始化为嵌套在RatedPlayer对象olaf1中的TableTennisPlayer对象。
 
 同样，也可以将派生对象赋给基类对象：
 
@@ -6227,8 +6227,7 @@ const string& Student::Name() const
 
 由于既可以使用包含，也可以使用私有继承来建立has-a关系，那么应使用种方式呢？大多数C++程序员倾向于使用包含。首先，它易于理解。类声明中包含表示被包含类的显式命名对象，代码可以通过名称引用这些对象，而使用继承将使关系更抽象。其次，继承会引起很多问题，尤其从多个基类继承时，可能必须处理很多问题，如包含同名方法的独立的基类或共享祖先的独立基类。总之，使用包含不太可能遇到这样的麻烦。另外，包含能够包括多个同类的子对象。如果某个类需要3个string对象，可以使用包含声明3个独立的string成员。而继承则只能使用一个这样的对象（当对象都没有名称时，将难以区分）。
 
-然而，私有继承所提供的特性确实比包含多。例如，假设类包含保护成员（可以是数据成员，也可以是成员函数），则这样的成员在派生类中是可用的，但在继承层次结构外是不可用的。如果使用组合将这样的类包含在另一个类中，则后者将不是派生类，而是位于继承层次结构之外，因此不能访问保护成员。但通过继承得到的将是派生类，因此它
-能够访问保护成员。
+然而，私有继承所提供的特性确实比包含多。例如，假设类包含保护成员（可以是数据成员，也可以是成员函数），则这样的成员在派生类中是可用的，但在继承层次结构外是不可用的。如果使用组合将这样的类包含在另一个类中，则后者将不是派生类，而是位于继承层次结构之外，因此不能访问保护成员。但通过继承得到的将是派生类，因此它能够访问保护成员。
 
 另一种需要使用私有继承的情况是需要重新定义虚函数。派生类可以重新定义虚函数，但包含类不能。使用私有继承，重新定义的函数将只能在类中使用，而不是公有的。
 
@@ -6244,7 +6243,7 @@ class Student : protected std::string,
 {...};
 ```
 
-使用保护继承时，基类的公有成员和保护成员都将成为派生类的保护成员。和私有私有继承一样，基类的接口在派生类中也是可用的，但在继承层次结构之外是不可用的。当从派生类派生出另一个类时，私有继承和保护继承之间的主要区别便呈现出来了。使用私有继承时，第三代类将不能使用基类的接口，这是因为基类的公有方法在派生类中将变成私有方法；使用保护继承时，基类的公有方法在第二代中将变成受保护的，因此第三代派生类可以使用它们。
+使用保护继承时，基类的公有成员和保护成员都将成为派生类的保护成员。和私有继承一样，基类的接口在派生类中也是可用的，但在继承层次结构之外是不可用的。当从派生类派生出另一个类时，私有继承和保护继承之间的主要区别便呈现出来了。使用私有继承时，第三代类将不能使用基类的接口，这是因为基类的公有方法在派生类中将变成私有方法；使用保护继承时，基类的公有方法在第二代中将变成受保护的，因此第三代派生类可以使用它们。
 
 表14.1总结了公有、私有和保护继承。隐式向上转换（implicit upcasting）意味着无需进行显式类型转换，就可以将基类指针或引用指向派生类对象。
 
@@ -6350,7 +6349,7 @@ Worker* pw2 = (Singer *) &ed;	// the Worker in Singer
 
 ```c++
 class Singer : virtual public Worker {...}
-class Woiter : public virtual Worker {...}
+class Waiter : public virtual Worker {...}
 ```
 
 然后，可以将SingingWaiter类定义为：
@@ -6532,7 +6531,7 @@ public:
 	...
 };
 
-class C : virtual public A
+class C : virtual public B
 {
 public:
 	long q();
@@ -6590,7 +6589,7 @@ public:
 采用模板时，将使用模板定义替换 Stack 声明，使用模板成员函数替换 Stack 的成员函数。和模板函数一样，模板类以下面这样的代码开头：
 
 ```c++
-template < class Type>
+template <class Type>
 ```
 
 关键字 template 告诉编译器，将要定义一个模板。尖括号中的内容相当于函数的参数列表。
@@ -6663,7 +6662,7 @@ bool Stack<Type>::pop(Type & item){
 
 ### 14.4.2 使用模板类
 
-仅在程序包含模板模板不能生成模板类，而必须请求实例化。为此，需要声明一个类型为模板类的对象，方法是使用所需的具体类型替换泛型名。例如，下面的代码创建两个栈，一个用于存储 int，另一个用于存储 string 对象:
+仅在程序包含模板并不能生成模板类，而必须请求实例化。为此，需要声明一个类型为模板类的对象，方法是使用所需的具体类型替换泛型名。例如，下面的代码创建两个栈，一个用于存储 int，另一个用于存储 string 对象:
 
 ```c++
 Stack<int> kernels;				// create a stack of ints
@@ -6740,12 +6739,12 @@ template<class T, int n>
 关键字 class（或在这种上下文中等价的关键字 typename）指出 T 为类型参数，int 指出 n 的类型为 int。这种参数（指定特殊的类型而不是用作泛型名）称为非类型（non-type）或表达式（expression）参数。假设有下面的声明：
 
 ```c++
-ArrayTP<double, 12> egweights;
+ArrayTP<double, 12> eggweights;
 ```
 
 这将导致编译器定义名为 ArrayTP<double,12>的类，并创建一个类型为 ArrayTP<double, 12> 的 eggweight 对象。定义类时，编译器将使用 double 替换 T，使用12替换n。
 
-表达式参数有一些限制。表达式参数可以是整型、枚举、引用或指针。因此，double m 是不合法的。但 double * rm 和 double *pm 是合法的。另外，模板代码不能修改参数的值，也不能使用参数的地址。所以，在 ArrayTP 模板中不能使用诸如 n++ 和 &n 等表达式。另外，实例化模板时，用作表达式参数的值必须是常量表达式。
+表达式参数有一些限制。表达式参数可以是整型、枚举、引用或指针。因此，double m 是不合法的。但 double & rm 和 double *pm 是合法的。另外，模板代码不能修改参数的值，也不能使用参数的地址。所以，在 ArrayTP 模板中不能使用诸如 n++ 和 &n 等表达式。另外，实例化模板时，用作表达式参数的值必须是常量表达式。
 
 与 Stack 中使用的构造函数方法相比，这种改变数组大小的方法有一个优点。构造函数方法使用的是通过 new 和 delete 管理的堆内存，而表达式参数方法使用的是为自动变量维护的内存栈。这样，执行速度将更快，尤其是在使用了很多小型数组时。
 
@@ -6772,7 +6771,7 @@ Stack<int> dunkers(13);
 一个模板多功能性的例子是，可以递归使用模板。例如，对于前面的数组模板定义，可以这样使用它：
 
 ```c++
-ArrayTP< ArrayTP<int,5>, 10> twodee;
+ArrayTP<ArrayTP<int, 5>, 10> twodee;
 ```
 
 这使得 twodee 是一个包含 10 个元素的数组，其中每个元素都是一个包含5个int元素的数组.与之等价的常规数组声明如下：
@@ -7040,7 +7039,7 @@ Crab 类的声明对 Thing 代表的模板类做了另外 3 个假设，即这�
 #include <iostream>
 #include"14.13_stacktp.h"
 
-template < template <typename T> class Thing>
+template <template <typename T> class Thing>
 class Crab{
 private:
     Thing<int> s1;
@@ -7052,7 +7051,7 @@ public:
     bool pop(int &a, double & x) { return s1.pop(a) && s2.pop(x); }
 };
 
-int main(){
+int main() {
     using std::cout;
     using std::cin;
     using std::endl;
@@ -7342,7 +7341,7 @@ void show2<ManyFriend<int> & , ManyFriend<int> &>
 
 同样，show2(hfd, hfi2)与下面具体化匹配：
 
-```
+```c++
 void show2<ManyFriend<double> & , ManyFriend<int> &>
 					(ManyFriend<double> & c, ManyFriend<int> & d);
 ```
@@ -7400,7 +7399,7 @@ arrst months;	// months is type std::array<std::string, 12>
 C++11 新增了一项功能——使用模板提供一系列别名，如下所示：
 
 ```c++
-template<tyename T>
+template<typename T>
 	using arrtype = std::array<T, 12>;	// template to create multiple aliases
 ```
 
