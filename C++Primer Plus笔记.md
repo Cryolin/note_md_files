@@ -1557,11 +1557,11 @@ process(think); //passes address of think() to process()
 thought(think()); //passes return value of think() to thought()
 ```
 
-process()调用是的process()函数能够在其内部调用think()函数。thought()调用首先调用think()函数，然后将think()的返回值传递给thought()函数。
+process()调用使得process()函数能够在其内部调用think()函数。thought()调用首先调用think()函数，然后将think()的返回值传递给thought()函数。
 
 #### 2．声明函数指针
 
-声明指向某种数据类型的指针时，必须指定指针指向的类型。同样，声明指向函数的指针时，也必须指定指针指向的函数类型。这意味着声明应指定函数的返回类型以及函数的特征标（参数列表）。也就是说，声明应像函数原型那样指出有关函数的信息。例如，假设 Pam leCoder 编写了一个估算时间的函数，其原型如下：
+声明指向某种数据类型的指针时，必须指定指针指向的类型。同样，声明指向函数的指针时，也必须指定指针指向的函数类型。这意味着声明应指定函数的返回类型以及函数的特征标（参数列表）。也就是说，声明应像函数原型那样指出有关函数的信息。例如，假设 Pamle Coder 编写了一个估算时间的函数，其原型如下：
 
 ```C++
 double pam(int);    // prototype
@@ -1624,7 +1624,7 @@ double y = pf(5)        // also call pam() using the pointer pf
 
 实际上，C++ 也允许像使用函数名那样使用`pf`，第一种格式虽然不太好看，但它给出了强有力的提示——代码正在使用函数指针。
 
-**历史与逻辑** 为何`pf`和`(*pf)`等价呢？一种学派认为，由于`pf`是函数指针，而`*pf`是函数，因此应将`(*pf)()`用作函数调用。另一种党派认为，由于函数名是指向该函数的指针，指向函数的指针的行为应与函数名相似，因此应将`pf()`用作函数调用。C++ 进行了折衷——两种方式者是正确的，或者至少是允许的，虽然它们在逻辑上是互相冲突的。
+**历史与逻辑** 为何`pf`和`(*pf)`等价呢？一种学派认为，由于`pf`是函数指针，而`*pf`是函数，因此应将`(*pf)()`用作函数调用。另一种党派认为，由于函数名是指向该函数的指针，指向函数的指针的行为应与函数名相似，因此应将`pf()`用作函数调用。C++ 进行了折衷——两种方式都是正确的，或者至少是允许的，虽然它们在逻辑上是互相冲突的。
 
 ### 7.10.2 函数指针示例
 
@@ -1682,7 +1682,7 @@ const double * f2(const double [], int);
 const double * f3(const double *, int);
 ```
 
-接下来，假设要声明一个指针，它可指向这三个函数之一。假定该指针名为`pa`，则只需将目标函数原型中的函数名替换为`(*pa)`：
+接下来，假设要声明一个指针，它可指向这三个函数之一。假定该指针名为`p1`，则只需将目标函数原型中的函数名替换为`(*p1)`：
 
 ```C++
 const double (*p1)(const double *, int);
@@ -6117,6 +6117,26 @@ show( )函数调用使rba参数成为BrassPlus对象buzz的引用，因此，rba
 # 第14章 C++中的代码重用
 
 ## 14.1 包含对象成员的类
+
+### 14.1.1 valarray类简介
+
+C++提供的数组类除了vector和array之外， 这里介绍一下valarray：
+
+```c++
+valarray<int> q_values;		// an array of int
+valarray<double> weights;	// an array of double
+```
+
+```c++
+// 一些例子
+double gpa[5] = {3.1, 3.5, 3.8, 2.9, 3.3};
+valarray<double> v1;		// an array of double, size 0
+valarray<int> v2(8);		// an array of 8 int elements
+valarray<int> v3(10, 8);	// an array of 8 int elements
+							// each set to 10
+valarray<double> v4(gpa, 4);	// an array of 4 elements
+				// initialized to the first 4 elements of gpa
+```
 
 ### 14.1.2 Student类的设计
 
