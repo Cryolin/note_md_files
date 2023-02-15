@@ -2980,6 +2980,39 @@ static int private(double x)
 
 单定义规则也适用于非内联函数，因此对于每个非内联函数，程序只能包含一个定义。对于链接性为外部的函数来说，这意味着在多文件程序中，只能有一个文件（该文件可能是库文件，而不是您提供的）包含该函数的定义，但使用该函数的每个文件都应包含其函数原型。
 
+内联函数的链接性是内部的，所以内联函数的定义必须和使用函数放在同一个文件中。一般情况下，建议内联函数放在头文件中，这样使用函数的文件通过include头文件即可使用内联函数。如下情况编译不过：
+
+```c++
+// test.h
+class Test
+{
+public:
+	void test();
+};
+
+// test.cpp
+#include <iostream>
+#include "15.1 test.h"
+
+inline void Test::test()
+{
+	std::cout << "test" << std::endl;
+}
+
+// main.cpp
+#include <iostream>
+#include "15.1 test.h"
+
+int main()
+{
+	Test test;
+    // 使用的内联函数定义不在本文件中
+	test.test();
+
+	return 0;
+}
+```
+
 ### 9.2.9 语言链接性
 
 在C语言中，一个名称只对应一个函数，因此这很容易实现。为满足内部需要，C语言编译器可能将spiff这样的函数名翻译为spiff。这种方法被称为C语言链接性（C language linkage）。但在C++中，同一个名称可能对应多个函数，必须将这些函数翻译为不同的符号名称。因此，C++编译器执行名称矫正或名称修饰（参见第8章），为重载函数生成不同的符号名称。例如，可能将spiff（int）转换为spiff_i，而将spiff（double，double）转换为_spiff_d_d。这种方法被称为C++语言链接（C++ language linkage）。
