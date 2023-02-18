@@ -7475,7 +7475,7 @@ typedef const int *(*pa1)[10];	// typedef syntax
 using pa2 = const int *(*)[10];	// using = syntax
 ```
 
-
+# 第15章 友元、异常和其他
 
 
 
