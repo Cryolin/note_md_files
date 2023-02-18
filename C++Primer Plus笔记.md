@@ -7477,17 +7477,1346 @@ using pa2 = const int *(*)[10];	// using = syntax
 
 # 第15章 友元、异常和其他
 
+## 15.1 友元
+
+### 15.1.1 友元类
+
+看一个友元类的例子：
+
+```c++
+// tv.h -- Tv and Remote classes
+#ifndef TV_H_
+#define TV_H_
+
+class Tv
+{
+public:
+	friend class Remote;   // Remote can access Tv private parts
+	enum { Off, On };
+	enum { MinVal, MaxVal = 20 };
+	enum { Antenna, Cable };
+	enum { TV, DVD };
+
+	Tv(int s = Off, int mc = 125) : state(s), volume(5),
+		maxchannel(mc), channel(2), mode(Cable), input(TV) {}
+	void onoff() { state = (state == On) ? Off : On; }
+	bool ison() const { return state == On; }
+	bool volup();
+	bool voldown();
+	void chanup();
+	void chandown();
+	void set_mode() { mode = (mode == Antenna) ? Cable : Antenna; }
+	void set_input() { input = (input == TV) ? DVD : TV; }
+	void settings() const; // display all settings
+private:
+	int state;             // on or off
+	int volume;            // assumed to be digitized
+	int maxchannel;        // maximum number of channels
+	int channel;           // current channel setting
+	int mode;              // broadcast or cable
+	int input;             // TV or DVD
+};
+
+class Remote
+{
+private:
+	int mode;              // controls TV or DVD
+public:
+	Remote(int m = Tv::TV) : mode(m) {}
+	bool volup(Tv& t) { return t.volup(); }
+	bool voldown(Tv& t) { return t.voldown(); }
+	void onoff(Tv& t) { t.onoff(); }
+	void chanup(Tv& t) { t.chanup(); }
+	void chandown(Tv& t) { t.chandown(); }
+	void set_chan(Tv& t, int c) { t.channel = c; }
+	void set_mode(Tv& t) { t.set_mode(); }
+	void set_input(Tv& t) { t.set_input(); }
+};
+#endif
+```
+
+友元声明可以位于公有、私有或保护部分，其所在的位置无关紧要。友元类可以访问关联类的私有或保护内容。在上例中，大多数类方法都被定义为内联的。除构造函数外，所有的Romote方法都将一个Tv对象引用作为参数，这表明遥控
+器必须针对特定的电视机。
+
+这个练习的主要目的在于表明，类友元是一种自然用语，用于表示一些关系。如果不使用某些形式的友元关系，则必须将Tv类的私有部分设置为公有的，或者创建一个笨拙的、大型类来包含电视机和遥控器。这种解决方法无法反应这样的事实，即同一个遥控器可用于多台电视机。
+
+### 15.1.2 友元成员函数
+
+从上一个例子中的代码可知，大多数Remote方法都是用Tv类的公有接口实现的。这意味着这些方法不是真正需要作为友元。事实上，唯一直接访问Tv成员的Remote方法是Remote::set_chan( )，因此它是唯一需要作为友元的方法。确实可以选择仅让特定的类成员成为另一个类的友元，而不必让整个类成为友元，但这样做稍微有点麻烦，必须小心排列各种声明和定义的顺序。下面介绍其中的原因。
+
+让Remote::set_chan( )成为Tv类的友元的方法是，在Tv类声明中将其声明为友元：
+
+```c++
+class Tv {
+	friend void Remote::set_chan(Tv & t, int c);
+}
+```
+
+然而，要使编译器能够处理这条语句，它必须知道Remote的定义。否则，它无法知道Remote是一个类，而set_chan是这个类的方法。这意味着应将Remote的定义放到Tv的定义前面。Remote的方法提到了Tv对象，而这意味着Tv定义应当位于Remote定义之前。避开这种循环依赖的方法是，使用前向声明（forward declaration）。为此，需要在Remote定义的前面插入下面的语句：
+
+```c++
+class Tv;		// forward declaration
+```
+
+这样，排列次序应如下：
+
+```c++
+class Tv; //forward declaration
+class Remote{...};
+class Tv{...};
+```
+
+能否像下面这样排列呢？
+
+```c++
+class Remote ;  //forward declaration
+class Tv {...};
+class Remote {...};
+```
+
+答案是不能。原因在于，在编译器在Tv类的声明中看到Remote的一个方法被声明为Tv类的友元之前，应该先看到Remote类的声明和set_chan( )方法的声明。
+
+还有一个麻烦。程序清单15.1的Remote声明包含了内联代码，例如：
+
+```c++
+void onoff(Tv & t) {t.onoff();}
+```
+
+由于这将调用Tv的一个方法，所以编译器此时必须已经看到了Tv类的声明，这样才能知道Tv有哪些方法，但正如看到的，该声明位于Remote声明的后面。这种问题的解决方法是，使Remote声明中只包含方法声明，并将实际的定义放在Tv类之后。这样，排列顺序将如下：
+
+```c++
+class Tv;  //forward declaration
+class Remote {...};  //Tv-using methods as prototypes only  只包含方法的声明
+class Tv {...};
+// put Remote method definitions here  定义在这里写
+```
+
+Remote方法的原型与下面类似：
+
+```C++
+void onoff(Tv & t);
+```
+
+检查该原型时，所有的编译器都需要知道Tv是一个类，而前向声明提供了这样的信息。当编译器到达真正的方法定义时，它已经读取了Tv类的声明，并拥有了编译这些方法所需的信息。通过在方法定义中使用inline关键字，仍然可以使其成为内联方法。程序清单15.4列出了修订后的头文件。
+
+```C++
+// tvfm.h -- Tv and Remote classes using a friend member
+#ifndef TVFM_H_
+#define TVFM_H_
+
+// 与15.2和15.3一起编译
+class Tv;                       // forward declaration
+
+class Remote
+{
+public:
+	enum State { Off, On };
+	enum { MinVal, MaxVal = 20 };
+	enum { Antenna, Cable };
+	enum { TV, DVD };
+private:
+	int mode;
+public:
+	Remote(int m = TV) : mode(m) {}
+	bool volup(Tv& t);         // prototype only
+	bool voldown(Tv& t);
+	void onoff(Tv& t);
+	void chanup(Tv& t);
+	void chandown(Tv& t);
+	void set_mode(Tv& t);
+	void set_input(Tv& t);
+	void set_chan(Tv& t, int c);
+};
+
+class Tv
+{
+public:
+	friend void Remote::set_chan(Tv& t, int c);
+	enum State { Off, On };
+	enum { MinVal, MaxVal = 20 };
+	enum { Antenna, Cable };
+	enum { TV, DVD };
+
+	Tv(int s = Off, int mc = 125) : state(s), volume(5),
+		maxchannel(mc), channel(2), mode(Cable), input(TV) {}
+	void onoff() { state = (state == On) ? Off : On; }
+	bool ison() const { return state == On; }
+	bool volup();
+	bool voldown();
+	void chanup();
+	void chandown();
+	void set_mode() { mode = (mode == Antenna) ? Cable : Antenna; }
+	void set_input() { input = (input == TV) ? DVD : TV; }
+	void settings() const;
+private:
+	int state;
+	int volume;
+	int maxchannel;
+	int channel;
+	int mode;
+	int input;
+};
+
+// Remote methods as inline functions
+inline bool Remote::volup(Tv& t) { return t.volup(); }
+inline bool Remote::voldown(Tv& t) { return t.voldown(); }
+inline void Remote::onoff(Tv& t) { t.onoff(); }
+inline void Remote::chanup(Tv& t) { t.chanup(); }
+inline void Remote::chandown(Tv& t) { t.chandown(); }
+inline void Remote::set_mode(Tv& t) { t.set_mode(); }
+inline void Remote::set_input(Tv& t) { t.set_input(); }
+inline void Remote::set_chan(Tv& t, int c) { t.channel = c; }
+#endif
+```
+
+如果在tv.cpp和use_tv.cpp中包含tvfm.h而不是tv.h，程序的行为与前一个程序相同，区别在于，只有一个Remote方法是Tv类的友元，而在原来的版本中，所有的Remote方法都是Tv类的友元。图15.1说明了这种区别。
+
+![image-20230218202414994](D:\git\note_md_files\images\image-20230218202414994.png)
+
+本书前面介绍过，内联函数的链接性是内部的，这意味着函数定义必须在使用函数的文件中。在这个例子中，内联定义位于头文件中，因此在使用函数的文件中包含头文件可确保将定义放在正确的地方。也可以将定义放在实现文件中，但必须删除关键字inline，这样函数的链接性将是外部的。
+
+顺便说一句，让整个Remote类成为友元并不需要前向声明，因为友元语句本身已经指出Remote是一个类：
+
+```c++
+friend class Remote;
+```
+
+### 15.1.3 其他友元关系
+
+一些Remote方法能够像前面那样影响Tv对象，而一些Tv方法也能影响Remote对象。这可以通过让类彼此成为对方的友元来实现，即除了Remote是Tv的友元外，Tv还是Remote的友元。这种方案与下面类似：
+
+```c++
+class Tv
+{
+    friend class Remote;
+public:
+    void buzz(Remote& r);
+    //...
+};
+class Remote
+{
+    friend class Tv;
+public:
+    void volup(Tv& t) { t.volup(); }
+}
+inline void Tv::buzz(Remote& r)
+{
+}
+```
+
+由于Remote的声明位于Tv声明的后面，所以可以在类声明中定义Remote::volup( )，但Tv::buzz( )方法必须在Tv声明的外部定义，使其位于Remote声明的后面。如果不希望buzz( )是内联的，则应在一个单独的方法定义文件中定义它。
+
+### 15.1.4 共同的友元
+
+需要使用友元的另一种情况是，函数需要访问两个类的私有数据。从逻辑上看，这样的函数应是每个类的成员函数，但这是不可能的。它可以是一个类的成员，同时是另一个类的友元，但有时将函数作为两个类的友元更合理。例如，假定有一个Probe类和一个Analyzer类，前者表示某种可编程的测量设备，后者表示某种可编程的分析设备。这两个类都有内部时钟，且希望它们能够同步，则应该包含下述代码行：
+
+```c++
+class Analyzer;
+class Probe
+{
+    friend void sync(Analyzer& a, const Probe& p);   // sync a to p
+    friend void sync(Probe& p, const Analyzer& a);   // sync p to a
+    // ...
+};
+class Analyzer
+{
+    friend void sync(Analyzer& a, const Probe& p);   // sync a to p
+    friend void sync(Probe& p, const Analyzer& a);   // sync p to a
+    // ...
+};
+//define the friend functions
+inline void sync(Analyzer& a, const Probe& p)
+{
+    // ...
+}
+inline void sync(Probe& p, const Analyzer& a)
+{
+    // ...
+}
+```
+
+前向声明使编译器看到Probe类声明中的友元声明时，知道Analyzer是一种类型。
+
+## 15.2 嵌套类
+
+对类进行嵌套与包含并不同。包含意味着将类对象作为另一个类的成员，而对类进行嵌套不创建类成员，而是定义了一种类型，该类型仅在包含嵌套类声明的类中有效。
+
+对类进行嵌套通常是为了帮助实现另一个类，并避免名称冲突。Queue类示例（第12章的程序清单12.8）嵌套了结构定义，从而实现了一种变相的嵌套类：
+
+```c++
+class Queue
+{
+private:
+   //classs scope definitions
+　　//Node is a nested structure definition local to this class
+　　struct node {Item item; struct Node * next;};
+}
+```
+
+将Node变成嵌套类：
+
+```c++
+class Queue
+{
+    //Node is a nested calss definition local to this class
+    class Node
+    {
+    public:
+        Item item;
+        Node * next;
+        Node(const Item & i):item(i),next(0) { }
+    };
+    ...
+}
+```
+
+对应的enqueue()：
+
+```c++
+bool Queue::enqueue(const Item & item)
+{
+    if(isfull())
+        reutrn false;
+    Node * add = new Node(item);  //create, initialize node
+//on failure,new throws std::bad_alloc exception
+...
+}
+```
+
+这个例子在类声明中定义了构造函数。假设想在方法文件中定义构造函数，则定义必须指出Node类是在Queue类中定义的。这是通过使用两次作用域解析运算符来完成的：
+
+```c++
+Queue::Node::Node(const Item & i):item(i),next(0) { }
+```
+
+### 15.2.1 嵌套类和访问权限
+
+有两种访问权限适合于嵌套类。首先，嵌套类的声明位置决定了嵌套类的作用域，即它决定了程序的哪些部分可以创建这种类的对象。其次，和其他类一样，嵌套类的公有部分、保护部分和私有部分控制了对类成员的访问。在哪些地方可以使用嵌套类以及如何使用嵌套类，取决于作用域和访问控制。
+
+#### 1．作用域
+
+如果嵌套类是在另一个类的私有部分声明的，则只有后者知道它。在前一个例子中，被嵌套在Queue声明中的Node类就属于这种情况（看起来Node是在私有部分之前定义的，但别忘了，类的默认访问权限是私有的），因此，Queue成员可以使用Node对象和指向Node对象的指针，但是程序的其他部分甚至不知道存在Node类。对于从Queue派生而来的类，Node也是不可见的，因为派生类不能直接访问基类的私有部分。
+
+如果嵌套类是在另一个类的保护部分声明的，则它对于后者来说是可见的，但是对于外部世界则是不可见的。然而，在这种情况中，派生类将知道嵌套类，并可以直接创建这种类型的对象。
+
+如果嵌套类是在另一个类的公有部分声明的，则允许后者、后者的派生类以及外部世界使用它，因为它是公有的。然而，由于嵌套类的作用域为包含它的类，因此在外部世界使用它时，必须使用类限定符。例如，假设有下面的声明：
+
+```c++
+//公有部分声明嵌套类
+class Team
+{
+public:
+	class Coach {...};
+};
+```
+
+现在假定有一个失业的教练，他不属于任何球队。要在Team类的外面创建Coach对象，可以这样做：
+
+```c++
+Team::Coach forhire;	// create a Coach Object outside the Team class
+```
+
+嵌套结构和枚举的作用域与此相同。其实，很多程序员都使用公有枚举来提供可供客户程序员使用的类常数。例如，很多类实现都被定义为支持iostream使用这种技术来提供不同的格式选项，前面已经介绍过这方面的内容，第17章将更加全面地进行介绍。表15.1总结了嵌套类、结构和枚举的作用域特征。
 
 
+| 声明位置 | 包含它的类是否可以使用它 | 从包含它的类派生而来的类是否可以使用它 | 在外部是否可以使用     |
+| -------- | ------------------------ | -------------------------------------- | ---------------------- |
+| 私有部分 | 是                       | 否                                     | 否                     |
+| 保护部分 | 是                       | 是                                     | 否                     |
+| 共有部分 | 是                       | 是                                     | 是，通过类限定符来使用 |
 
+#### 2．访问控制
 
+类可见后，起决定作用的将是访问控制。对嵌套类访问权的控制规则与对常规类相同。在Queue类声明中声明Node类并没有赋予Queue类任何对Node类的访问特权，也没有赋予Node类任何对Queue类的访问特权。因此，Queue类对象只能显示地访问Node对象的公有成员。由于这个原因，在Queue示例中，Node类的所有成员都被声明为公有的。这样有悖于应将数据成员声明为私有的这一惯例，但Node类是Queue类内部实现的一项特性，对外部世界是不可见的。这是因为Node类是在Queue类的私有部分声明的。所以，虽然Queue的方法可直接访问Node的成员，但使用Queue类的客户不能这样做。
 
+总之，类声明的位置决定了类的作用域或可见性。类可见后，访问控制规则（公有、保护、私有、友元）将决定程序对嵌套类成员的访问权限。
 
+### 15.2.2 模板中的嵌套
 
+看一个例子：
 
+```c++
+// queuetp.h -- queue template with a nested class
+#ifndef QUEUETP_H_
+#define QUEUETP_H_
 
+template <class Item>
+class QueueTP
+{
+private:
+	enum { Q_SIZE = 10 };
+	// Node is a nested class definition
+	class Node
+	{
+	public:
+		Item item;
+		Node* next;
+		Node(const Item& i) :item(i), next(0) { }
+	};
+	Node* front;       // pointer to front of Queue
+	Node* rear;        // pointer to rear of Queue
+	int items;          // current number of items in Queue
+	const int qsize;    // maximum number of items in Queue
+	QueueTP(const QueueTP& q) : qsize(0) {}
+	QueueTP& operator=(const QueueTP& q) { return *this; }
+public:
+	QueueTP(int qs = Q_SIZE);
+	~QueueTP();
+	bool isempty() const
+	{
+		return items == 0;
+	}
+	bool isfull() const
+	{
+		return items == qsize;
+	}
+	int queuecount() const
+	{
+		return items;
+	}
+	bool enqueue(const Item& item); // add item to end
+	bool dequeue(Item& item);       // remove item from front
+};
 
+// 模板函数定义略
 
+#endif
+```
 
+上面的程序中模板有趣的一点是，Node是利用通用类型Item来定义的。所以，下面的声明将导致Node被定义成用于存储double值：
 
+```c++
+QueueTp<double> dq;
+```
 
+而下面的声明将导致Node被定义成用于存储char值：
+
+```c++
+QueueTp<char> cq;
+```
+
+这两个Node类将在两个独立的QueueTP类中定义，因此不会发生名称冲突。即一个节点的类型为QueueTP<double>::Node，另一个节点的类型为QueueTP<char>::Node。
+
+## 15.3 异常
+
+看下C++有哪些方法可以处理程序错误：
+
+### 15.3.1 调用abort( )
+
+对于这种问题，处理方式之一是，如果其中一个参数是另一个参数的负值，则调用abort( )函数。Abort( )函数的原型位于头文件cstdlib（或stdlib.h）中，其典型实现是向标准错误流（即cerr使用的错误流）发送消息abnormal program termination（程序异常终止），然后终止程序。
+
+```c++
+//error1.cpp -- using the abort() function
+#include <iostream>
+#include <cstdlib>
+double hmean(double a, double b);
+
+int main()
+{
+	double x, y, z;
+
+	std::cout << "Enter two numbers: ";
+	while (std::cin >> x >> y)
+	{
+		z = hmean(x, y);
+		std::cout << "Harmonic mean of " << x << " and " << y
+			<< " is " << z << std::endl;
+		std::cout << "Enter next set of numbers <q to quit>: ";
+	}
+	std::cout << "Bye!\n";
+	return 0;
+}
+
+double hmean(double a, double b)
+{
+	if (a == -b)
+	{
+		std::cout << "untenable arguments to hmean()\n";
+		std::abort();
+	}
+	return 2.0 * a * b / (a + b);
+}
+```
+
+程序运行的结果如下：
+
+```
+Enter two numbers: 3 6
+Harmonic mean of 3 and 6 is 4
+Enter next set of numbers <q to quit>: 10 -10
+untenable arguments to hmean()
+```
+
+### 15.3.2 返回错误码
+
+略
+
+### 15.3.3 异常机制
+
+下面介绍如何使用异常机制来处理错误。C++异常是对程序运行过程中发生的异常情况（例如被0除）的一种响应。异常提供了将控制权从程序的一个部分传递到另一部分的途径。对异常的处理有3个组成部分：
+
+- 引发异常；
+- 使用处理程序捕获异常；
+- 使用try块。
+
+程序在出现问题时将引发异常。例如，可以修改程序清单15.7中的hmean( )，使之引发异常，而不是调用abort( )函数。throw语句实际上是跳转，即命令程序跳到另一条语句。throw关键字表示引发异常，紧随其后的值（例如字符串或对象）指出了异常的特征。
+
+程序使用异常处理程序（exception handler）来捕获异常，异常处理程序位于要处理问题的程序中。catch关键字表示捕获异常。处理程序以关键字catch开头，随后是位于括号中的类型声明，它指出了异常处理程序要响应的异常类型；然后是一个用花括号括起的代码块，指出要采取的措施。catch关键字和异常类型用作标签，指出当异常被引发时，程序应跳到这个位置执行。异常处理程序也被称为catch块。
+
+try块标识其中特定的异常可能被激活的代码块，它后面跟一个或多个catch块。try块是由关键字try指示的，关键字try的后面是一个由花括号括起的代码块，表明需要注意这些代码引发的异常。
+
+要了解这3个元素是如何协同工作的，最简单的方法是看一个简短的例子，如程序清单15.9所示。
+
+```c++
+// error3.cpp -- using an exception
+#include <iostream>
+double hmean(double a, double b);
+
+int main()
+{
+	double x, y, z;
+
+	std::cout << "Enter two numbers: ";
+	while (std::cin >> x >> y)
+	{
+		try {                   // start of try block
+			z = hmean(x, y);
+		}                       // end of try block
+		catch (const char* s)  // start of exception handler
+		{
+			std::cout << s << std::endl;
+			std::cout << "Enter a new pair of numbers: ";
+			continue;
+		}                       // end of handler
+		std::cout << "Harmonic mean of " << x << " and " << y
+			<< " is " << z << std::endl;
+		std::cout << "Enter next set of numbers <q to quit>: ";
+	}
+	std::cout << "Bye!\n";
+	return 0;
+}
+
+double hmean(double a, double b)
+{
+	if (a == -b)
+		throw "bad hmean() arguments: a = -b not allowed";
+	return 2.0 * a * b / (a + b);
+}
+```
+
+程序的运行情况如下：
+
+```
+Enter two numbers: 3 6
+Harmonic mean of 3 and 6 is 4
+Enter next set of numbers <q to quit>: 10 -10
+bad hmean() arguments: a = -b not allowed
+Enter a new pair of numbers: 1 19
+Harmonic mean of 1 and 19 is 1.9
+Enter next set of numbers <q to quit>: q
+Bye!
+```
+
+在程序清单15.9中，try块与下面类似：
+
+```c++
+try {					// start of try block
+	z = hmean(x,y);
+}						// end of try block
+```
+
+如果其中的某条语句导致异常被引发，则后面的catch块将对异常进行处理。如果程序在try块的外面调用hmean( )，将无法处理异常。
+
+引发异常的代码与下面类似：
+
+```c++
+if(a == -b)
+    throw "bad hmean() arguments: a = -b not allowed";
+```
+
+其中被引发的异常是字符串“bad hmean( )arguments: a = -b not allowed”。异常类型可以是字符串（就像这个例子中那样）或其他C++类型；通常为类类型，本章后面的示例将说明这一点。
+
+执行throw语句类似于执行返回语句，因为它也将终止函数的执行；但throw不是将控制权返回给调用程序，而是导致程序沿函数调用序列后退，直到找到包含try块的函数。在程序清单15.9中，该函数是调用函数。稍后将有一个沿函数调用序列后退多步的例子。另外，在这个例子中，throw将程序控制权返回给main( )。程序将在main( )中寻找与引发的异常类型匹配的异常处理程序（位于try块的后面）。
+
+处理程序（或catch块）与下面类似：
+
+```c++
+ catch (char * s)	// start of exception handler
+ {
+     std::cout << s << std::endl;
+     std::cout << "Enter a new pair of numbers: ";
+     continue;
+ }
+```
+
+catch块点类似于函数定义，但并不是函数定义。关键字catch表明这是一个处理程序，而char* s则表明该处理程序与字符串异常匹配。s与函数参数定义极其类似，因为匹配的引发将被赋给s。另外，当异常与该处理程序匹配时，程序将执行括号中的代码。
+
+执行完try块中的语句后，如果没有引发任何异常，则程序跳过try块后面的catch块，直接执行处理程序后面的第一条语句。因此处理值3和6时，程序清单15.9中程序执行报告结果的输出语句。
+
+接下来看将10和.10传递给hmean( )函数后发生的情况。If语句导致hmean( )引发异常。这将终止hmean( )的执行。程序向后搜索时发现，hmean( )函数是从main( )中的try块中调用的，因此程序查找与异常类型匹配的catch块。程序中唯一的一个catch块的参数为char*，因此它与引发异常匹配。程序将字符串“bad hmean( )arguments: a = -b not allowed”赋给变量s，然后执行处理程序中的代码。处理程序首先打印s——捕获的异常，然后打印要求用户输入新数据的指示，最后执行continue语句，命令程序跳过while循环的剩余部分，跳到起始位置。continue使程序跳到循环的起始处，这表明处理程序语句是循环的一部分，而catch行是指引程序流程的标签（参见图15.2）。
+
+![image-20230218205744653](D:\git\note_md_files\images\image-20230218205744653.png)
+
+您可能会问，如果函数引发了异常，而没有try块或没有匹配的处理程序时，将会发生什么情况。在默认情况下下，程序最终将调用abort( )函数，但可以修改这种行为。稍后将讨论这个问题。
+
+### 15.3.4 将对象用作异常类型
+
+通常，引发异常的函数将传递一个对象。这样做的重要优点之一是，可以使用不同的异常类型来区分不同的函数在不同情况下引发的异常。另外，对象可以携带信息，程序员可以根据这些信息来确定引发异常的原因。同时，catch块可以根据这些信息来决定采取什么样的措施。例如，下面是针对函数hmean( )引发的异常而提供的一种设计：
+
+```c++
+class bad_hmean
+{
+private:
+	double v1;
+	double v2;
+public:
+	bad_hmean(int a=0,int b=0):v1(a),v2(b){}
+	void mesg();
+};
+inline void bad_hmean::mesg()
+{
+	cout<<"hmean("<<v1<<","<<v2<<"):"
+	<<"invalid arguments:a=-b/n";
+}
+```
+
+可以将一个bad_hmean对象初始化为传递给函数hmean( )的值，而方法mesg( )可用于报告问题（包括传递给函数hmena( )的值）。函数hmean( )可以使用下面这样的代码：
+
+```c++
+if(a == -b)
+	throw bad_hmean(a,b);
+```
+
+上述代码调用构造函数bad_hmean( )，以初始化对象，使其存储参数值。
+
+程序清单15.10和15.11添加了另一个异常类bad_gmean以及另一个名为gmean( )的函数，该函数引发bad_gmean异常。函数gmean( )计算两个数的几何平均值，即乘积的平方根。这个函数要求两个参数都不为负，如果参数为负，它将引发异常。程序清单15.10是一个头文件，其中包含异常类的定义；而程序清单15.11是一个示例程序，它使用了该头文件。注意，try块的后面跟着两个catch块：
+
+```c++
+try { // start of try block
+} 	// end of try block
+catch (bad_MyDiV & bg) // start of catch block
+{
+}
+catch (bad_gmean &hg)
+{
+) // end of catch block
+```
+
+如果函数hmean( )引发bad_hmean异常，第一个catch块将捕获该异常；如果gmean( )引发bad_gmean异常，异常将逃过第一个catch块，被第二个catch块捕获。
+
+```c++
+// exc_mean.h  -- exception classes for hmean(), gmean()
+#include <iostream>
+
+class bad_hmean
+{
+private:
+	double v1;
+	double v2;
+public:
+	bad_hmean(double a = 0, double b = 0) : v1(a), v2(b) {}
+	void mesg();
+};
+
+inline void bad_hmean::mesg()
+{
+	std::cout << "hmean(" << v1 << ", " << v2 << "): "
+		<< "invalid arguments: a = -b\n";
+}
+
+class bad_gmean
+{
+public:
+	double v1;
+	double v2;
+	bad_gmean(double a = 0, double b = 0) : v1(a), v2(b) {}
+	const char* mesg();
+};
+
+inline const char* bad_gmean::mesg()
+{
+	return "gmean() arguments should be >= 0\n";
+}
+```
+
+```c++
+//error4.cpp using exception classes
+#include <iostream>
+#include <cmath> // or math.h, unix users may need -lm flag
+#include "15.10 exc_mean.h"
+// function prototypes
+double hmean(double a, double b);
+double gmean(double a, double b);
+int main()
+{
+    using std::cout;
+    using std::cin;
+    using std::endl;
+
+    double x, y, z;
+
+    cout << "Enter two numbers: ";
+    while (cin >> x >> y)
+    {
+        try {                  // start of try block
+            z = hmean(x, y);
+            cout << "Harmonic mean of " << x << " and " << y
+                << " is " << z << endl;
+            cout << "Geometric mean of " << x << " and " << y
+                << " is " << gmean(x, y) << endl;
+            cout << "Enter next set of numbers <q to quit>: ";
+        }// end of try block
+        catch (bad_hmean& bg)    // start of catch block
+        {
+            bg.mesg();
+            cout << "Try again.\n";
+            continue;
+        }
+        catch (bad_gmean& hg)
+        {
+            cout << hg.mesg();
+            cout << "Values used: " << hg.v1 << ", "
+                << hg.v2 << endl;
+            cout << "Sorry, you don't get to play any more.\n";
+            break;
+        } // end of catch block
+    }
+    cout << "Bye!\n";
+    // cin.get();
+    // cin.get();
+    return 0;
+}
+
+double hmean(double a, double b)
+{
+    if (a == -b)
+        throw bad_hmean(a, b);
+    return 2.0 * a * b / (a + b);
+}
+
+double gmean(double a, double b)
+{
+    if (a < 0 || b < 0)
+        throw bad_gmean(a, b);
+    return std::sqrt(a * b);
+}
+```
+
+```
+Enter two numbers: 4 12
+Harmonic mean of 4 and 12 is 6
+Geometric mean of 4 and 12 is 6.9282
+Enter next set of numbers <q to quit>: 5 -5
+hmean(5, -5): invalid arguments: a = -b
+Try again.
+5 -2
+Harmonic mean of 5 and -2 is -6.66667
+gmean() arguments should be >= 0
+Values used: 5, -2
+Sorry, you don't get to play any more.
+Bye!
+```
+
+### 15.3.6 栈解退
+
+假设try块没有直接调用引发异常的函数，而是调用了对引发异常的函数进行调用的函数，则程序流程将从引发异常的函数跳到包含try块和处理程序的函数。这涉及到栈解退（unwinding the stack），下面进行介绍。
+
+首先来看一看C++通常是如何处理函数调用和返回的。C++通常通过将信息放在栈（参见第9章）中来处理函数调用。具体地说，程序将调用函数的指令的地址（返回地址）放到栈中。当被调用的函数执行完毕后，程序将使用该地址来确定从哪里开始继续执行。另外，函数调用将函数参数放到栈中。在栈中，这些函数参数被视为自动变量。如果被调用的函数创建了新的自动变量，则这些变量也将被添加到栈中。如果被调用的函数调用了另一个函数，则后者的信息将被添加到栈中，依此类推。当函数结束时，程序流程将跳到该函数被调用时存储的地址处，同时栈顶的元素被释放。因此，函数通常都返回到调用它的函数，依此类推，同时每个函数都在结束时释放其自动变量。如果自动变量是类对象，则类的析构函数（如果有的话）将被调用。
+
+现在假设函数由于出现异常（而不是由于返回）而终止，则程序也将释放栈中的内存，但不会在释放栈的第一个返回地址后停止，而是继续释放栈，直到找到一个位于try块（参见图15.3）中的返回地址。随后，控制权将转到块尾的异常处理程序，而不是函数调用后面的第一条语句。这个过程被称为栈解退。引发机制的一个非常重要的特性是，和函数返回一样，对于栈中的自动类对象，类的析构函数将被调用。然而，函数返回仅仅处理该函数放在栈中的对象，而throw语句则处理try块和throw之间整个函数调用序列放在栈中的对象。如果没有栈解退这种特性，则引发异常后，对于中间函数调用放在栈中的自动类对象，其析构函数将不会被调用。
+
+![image-20230218210555407](D:\git\note_md_files\images\image-20230218210555407.png)
+
+看如下示例：
+
+```c++
+//error5.cpp -- unwinding the stack
+#include <iostream>
+#include <cmath> // or math.h, unix users may need -lm flag
+#include <string>
+#include "15.10 exc_mean.h"
+
+class demo
+{
+private:
+	std::string word;
+public:
+	demo(const std::string& str)
+	{
+
+		word = str;
+		std::cout << "demo " << word << " created\n";
+	}
+	~demo()
+	{
+		std::cout << "demo " << word << " destroyed\n";
+	}
+	void show() const
+	{
+		std::cout << "demo " << word << " lives!\n";
+	}
+};
+
+// function prototypes
+double hmean(double a, double b);
+double gmean(double a, double b);
+double means(double a, double b);
+
+int main()
+{
+	using std::cout;
+	using std::cin;
+	using std::endl;
+
+	double x, y, z;
+	{
+		demo d1("found in block in main()");
+		cout << "Enter two numbers: ";
+		while (cin >> x >> y)
+		{
+			try {                  // start of try block
+				z = means(x, y);
+				cout << "The mean mean of " << x << " and " << y
+					<< " is " << z << endl;
+				cout << "Enter next pair: ";
+			} // end of try block
+			catch (bad_hmean& bg)    // start of catch block
+			{
+				bg.mesg();
+				cout << "Try again.\n";
+				continue;
+			}
+			catch (bad_gmean& hg)
+			{
+				cout << hg.mesg();
+				cout << "Values used: " << hg.v1 << ", "
+					<< hg.v2 << endl;
+				cout << "Sorry, you don't get to play any more.\n";
+				break;
+			} // end of catch block
+		}
+		d1.show();
+	}
+	cout << "Bye!\n";
+	// cin.get();
+	// cin.get();
+	return 0;
+}
+
+double hmean(double a, double b)
+{
+	if (a == -b)
+		throw bad_hmean(a, b);
+	return 2.0 * a * b / (a + b);
+}
+
+double gmean(double a, double b)
+{
+	if (a < 0 || b < 0)
+		throw bad_gmean(a, b);
+	return std::sqrt(a * b);
+}
+
+double means(double a, double b)
+{
+	double am, hm, gm;
+	demo d2("found in means()");
+	am = (a + b) / 2.0;    // arithmetic mean
+	try
+	{
+		hm = hmean(a, b);
+		gm = gmean(a, b);
+	}
+	catch (bad_hmean& bg) // start of catch block
+	{
+		bg.mesg();
+		std::cout << "Caught in means()\n";
+		throw;             // rethrows the exception 
+	}
+	d2.show();
+	return (am + hm + gm) / 3.0;
+}
+```
+
+上例中，main( )调用了means( )，而means( )又调用了hmean( )和gmean( )。函数main( )中的try块能够捕获bad_hmean和badgmean异常，而函数means( )中的try块只能捕获bad_hmean异常：
+
+```c++
+	catch (bad_hmean& bg) // start of catch block
+	{
+		bg.mesg();
+		std::cout << "Caught in means()\n";
+		throw;             // rethrows the exception 
+	}
+```
+
+上述代码显示消息后，重新引发异常，这将向上把异常发送给main( )函数。一般而言，重新引发的异常将由下一个捕获这种异常的try-catch块组合进行处理，如果没有找到这样的处理程序，默认情况下程序将异常终止。
+
+### 15.3.7 其他异常特性
+
+引发异常时编译器总是创建一个临时拷贝，即使异常规范和catch块中指定的是引用。例如，请看下面的代码：
+
+```c++
+class problem {...}
+...
+void super() throw (problem)
+{
+	...
+	if(oh_no)
+	{
+		problem oops;   //construct object
+		throw opps;       //throw it
+		...
+}
+...
+try{
+	super();
+}
+catch(problem & p)
+{
+//statements
+}
+```
+
+p将指向oops的副本而不是oops本身。这是件好事，因为函数super( )执行完毕后，oops将不复存在。顺便说一句，将引发异常和创建对象组合在一起将更简单：
+
+```c++
+throw problem();		// construct and throw default problem object
+```
+
+您可能会问，既然throw语句将生成副本，为何代码中使用引用呢？毕竟，将引用作为返回值的通常原因是避免创建副本以提高效率。答案是，引用还有另一个重要特征：基类引用可以执行派生类对象。假设有一组通过继承关联起来的异常类型，则在异常规范中只需列出一个基类引用，它将与任何派生类对象匹配。
+
+假设有一个异常类层次结构，并要分别处理不同的异常类型，则使用基类引用将能够捕获任何异常对象；而使用派生类对象只能捕获它所属类及从这个类派生而来的类的对象。引发的异常对象将被第一个与之匹配的catch块捕获。这意味着catch块的排列顺序应该与派生顺序相反：
+
+```c++
+class bad_1 {...};
+class bad_2 : public bad_1 {...};
+class bad_3 : public bad_2 {...};
+...
+void duper()
+{
+...
+    if(oh_no)
+    	throw bad_1()
+    if(rats)
+        throw bad_2()
+    if(drat)
+    	throw bad_3()
+}
+...
+try{
+	duper();
+}
+catch(bad_3 &be)
+{// statements }
+catch(bad_2 &be)
+{// statements }
+catch(bad_1 &be)
+{// statements }
+```
+
+如果将bad_1 &处理程序放在最前面，它将捕获异常bad_1、bad_2和bad_3；通过按相反的顺序排列，bad_3异常将被bad_3 &处理程序所捕获。
+
+通过正确地排列catch块的顺序，让您能够在如何处理异常方面有选择的余地。然而，有时候可能不知道会发生哪些异常。例如，假设您编写了一个调用另一个函数的函数，而您并不知道被调用的函数可能引发哪些异常。在这种情况下，仍能够捕获异常，即使不知道异常的类型。方法是使用省略号来表示异常类型，从而捕获任何异常：
+
+```c++
+catch (...) { // statements } // catches any type exception
+```
+
+如果知道一些可能会引发的异常，可以将上述捕获所有异常的catch块放在最后面，这有点类似于switch语句中的default：
+
+```c++
+try{
+    duper();
+}
+catch(bad_3& be)
+{ 
+    // statements
+}
+catch(bad_2& be)
+{
+    // statements
+}
+catch(bad_1& be)
+{
+    // statements
+}
+catch(bad_hmean& h)
+{
+    // statements
+}
+catch(...)
+{
+    // statements
+}
+```
+
+可以创建捕获对象而不是引用的处理程序。在catch语句中使用基类对象时，将捕获所有的派生类对象，但派生特性将被剥去，因此将使用虚方法的基类版本。
+
+### 15.3.8 exception类
+
+C++异常的主要目的是为设计容错程序提供语言级支持，即异常使得在程序设计中包含错误处理功能更容易，以免事后采取一些严格的错误处理方式。异常的灵活性和相对方便性激励着程序员在条件允许的情况下在程序设计中加入错误处理功能。总之，异常是这样一种特性：类似于类，可以改变您的编程方式。
+
+较新的C++编译器将异常合并到语言中。例如，为支持该语言，exception头文件（以前为exception.h或except.h）定义了exception类，C++可以把它用作其他异常类的基类。代码可以引发exception异常，也可以将exception类用作基类。有一个名为what( )的虚拟成员函数，它返回一个字符串，该字符串的特征随实现而异。然而，由于这是一个虚方法，因此可以在从exception派生而来的类中重新定义它：
+
+```c++
+#include <exception>
+class bad_hmean: public std::exception
+{
+public:
+    const char* what() { return "bad arguments to hmean()"; }
+    // ...
+};
+class bad_gmean: public std::exception
+{
+public:
+    const char* what() { return "bad arguments to gmean()"; }
+    // ...
+};
+```
+
+如果不想以不同的方式处理这些派生而来的异常，可以在同一个基类处理程序中捕获它们：
+
+```c++
+try{
+    // ...
+}
+catch(std::exception& e)
+{
+    cout << e.what() << endl;
+    // ...
+}
+```
+
+否则，可以分别捕获它们。
+
+C++库定义了很多基于exception的异常类型。
+
+#### 1．stdexcept异常类
+
+头文件stdexcept定义了其他几个异常类。首先，该文件定义了logic_error和runtime_error类，它们都是以公有方式从exception派生而来的：
+
+```c++
+class logic_error: public exception
+{
+public:
+    explicit logic_error(const string& what_arg);
+    // ...    
+};
+ 
+class domain_error: public logic_error
+{
+public:
+    explicit domain_error(const string& what_arg);
+    // ...
+};
+```
+
+注意，这些类的构造函数接受一个string对象作为参数，该参数提供了方法what( )以C-风格字符串方式返回的字符数据。
+
+这两个新类被用作两个派生类系列的基类。异常类系列logic_error描述了典型的逻辑错误。总体而言，通过合理的编程可以避免这种错误，但实际上这些错误还是可能发生的。每个类的名称指出了它用于报告的错误类型：
+
+- domain_error；
+- invalid_argument；
+- length_error；
+- out_of_bounds。
+
+每个类独有一个类似于logic_error的构造函数，让您能够提供一个供方法what( )返回的字符串。
+
+数学函数有定义域（domain）和值域（range）。定义域由参数的可能取值组成，值域由函数可能的返回值组成。例如，正弦函数的定义域为负无穷大到正无穷大，因为任何实数都有正弦值；但正弦函数的值域为-1到+1，因为它们分别是最大和最小正弦值。另一方面，反正弦函数的定义域为-1到+1，值域为-π到+ π。如果您编写一个函数，该函数将一个参数传递给函数std::sin( )，则可以让该函数在参数不在定义域.1到+1之间时引发domain_error异常。
+
+异常invalid_argument指出给函数传递了一个意料外的值。例如，如果函数希望接受一个这样的字符串：其中每个字符要么是‘0’要么是‘1’，则当传递的字符串中包含其他字符时，该函数将引发invalid_argument异常。
+
+异常length_error用于指出没有足够的空间来执行所需的操作。例如，string类的append( )方法在合并得到的字符串长度超过最大允许长度时，将引发length_error异常。
+
+异常out_of_bounds通常用于指示索引错误。例如，您可以定义一个类似于数组的类，其operator( ) [ ]在使用的索引无效时引发out_of_bounds异常。
+
+接下来，runtime_error异常系列描述了可能在运行期间发生但难以预计和防范的错误。每个类的名称指出了它用于报告的错误类型：
+
+- range_error；
+- overflow_error；
+- underflow_error。
+
+每个类独有一个类似于runtime_error的构造函数，让您能够提供一个供方法what( )返回的字符串。
+
+下溢（underflow）错误在浮点数计算中。一般而言，存在浮点类型可以表示的最小非零值，计算结果比这个值还小时将导致下溢错误。整型和浮点型都可能发生上溢错误，当计算结果超过了某种类型能够表示的最大数量级时，将发生上溢错误。计算结果可能不再函数允许的范围之内，但没有发生上溢或下溢错误，在这种情况下，可以使用range_error异常。
+
+一般而言，logic_error系列异常表明存在可以通过编程修复的问题，而runtime_error系列异常表明存在无法避免的问题。所有这些错误类有相同的常规特征，它们之间的主要区别在于：不同的类名让您能够分别处理每种异常。另一方面，继承关系让您能够一起处理它们（如果您愿意的话）。例如，下面的代码首先单独捕获out_of_bounds异常，然后统一捕获其他logic_error系列异常，最后统一捕获exception异常、runtime_error系列异常以及其他从exception派生而来的异常：
+
+```c++
+try {
+...
+}
+catch (out_of_bounds& oe) // catch out_of_bounds error
+{...}
+catch (logic_error& oe)	// catch remaining logic_error family
+{...}
+catch (exception& oe)	// catch runtime_error, exception objects
+{...}
+```
+
+如果上述库类不能满足您的需求，应该从logic_error或runtime_error派生一个异常类，以确保您异常类可归入同一个继承层次结构中。
+
+#### 2．bad_alloc异常和new
+
+对于使用new导致的内存分配问题，C++的最新处理方式是让new引发bad_alloc异常。头文件new包含bad_alloc类的声明，它是从exception类公有派生而来的。但在以前，当无法分配请求的内存量时，new返回一个空指针。
+
+程序清单15.13演示了最新的方法。捕获到异常后，程序将显示继承的what( )方法返回的消息（该消息随实现而异），然后终止。
+
+```c++
+// newexcp.cpp -- the bad_alloc exception
+#include <iostream>
+#include <new>
+#include <cstdlib>  // for exit(), EXIT_FAILURE
+using namespace std;
+
+struct Big
+{
+	double stuff[20000];
+};
+
+int main()
+{
+	Big* pb;
+	try {
+		cout << "Trying to get a big block of memory:\n";
+		pb = new Big[10000]; // 1,600,000,000 bytes
+		cout << "Got past the new request:\n";
+	}
+	catch (bad_alloc& ba)
+	{
+		cout << "Caught the exception!\n";
+		cout << ba.what() << endl;
+		exit(EXIT_FAILURE);
+	}
+	cout << "Memory successfully allocated\n";
+	pb[0].stuff[0] = 4;
+	cout << pb[0].stuff[0] << endl;
+	delete[] pb;
+	// cin.get();
+	return 0;
+}
+```
+
+下面该程序在某个系统中的输出：
+
+```c++
+Trying to get a big block of memory:
+Caught the exception!
+std::badalloc
+```
+
+在这里，方法what( )返回字符串“std::bad_alloc”。
+
+如果程序在您的系统上运行时没有出现内存分配问题，可尝试提高请求分配的内存量。
+
+#### 3．空指针和new
+
+很多代码都是在new在失败时返回空指针时编写的。为处理new的变化，有些编译器提供了一个标记（开关），让用户选择所需的行为。当前，C++标准提供了一种在失败时返回空指针的new，其用法如下：
+
+```c++
+int* pi = new (std::nothrow) int;
+int* pa = new (std::nowthrow) int[500];
+```
+
+使用这种new，可将程序清单15.13的核心代码改为如下所示：
+
+```c++
+Big* pb;
+pb = new (std::nothrow) Big[10000];	// 1, 600, 000, 000 bytes
+if (pb == 0)
+{
+	cout << "Could not allocate memory. Bye.\n";
+	exit(EXIT_FAILURE);
+}
+```
+
+### 15.3.10 异常何时会迷失方向
+
+异常被引发后，在两种情况下，会导致问题。首先，如果它是在带异常规范的函数中引发的，则必须与规范列表中的某种异常匹配（在继承层次结构中，类类型与这个类及其派生类的对象匹配），否则称为意外异常（unexpected exception）。在默认情况下，这将导致程序异常终止（虽然C++11摒弃了异常规范，但仍支持它，且有些现有的代码使用了它）。如果异常不是在函数中引发的（或者函数没有异常规范），则必须捕获它。如果没被捕获（在没有try块或没有匹配的catch块时，将出现这种情况），则异常被称为未捕获异常（uncaught exception）。在默认情况下，这将导致程序异常终止。然而，可以修改程序对意外异常和未捕获异常的反应。下面来看如何修改，先从未捕获异常开始。
+
+未捕获异常不会导致程序立刻异常终止。相反，程序将首先调用函数terminate( )。在默认情况下，terminate( )调用abort( )函数。可以指定terminate( )应调用的函数（而不是abort( )）来修改terminate( )的这种行为。为此，可调用set_terminate( )函数。set_terminate( )和terminate( )都是在头文件exception中声明的：
+
+```c++
+typedef void (*terminate_handle)() ;
+terminate_handle set_terminate(terminate_handle f) throw();//c++ 98
+terminate_handle set_terinate(terminate_handle f) noexcept; //c++11
+void teminate(); //c++98
+void teminate() noexcept ; //c++11
+```
+
+其中的typedef使terminate_handler成为这样一种类型的名称：指向没有参数和返回值的函数的指针。set_terminate( )函数将不带任何参数且返回类型为void的函数的名称（地址）作为参数，并返回该函数的地址。如果调用了set_terminate( )函数多次，则terminate( )将调用最后一次set_terminate( )调用设置的函数。
+
+来看一个例子。假设希望未捕获的异常导致程序打印一条消息，然后调用exit( )函数，将退出状态值设置为5。首先，请包含头文件exception。可以使用using编译指令、适当的using声明或std ::限定符，来使其声明可用。
+
+```c++
+#include <exception>
+using namespace std;
+```
+
+然后，设计一个完成上述两种操作所需的函数，其原型如下：
+
+```c++
+void myQuit()
+{
+	cout << "Terminating due to uncaught exception\n";
+	exit(5);
+}
+```
+
+最后，在程序的开头，将终止操作指定为调用该函数。
+
+```c++
+set_terminate(myQuit);
+```
+
+现在，如果引发了一个异常且没有被捕获，程序将调用terminate( )，而后者将调用MyQuit( )。
+
+接下来看意外异常。通过给函数指定异常规范，可以让函数的用户知道要捕获哪些异常。假设函数的原型如下：
+
+```c++
+double Argh(double, double) throw(out_of_bounds);
+```
+
+则可以这样使用该函数：
+
+```c++
+try {
+	x = Argh(a, b);
+}
+catch (out_of_bounds& ex)
+{
+	...
+}
+```
+
+知道应捕获哪些异常很有帮助，因为默认情况下，未捕获的异常将导致程序异常终止。
+
+原则上，异常规范应包含函数调用的其他函数引发的异常。例如，如果Argh( )调用了Duh( )函数，而后者可能引发retort对象异常，则Argh( )和Duh( )的异常规范中都应包含retort。除非自己编写所有的函数，并且特别仔细，否则无法保证上述工作都已正确完成。例如，可能使用的是老式商业库，而其中的函数没有异常规范。这表明应进一步探讨这样一点，即如果函数引发了其异常规范中没有的异常，情况将如何？这也表明异常规范机制处理起来比较麻烦，这也是C++11将其摒弃的原因之一。
+
+在这种情况下，行为与未捕获的异常极其类似。如果发生意外异常，程序将调用unexpected( )函数（您没有想到是unexpected( )函数吧？谁也想不到！）。这个函数将调用terminate( )，后者在默认情况下将调用abort( )。正如有一个可用于修改terminate( )的行为的set_terminate( )函数一样，也有一个可用于修改unexpected( )的行为的set_unexpected( )函数。这些新函数也是在头文件exception中声明的：
+
+```c++
+typedef void (* unexpected_handle)();
+unexpected_handle set_unexpected(unexpected_handle f) throw();//c++98
+unexpected_handle set_unexpected(unexpected_handle f) noexpect;//c++11
+void unexpected(); c++ 98
+void unexpected() noexcept ;//c+ 0x
+```
+
+然而，与提供给set_terminate( )的函数的行为相比，提供给set_unexpected( )的函数的行为受到更严格的限制。具体地说，unexpected_handler函数可以：
+
+- 通过调用terminate( )（默认行为）、abort( )或exit( )来终止程序；
+- 引发异常。
+
+引发异常（第二种选择）的结果取决于unexpected_handler函数所引发的异常以及引发意外异常的函数的异常规范：
+
+- 如果新引发的异常与原来的异常规范匹配，则程序将从那里开始进行正常处理，即寻找与新引发的异常匹配的catch块。基本上，这种方法将用预期的异常取代意外异常；
+- 如果新引发的异常与原来的异常规范不匹配，且异常规范中没有包括std ::bad_exception类型，则程序将调用terminate( )。bad_exception是从exception派生而来的，其声明位于头文件exception中；
+- 如果新引发的异常与原来的异常规范不匹配，且原来的异常规范中包含了std ::bad_exception类型，则不匹配的异常将被std::bad_exception异常所取代。
+
+总之，如果要捕获所有的异常（不管是预期的异常还是意外异常），则可以这样做：
+
+首先确保异常头文件的声明可用：
+
+```c++
+#include <exception>
+using namespace std;
+```
+
+然后，设计一个替代函数，将意外异常转换为bad_exception异常，该函数的原型如下：
+
+```c++
+void myUnexpected()
+{
+	throw std::bad_exception();		// or just throw;
+}
+```
+
+仅使用throw，而不指定异常将导致重新引发原来的异常。然而，如果异常规范中包含了这种类型，则该异常将被bad_exception对象所取代。
+
+接下来在程序的开始位置，将意外异常操作指定为调用该函数：
+
+```c++
+set_unexpected(myUnexpected);
+```
+
+最后，将bad_exception类型包括在异常规范中，并添加如下catch块序列：
+
+```c++
+double Argh(double double) throw(out_of_bounds,bad_exception);
+...
+try{
+	x=Argh(a,b);
+}
+catch(out_of_bounds & ex)
+{
+	...
+}
+catch(bad_exception & ex)
+{
+	...
+}
+```
+
+### 15.3.11 有关异常的注意事项
+
+异常规范不适用于模板，因为模板函数引发的异常可能随特定的具体化而异。
+
+下面进一步讨论动态内存分配和异常。首先，请看下面的函数：
+
+```c++
+void test1(int n)
+{
+	string mesg("I'm trapped in an endless loop");
+	...
+	if(oh_no)
+		throw exception();
+	...
+	return;
+}
+```
+
+string类采用动态内存分配。通常，当函数结束时，将为mesg调用string的析构函数。虽然throw语句过早地终止了函数，但它仍然使得析构函数被调用，这要归功于栈解退。因此在这里，内存被正确地管理。
+
+接下来看下面这个函数：
+
+```c++
+void test2(int n)
+{
+    double * ar =new double[n];
+    ...
+    if(oh_no)
+    	throw exception();
+    ...
+    delete [] ar;
+    return;
+}
+```
+
+这里有个问题。解退栈时，将删除栈中的变量ar。但函数过早的终止意味着函数末尾的delete[ ]语句被忽略。指针消失了，但它指向的内存块未被释放，并且不可访问。总之，这些内存被泄漏了。
+
+这种泄漏是可以避免的。例如，可以在引发异常的函数中捕获该异常，在catch块中包含一些清理代码，然后重新引发异常：
+
+```c++
+void test3(int n)
+{
+    double * ar=new double [n];
+    ...
+    try{
+        if(oh_no)
+        throw exception();
+    }
+    catch(exception & ex)
+    {
+        delete [] ar;
+        throw;
+    }
+    ...
+    delete [] ar;
+    return;
+}
+```
+
+然而，这将增加疏忽和产生其他错误的机会。另一种解决方法是使用第16章将讨论的智能指针模板之一。
+
+总之，虽然异常处理对于某些项目极为重要，但它也会增加编程的工作量、增大程序、降低程序的速度。另一方面，不进行错误检查的代价可能非常高。
