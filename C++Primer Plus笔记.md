@@ -7561,7 +7561,7 @@ class Tv;		// forward declaration
 这样，排列次序应如下：
 
 ```c++
-class Tv; //forward declaration
+class Tv; // forward declaration
 class Remote{...};
 class Tv{...};
 ```
@@ -7585,8 +7585,8 @@ void onoff(Tv & t) {t.onoff();}
 由于这将调用Tv的一个方法，所以编译器此时必须已经看到了Tv类的声明，这样才能知道Tv有哪些方法，但正如看到的，该声明位于Remote声明的后面。这种问题的解决方法是，使Remote声明中只包含方法声明，并将实际的定义放在Tv类之后。这样，排列顺序将如下：
 
 ```c++
-class Tv;  //forward declaration
-class Remote {...};  //Tv-using methods as prototypes only  只包含方法的声明
+class Tv;  // forward declaration
+class Remote {...};  // Tv-using methods as prototypes only  只包含方法的声明
 class Tv {...};
 // put Remote method definitions here  定义在这里写
 ```
@@ -7758,7 +7758,7 @@ private:
 ```c++
 class Queue
 {
-    //Node is a nested calss definition local to this class
+    // Node is a nested calss definition local to this class
     class Node
     {
     public:
@@ -7776,7 +7776,7 @@ class Queue
 bool Queue::enqueue(const Item & item)
 {
     if(isfull())
-        reutrn false;
+        return false;
     Node * add = new Node(item);  //create, initialize node
 //on failure,new throws std::bad_alloc exception
 ...
@@ -7816,7 +7816,7 @@ public:
 Team::Coach forhire;	// create a Coach Object outside the Team class
 ```
 
-嵌套结构和枚举的作用域与此相同。其实，很多程序员都使用公有枚举来提供可供客户程序员使用的类常数。例如，很多类实现都被定义为支持iostream使用这种技术来提供不同的格式选项，前面已经介绍过这方面的内容，第17章将更加全面地进行介绍。表15.1总结了嵌套类、结构和枚举的作用域特征。
+嵌套结构体和枚举的作用域与此相同。其实，很多程序员都使用公有枚举来提供可供客户程序员使用的类常数。例如，很多类实现都被定义为支持iostream使用这种技术来提供不同的格式选项，前面已经介绍过这方面的内容，第17章将更加全面地进行介绍。表15.1总结了嵌套类、结构体和枚举的作用域特征。
 
 
 | 声明位置 | 包含它的类是否可以使用它 | 从包含它的类派生而来的类是否可以使用它 | 在外部是否可以使用     |
@@ -7906,7 +7906,7 @@ QueueTp<char> cq;
 对于这种问题，处理方式之一是，如果其中一个参数是另一个参数的负值，则调用abort( )函数。Abort( )函数的原型位于头文件cstdlib（或stdlib.h）中，其典型实现是向标准错误流（即cerr使用的错误流）发送消息abnormal program termination（程序异常终止），然后终止程序。
 
 ```c++
-//error1.cpp -- using the abort() function
+// error1.cpp -- using the abort() function
 #include <iostream>
 #include <cstdlib>
 double hmean(double a, double b);
@@ -8030,7 +8030,7 @@ try {					// start of try block
 引发异常的代码与下面类似：
 
 ```c++
-if(a == -b)
+if (a == -b)
     throw "bad hmean() arguments: a = -b not allowed";
 ```
 
@@ -8049,11 +8049,11 @@ if(a == -b)
  }
 ```
 
-catch块点类似于函数定义，但并不是函数定义。关键字catch表明这是一个处理程序，而char* s则表明该处理程序与字符串异常匹配。s与函数参数定义极其类似，因为匹配的引发将被赋给s。另外，当异常与该处理程序匹配时，程序将执行括号中的代码。
+catch块有点类似于函数定义，但并不是函数定义。关键字catch表明这是一个处理程序，而char* s则表明该处理程序与字符串异常匹配。s与函数参数定义极其类似，因为匹配的引发将被赋给s。另外，当异常与该处理程序匹配时，程序将执行括号中的代码。
 
 执行完try块中的语句后，如果没有引发任何异常，则程序跳过try块后面的catch块，直接执行处理程序后面的第一条语句。因此处理值3和6时，程序清单15.9中程序执行报告结果的输出语句。
 
-接下来看将10和.10传递给hmean( )函数后发生的情况。If语句导致hmean( )引发异常。这将终止hmean( )的执行。程序向后搜索时发现，hmean( )函数是从main( )中的try块中调用的，因此程序查找与异常类型匹配的catch块。程序中唯一的一个catch块的参数为char*，因此它与引发异常匹配。程序将字符串“bad hmean( )arguments: a = -b not allowed”赋给变量s，然后执行处理程序中的代码。处理程序首先打印s——捕获的异常，然后打印要求用户输入新数据的指示，最后执行continue语句，命令程序跳过while循环的剩余部分，跳到起始位置。continue使程序跳到循环的起始处，这表明处理程序语句是循环的一部分，而catch行是指引程序流程的标签（参见图15.2）。
+接下来看将10和-10传递给hmean( )函数后发生的情况。If语句导致hmean( )引发异常。这将终止hmean( )的执行。程序向后搜索时发现，hmean( )函数是从main( )中的try块中调用的，因此程序查找与异常类型匹配的catch块。程序中唯一的一个catch块的参数为char*，因此它与引发异常匹配。程序将字符串“bad hmean( )arguments: a = -b not allowed”赋给变量s，然后执行处理程序中的代码。处理程序首先打印s——捕获的异常，然后打印要求用户输入新数据的指示，最后执行continue语句，命令程序跳过while循环的剩余部分，跳到起始位置。continue使程序跳到循环的起始处，这表明处理程序语句是循环的一部分，而catch行是指引程序流程的标签（参见图15.2）。
 
 ![image-20230218205744653](D:\git\note_md_files\images\image-20230218205744653.png)
 
@@ -8080,7 +8080,7 @@ inline void bad_hmean::mesg()
 }
 ```
 
-可以将一个bad_hmean对象初始化为传递给函数hmean( )的值，而方法mesg( )可用于报告问题（包括传递给函数hmena( )的值）。函数hmean( )可以使用下面这样的代码：
+可以将一个bad_hmean对象初始化为传递给函数hmean( )的值，而方法mesg( )可用于报告问题（包括传递给函数hmean( )的值）。函数hmean( )可以使用下面这样的代码：
 
 ```c++
 if(a == -b)
@@ -8094,7 +8094,7 @@ if(a == -b)
 ```c++
 try { // start of try block
 } 	// end of try block
-catch (bad_MyDiV & bg) // start of catch block
+catch (bad_hmean & bg) // start of catch block
 {
 }
 catch (bad_gmean &hg)
@@ -8338,7 +8338,7 @@ double means(double a, double b)
 }
 ```
 
-上例中，main( )调用了means( )，而means( )又调用了hmean( )和gmean( )。函数main( )中的try块能够捕获bad_hmean和badgmean异常，而函数means( )中的try块只能捕获bad_hmean异常：
+上例中，main( )调用了means( )，而means( )又调用了hmean( )和gmean( )。函数main( )中的try块能够捕获bad_hmean和bad_gmean异常，而函数means( )中的try块只能捕获bad_hmean异常：
 
 ```c++
 	catch (bad_hmean& bg) // start of catch block
@@ -8364,7 +8364,7 @@ void super() throw (problem)
 	if(oh_no)
 	{
 		problem oops;   //construct object
-		throw opps;       //throw it
+		throw oops;       //throw it
 		...
 }
 ...
@@ -8403,7 +8403,7 @@ void duper()
     	throw bad_3()
 }
 ...
-try{
+try {
 	duper();
 }
 catch(bad_3 &be)
@@ -8522,7 +8522,7 @@ public:
 
 每个类独有一个类似于logic_error的构造函数，让您能够提供一个供方法what( )返回的字符串。
 
-数学函数有定义域（domain）和值域（range）。定义域由参数的可能取值组成，值域由函数可能的返回值组成。例如，正弦函数的定义域为负无穷大到正无穷大，因为任何实数都有正弦值；但正弦函数的值域为-1到+1，因为它们分别是最大和最小正弦值。另一方面，反正弦函数的定义域为-1到+1，值域为-π到+ π。如果您编写一个函数，该函数将一个参数传递给函数std::sin( )，则可以让该函数在参数不在定义域.1到+1之间时引发domain_error异常。
+数学函数有定义域（domain）和值域（range）。定义域由参数的可能取值组成，值域由函数可能的返回值组成。如果您编写一个函数，该函数将一个参数传递给函数std::sin( )，则可以让该函数在参数不在定义域- 1到+1之间时引发domain_error异常。
 
 异常invalid_argument指出给函数传递了一个意料外的值。例如，如果函数希望接受一个这样的字符串：其中每个字符要么是‘0’要么是‘1’，则当传递的字符串中包含其他字符时，该函数将引发invalid_argument异常。
 
@@ -8615,7 +8615,7 @@ std::badalloc
 
 ```c++
 int* pi = new (std::nothrow) int;
-int* pa = new (std::nowthrow) int[500];
+int* pa = new (std::nothrow) int[500];
 ```
 
 使用这种new，可将程序清单15.13的核心代码改为如下所示：
@@ -8820,3 +8820,457 @@ void test3(int n)
 然而，这将增加疏忽和产生其他错误的机会。另一种解决方法是使用第16章将讨论的智能指针模板之一。
 
 总之，虽然异常处理对于某些项目极为重要，但它也会增加编程的工作量、增大程序、降低程序的速度。另一方面，不进行错误检查的代价可能非常高。
+
+## 15.4 RTTI
+
+RTTI是运行阶段类型识别（Runtime Type Identification）的简称。这是新添加到C++中的特性之一，很多老式实现不支持。另一些实现可能包含开关RTTI的编译器设置。RTTI旨在为程序在运行阶段确定对象的类型提供一种标准方式。
+
+### 15.4.1 RTTI的用途
+
+想跟踪生成的对象的类型，RTTI提供解决方案。
+
+### 15.4.2 RTTI的工作原理
+
+C++有3个支持RTTI的元素。
+
+- 如果可能的话，dynamic_cast运算符将使用一个指向基类的指针来生成一个指向派生类的指针；否则，该运算符返回0——空指针。
+- typeid运算符返回一个指出对象的类型的值。
+- type_info结构存储了有关特定类型的信息。
+
+只能将RTTI用于包含虚函数的类层次结构，原因在于只有对于这种类层次结构，才应该将派生对象的地址赋给基类指针。
+
+#### 1．dynamic_cast运算符
+
+dynamic_cast运算符是最常用的RTTI组件，它不能回答“指针指向的是哪类对象”这样的问题，但能够回答“是否可以安全地将对象的地址赋给特定类型的指针”这样的问题。我们来看一看这意味着什么。假设有下面这样的类层次结构：
+
+```c++
+class Grand { // has virtual methods};
+class Superb : public Grand {...};
+class Magnificent : public Superb {...};
+```
+
+接下来假设有下面的指针：
+
+```c++
+Grand* pg = new Grand;
+Grand* ps = new Superb;
+Grand* pm = new Magnificent;
+```
+
+最后，对于下面的类型转换：
+
+```c++
+Magnificent* p1 = (Magnificent*) pm;		// #1
+Magnificent* p1 = (Magnificent*) ps;		// #2
+Superb* p3 = (Magnificent*) pm;		// #3
+```
+
+哪些是安全的？根据类声明，它们可能全都是安全的，但只有那些指针类型与对象的类型（或对象的直接或间接基类的类型）相同的类型转换才一定是安全的。例如，类型转换#1就是安全的，因为它将Magificent类型的指针指向类型为Magnificent的对象。类型转换#2就是不安全的，因为它将基数对象（Grand）的地址赋给派生类（Magnificent）指针。因此，程序将期望基类对象有派生类的特征，而通常这是不可能的。例如，Magnificent对象可能包含一些Grand对象没有的数据成员。然而，类型转换#3是安全的，因为它将派生对象的地址赋给基类指针。即公有派生确保Magnificent对象同时也是一个Superb对象（直接基类）和一个Grand对象（间接基类）。因此，将它的地址赋给这3种类型的指针都是安全的。虚函数确保了将这3种指针中的任何一种指向Magnificent对象时，都将调用Magnificent方法。
+
+注意，与问题“指针指向的是哪种类型的对象”相比，问题“类型转换是否安全”更通用，也更有用。通常想知道类型的原因在于：知道类型后，就可以知道调用特定的方法是否安全。要调用方法，类型并不一定要完全匹配，而可以是定义了方法的虚拟版本的基类类型。下面的例子说明了这一点。
+
+然而，先来看一下dynamic_cast的语法。该运算符的用法如下，其中pg指向一个对象：
+
+```c++
+Superb* pm = dynamic_cast<Superb *> (pg);
+```
+
+这提出了这样的问题：指针pg的类型是否可被安全地转换为Superb *？如果可以，运算符将返回对象的地址，否则返回一个空指针。
+
+**注意：通常，如果指向的对象（*pt）的类型为Type或者是从Type直接或间接派生而来的类型，则下面的表达式将指针pt转换为Type类型的指针：**
+
+```c++
+dynamic_cast<Type*>(pt)
+```
+
+**否则，结果为0，即空指针。**
+
+程序清单15.17演示了这种处理。首先，它定义了3个类，名称为Grand、Superb和Magnificent。Grand类定义了一个虚函数Speak( )，而其他类都重新定义了该虚函数。Superb类定义了一个虚函数Say()，而Manificent也重新定义了它（参见图15.4）。程序定义了GetOne( )函数，该函数随机创建这3种类中某种类的对象，并对其进行初始化，然后将地址作为Grand*指针返回（GetOne( )函数模拟用户做出决定）。循环将该指针赋给Grand *变量pg，然后使用pg调用Speak( )函数。因为这个函数是虚拟的，所以代码能够正确地调用指向的对象的Speak( )版本。
+
+```c++
+for (int i = 0; i < 5; i++)
+{
+	pg = GetOne();
+	pg->Speak();
+}
+```
+
+然而，不能用相同的方式（即使用指向Grand的指针）来调用Say()函数，因为Grand类没有定义它。然而，可以使用dynamic_cast运算符来检查是否可将pg的类型安全地转换为Superb指针。如果对象的类型为Superb或Magnificent，则可以安全转换。在这两种情况下，都可以安全地调用Say( )函数：
+
+```c++
+if (ps = dynamic_cast<Superb *>(pg))
+	ps->Say();
+```
+
+赋值表达式的值是它左边的值，因此if条件的值为ps。如果类型转换成功，则ps的值为非零（true）；如果类型转换失败，即pg指向的是一个Grand对象，ps的值将为0（false）。程序清单15.17列出了所有的代码。顺便说一句，有些编译器可能会对无目的赋值（在if条件语句中，通常使用= =运算符）提出警告。
+
+![image-20230219172838721](D:\git\note_md_files\images\image-20230219172838721.png)
+
+```c++
+// rtti1.cpp -- using the RTTI dynamic_cast operator
+#include <iostream>
+#include <cstdlib>
+#include <ctime>
+
+using std::cout;
+
+class Grand
+{
+private:
+	int hold;
+public:
+	Grand(int h = 0) : hold(h) {}
+	virtual void Speak() const { cout << "I am a grand class!\n"; }
+	virtual int Value() const { return hold; }
+};
+
+class Superb : public Grand
+{
+public:
+	Superb(int h = 0) : Grand(h) {}
+	void Speak() const { cout << "I am a superb class!!\n"; }
+	virtual void Say() const
+	{
+		cout << "I hold the superb value of " << Value() << "!\n";
+	}
+};
+
+class Magnificent : public Superb
+{
+private:
+	char ch;
+public:
+	Magnificent(int h = 0, char c = 'A') : Superb(h), ch(c) {}
+	void Speak() const { cout << "I am a magnificent class!!!\n"; }
+	void Say() const {
+		cout << "I hold the character " << ch <<
+			" and the integer " << Value() << "!\n";
+	}
+};
+
+Grand* GetOne();
+int main()
+{
+	std::srand(std::time(0));
+	Grand* pg;
+	Superb* ps;
+	for (int i = 0; i < 5; i++)
+	{
+		pg = GetOne();
+		pg->Speak();
+		if (ps = dynamic_cast<Superb*>(pg))
+			ps->Say();
+	}
+	// std::cin.get();
+	return 0;
+}
+
+Grand* GetOne()    // generate one of three kinds of objects randomly
+{
+	Grand* p = nullptr;
+	switch (std::rand() % 3)
+	{
+	case 0: p = new Grand(std::rand() % 100);
+		break;
+	case 1: p = new Superb(std::rand() % 100);
+		break;
+	case 2: p = new Magnificent(std::rand() % 100,
+		'A' + std::rand() % 26);
+		break;
+	}
+	return p;
+}
+```
+
+也可以将dynamic_cast用于引用，其用法稍微有点不同：没有与空指针对应的引用值，因此无法使用特殊的引用值来指示失败。当请求不正确时，dynamic_cast将引发类型为bad_cast的异常，这种异常是从exception类派生而来的，它是在头文件typeinfo中定义的。因此，可以像下面这样使用该运算符，其中rg是对Grand对象的引用：
+
+```c++
+#include <typeinfo>	// for bad_cast
+...
+try {
+	Super_b& rs = dynamic_cast<Superb &>(rg);
+	...
+}
+catch(bad_cast &) {
+	...
+};
+```
+
+#### 2．typeid运算符和type_info类
+
+typeid运算符使得能够确定两个对象是否为同种类型。它与sizeof有些相像，可以接受两种参数：
+
+- 类名；
+- 结果为对象的表达式。
+
+typeid运算符返回一个对type_info对象的引用，其中，type_info是在头文件typeinfo（以前为typeinfo.h）中定义的一个类。type_info类重载了= =和!=运算符，以便可以使用这些运算符来对类型进行比较。例如，如果pg指向的是一个Magnificent对象，则下述表达式的结果为bool值true，否则为false：
+
+```c++
+typeid(Magnificent) == typeid(*pg);
+```
+
+如果pg是一个空指针，程序将引发bad_typeid异常。该异常类型是从exception类派生而来的，是在头文件typeinfo中声明的。
+
+type_info类的实现随厂商而异，但包含一个name( )成员，该函数返回一个随实现而异的字符串：通常（但并非一定）是类的名称。例如，下面的语句显示指针pg指向的对象所属的类定义的字符串：
+
+```c++
+cout <<	"Now processing type " << typeid(*pg).name() << ".\n";
+```
+
+程序清单15.18对程序清单15.17作了修改，以使用typeid运算符和name( )成员函数。注意，它们都适用于dynamic_cast和virtual函数不能处理的情况。typeid测试用来选择一种操作，因为操作不是类的方法，所以不能通过类指针调用它。name( )方法语句演示了如何将方法用于调试。注意，程序包含了头文件typeinfo。
+
+```c++
+// rtti2.cpp  -- using dynamic_cast, typeid, and type_info
+#include <iostream>
+#include <cstdlib>
+#include <ctime>
+#include <typeinfo>
+using namespace std;
+
+class Grand
+{
+private:
+	int hold;
+public:
+	Grand(int h = 0) : hold(h) {}
+	virtual void Speak() const { cout << "I am a grand class!\n"; }
+	virtual int Value() const { return hold; }
+};
+
+class Superb : public Grand
+{
+public:
+	Superb(int h = 0) : Grand(h) {}
+	void Speak() const { cout << "I am a superb class!!\n"; }
+	virtual void Say() const
+	{
+		cout << "I hold the superb value of " << Value() << "!\n";
+	}
+};
+
+class Magnificent : public Superb
+{
+private:
+	char ch;
+public:
+	Magnificent(int h = 0, char cv = 'A') : Superb(h), ch(cv) {}
+	void Speak() const { cout << "I am a magnificent class!!!\n"; }
+	void Say() const {
+		cout << "I hold the character " << ch <<
+			" and the integer " << Value() << "!\n";
+	}
+};
+
+Grand* GetOne();
+int main()
+{
+	srand(time(0));
+	Grand* pg;
+	Superb* ps;
+	for (int i = 0; i < 5; i++)
+	{
+		pg = GetOne();
+		cout << "Now processing type " << typeid(*pg).name() << ".\n";
+		pg->Speak();
+		if (ps = dynamic_cast<Superb*>(pg))
+			ps->Say();
+		if (typeid(Magnificent) == typeid(*pg))
+			cout << "Yes, you're really magnificent.\n";
+	}
+	// std::cin.get();
+	return 0;
+}
+
+Grand* GetOne()
+{
+	//Grand * p;
+	Grand* p = nullptr;
+
+	switch (rand() % 3)
+	{
+	case 0: p = new Grand(rand() % 100);
+		break;
+	case 1: p = new Superb(rand() % 100);
+		break;
+	case 2: p = new Magnificent(rand() % 100, 'A' + rand() % 26);
+		break;
+	}
+	return p;
+}
+```
+
+与前一个程序的输出一样，每次运行该程序的输出都可能不同，因为它使用rand( )来选择类型。另外，调用name()时，有些编译器可能提供不同的输出，如5Grand（而不是Grand）。
+
+## 15.5 类型转换运算符
+
+在C++的创始人Bjarne Stroustrup看来，C语言中的类型转换运算符太过松散。例如，请看下面的代码：
+
+```c++
+struct Data
+{
+	double data[200];
+}
+struct Junk
+{
+	int junk[100];
+}
+Data d = {2.5e33, 3.5e-19, 20.2e32};
+char* pch = (char*) (&d);		// type cast #1 - convert to string
+char ch = char (&d);			// type cast #2 - convert address to a char
+Junk* pj = (Junk*) (&d);		// type cast #3 - convert to Junk pointer
+```
+
+首先，上述3种类型转换中，哪一种有意义？除非不讲理，否则它们中没有一个是有意义的。其次，这3种类型转换中哪种是允许的呢？在C语言中都是允许的。
+
+对于这种松散情况，Stroustrop采取的措施是，更严格地限制允许的类型转换，并添加4个类型转换运算符，使转换过程更规范：
+
+- dynamic_cast；
+- const_cast；
+- static_cast；
+- reinterpret_cast。
+
+可以根据目的选择一个适合的运算符，而不是使用通用的类型转换。这指出了进行类型转换的原因，并让编译器能够检查程序的行为是否与设计者想法吻合。
+
+dynamic_cast运算符已经在前面介绍过了。总之，假设High和Low是两个类，而ph和pl的类型分别为High *和Low  * ，则仅当Low是High的可访问基类（直接或间接）时，下面的语句才将一个Low*指针赋给pl：
+
+```c++
+pl = dynamic_cast<Low *> ph;
+```
+
+否则，该语句将空指针赋给pl。通常，该运算符的语法如下：
+
+```c++
+dynamic_cast<type-name>(expression)
+```
+
+该运算符的用途是，使得能够在类层次结构中进行向上转换（由于is-a关系，这样的类型转换是安全的），而不允许其他转换。
+
+const_cast运算符用于执行只有一种用途的类型转换，即改变值为const或volatile，其语法与dynamic_cast运算符相同：
+
+```c++
+const_cast<type-name>(expression);
+```
+
+如果类型的其他方面也被修改，则上述类型转换将出错。也就是说，除了const或volatile特征（有或无）可以不同外，type_name和expression的类型必须相同。再次假设High和Low是两个类：
+
+```c++
+High bar;
+const High* pbar = &bar;
+...
+High* pb = const_cast<High*> (pbar);	// valid
+const Low* pl = const_cast<const Low*> (pbar);	// invalid
+```
+
+第一个类型转换使得*pb成为一个可用于修改bar对象值的指针，它删除const标签。第二个类型转换是非法的，因为它同时尝试将类型从const High *改为const Low *。
+
+提供该运算符的原因是，有时候可能需要这样一个值，它在大多数时候是常量，而有时又是可以修改的。在这种情况下，可以将这个值声明为const，并在需要修改它的时候，使用const_cast。这也可以通过通用类型转换来实现，但通用转换也可能同时改变类型：
+
+```c++
+High bar;
+const High* pbar = &bar;
+...
+High* pb = (High *) (pbar);		// valid
+Low* pl = (Low *) (pbar);		// also valid
+```
+
+由于编程时可能无意间同时改变类型和常量特征，因此使用const_cast运算符更安全。
+
+const_cast不是万能的。它可以修改指向一个值的指针，但修改const值的结果是不确定的。程序清单15.19的简单示例阐明了这一点：
+
+```c++
+// constcast.cpp -- using const_cast<>
+#include <iostream>
+using std::cout;
+using std::endl;
+
+void change(const int* pt, int n);
+
+int main()
+{
+	int pop1 = 38383;
+	const int pop2 = 2000;
+
+	cout << "pop1, pop2: " << pop1 << ", " << pop2 << endl;
+	change(&pop1, -103);
+	change(&pop2, -103);
+	cout << "pop1, pop2: " << pop1 << ", " << pop2 << endl;
+	// std::cin.get();
+	return 0;
+}
+
+void change(const int* pt, int n)
+{
+	int* pc;
+
+	pc = const_cast<int*>(pt);
+	*pc += n;
+}
+```
+
+const_cast运算符可以删除const int* pt中的const，使得编译器能够接受change( )中的语句：
+
+```c++
+*pc += n;
+```
+
+但由于pop2被声明为const，因此编译器可能禁止修改它，如下面的输出所示：
+
+```
+pop1, pop2: 38383, 2000
+pop1, pop2: 38280, 2000
+```
+
+正如您看到的，调用change( )时，修改了pop1，但没有修改pop2。在change()中，指针被声明为const int *，因此不能用来修改指向的int。指针pc删除了const特征，因此可用来修改指向的值，但仅当指向的值不是const时才可行。因此，pc可用于修改pop1，但不能用于修改pop2。
+
+static_cast运算符的语法与其他类型转换运算符相同：
+
+```c++
+static_cast<type-name> (expression);
+```
+
+仅当type_name可被隐式转换为expression所属的类型或expression可被隐式转换为type_name所属的类型时，上述转换才是合法的，否则将出错。假设High是Low的基类，而Pond是一个无关的类，则从High到Low的转换、从Low到High的转换都是合法的，而从Low到Pond的转换是不允许的：
+
+```c++
+High bar;
+Low blow;
+...
+High* pb = static_cast<High *> (*blow);		// valid upcast
+Low* pl = static_cast<Low *> (&bar);		// valid downcast
+Pond* pmer = static_cast<Pond *> (&blow);	// invalid, Pond unrelated
+```
+
+第一种转换是合法的，因为向上转换可以显示地进行。第二种转换是从基类指针到派生类指针，在不进行显示类型转换的情况下，将无法进行。但由于无需进行类型转换，便可以进行另一个方向的类型转换，因此使用static_cast来进行向下转换是合法的。
+
+同理，由于无需进行类型转换，枚举值就可以被转换为整型，所以可以用static_cast将整型转换为枚举值。同样，可以使用static_cast将double转换为int、将float转换为long以及其他各种数值转换。
+
+reinterpret_cast运算符用于天生危险的类型转换。它不允许删除const，但会执行其他令人生厌的操作。有时程序员必须做一些依赖于实现的、令人生厌的操作，使用reinterpret_cast运算符可以简化对这种行为的跟踪工作。该运算符的语法与另外3个相同：
+
+```c++
+reinterpret_cast<type-name> (expression);
+```
+
+下面是一个使用示例：
+
+```c++
+struct dat {short a; short b;};
+long value = 0xA224B118;
+dat * pd = reinterpret_cast<dat *> (&value);
+cout << hex << pd->a;		// display first 2 bytes of value
+```
+
+通常，这样的转换适用于依赖于实现的底层编程技术，是不可移植的。例如，不同系统在存储多字节整型时，可能以不同的顺序存储其中的字节。
+
+然而，reinterprete_cast运算符并不支持所有的类型转换。例如，可以将指针类型转换为足以存储指针表示的整型，但不能将指针转换为更小的整型或浮点型。另一个限制是，不能将函数指针转换为数据指针，反之亦然。
+
+
+
+
+
+
+
+
+
+
+
+
+
