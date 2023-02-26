@@ -6763,7 +6763,6 @@ RefValue::RefValue(const char* pszName)
 
 RefValue::~RefValue()
 {
-
 	if (m_pszName != NULL)
 	{
 		delete m_pszName;
@@ -6781,8 +6780,7 @@ void RefValue::Release()
 	if (--m_nCount == 0)
 	{
 		delete this;
-	}
-	
+	}	
 }
 
 
@@ -6873,8 +6871,6 @@ int main(int argc, char* argv[])
 }
 ```
 
-
-
 **问题**：
 
 上面的做法能在一定程度上解决资源多次重复申请的浪费，但是仍然存在两个核心的问题。
@@ -6896,7 +6892,6 @@ int main(int argc, char* argv[])
 
 ```c++
 // Student.cpp : Defines the entry point for the console application.
-//
 
 #include "stdafx.h"
 #include <iostream.h>
@@ -6912,7 +6907,7 @@ struct RefValue
 	void Release();
 
 	char* m_pszName;
-	int   m_nCount;
+	int m_nCount;
 };
 
 RefValue::RefValue(const char* pszName)
@@ -6943,8 +6938,7 @@ void RefValue::Release()
 	if (--m_nCount == 0)
 	{
 		delete this;
-	}
-	
+	}	
 }
 
 
@@ -6996,7 +6990,6 @@ CStudent::~CStudent()
 	release();
 }
 
-
 CStudent& CStudent::operator=(CStudent& obj)
 {
 	if (obj.m_pValue == m_pValue)
@@ -7025,7 +7018,6 @@ int main(int argc, char* argv[])
 
 	CStudent stu3 = stu2;
 
-
 	stu2.Show();
 	stu3.Show();
 
@@ -7043,8 +7035,6 @@ int main(int argc, char* argv[])
 前面，我们学会了如何使用引用计数及写时拷贝，这是理解智能指针必不可少的方法。但是，在实际写代码中，我们其实更倾向于让程序员对于资源的管理没有任何的感知，也就是说，最好让程序员只需要考虑资源的何时申请，对于何时释放以及资源内部如何计数等问题，统统交给编译器内部自己处理。
 
 智能指针另外一点就是在使用上要像真正的指针一样可以支持取内容*, 指针访问成员->等操作，因此，就需要对这些运算符进行重载。
-
-
 
 ```c++
 #include "stdafx.h"
@@ -7108,7 +7098,6 @@ private:
 class CSmartPtr
 {
 public:
-
   CSmartPtr()
   {
     m_pRef = NULL;
@@ -7133,7 +7122,6 @@ public:
 
     m_pRef = obj.m_pRef;
     m_pRef->AddRef();
-
   }
 
   CSmartPtr& operator=(CSmartPtr& obj)
@@ -7150,7 +7138,6 @@ public:
     
     m_pRef = obj.m_pRef;
     m_pRef->AddRef();
-    
 
     return *this;
   }
@@ -7179,7 +7166,6 @@ public:
   {
     return m_pRef->m_pObj;
   }
-
 
 //   operator CStudent()
 //   {
@@ -7236,7 +7222,6 @@ int main(int argc, char* argv[])
 
 ```c++
 // TestC11.cpp : 定义控制台应用程序的入口点。
-//
 
 #include "stdafx.h"
 #include <iostream>
@@ -7295,7 +7280,7 @@ public:
 
 private:
     T* m_pObj;
-    int       m_nCount;
+    int m_nCount;
 };
 
 //致命问题， CSmartPtr中表示的类型是固定的，是CStudent, 需要添加模板
@@ -7303,7 +7288,6 @@ template<typename T>
 class CSmartPtr
 {
 public:
-
     CSmartPtr()
     {
         m_pRef = NULL;
@@ -7374,11 +7358,7 @@ private:
 class CTest{
 public:
     CTest(){}
-
 };
-
-
-
 
 int main(int argc, char* argv[])
 {
@@ -7390,62 +7370,58 @@ int main(int argc, char* argv[])
     CSmartPtr<CStudent> sp2(new CStudent()); //拷贝构造
     //sp2 = sp1; //运算符重载
 
-    //
     CSmartPtr<CTest> sp3(new CTest);
-
    
     return 0;
 }
 ```
 
-
-
 另外一种写法：
 
 ```c++
     template<typename FriendClass, typename DataType>  
-    class PtrCount  
-    {  
-        friend FriendClass;  
-        PtrCount(DataType* _p):p(_p),use(1){}  
-        ~PtrCount(){delete p;}  
-        DataType* p;  
-        size_t use;  
+    class PtrCount
+    {
+        friend FriendClass;
+        PtrCount(DataType* _p):p(_p),use(1){}
+        ~PtrCount(){delete p;}
+        DataType* p;
+        size_t use;
     };  
-      
+
     template<typename DataType>  
     class SmartPtr  
-    {  
-    public:  
+    {
+    public:
         SmartPtr(DataType *p)  
             :m_ref(new PtrCount<SmartPtr, DataType>(p))  
-        {  
-        }  
+        {
+        }
       
         SmartPtr(const SmartPtr &orig)  
             :m_ref(orig.m_ref)  
-        {  
-            ++m_ref->use;  
-        }  
-      
-        SmartPtr& operator=(const SmartPtr &rhs)  
-        {  
-            ++rhs.m_ref->use;  
-            if (--m_ref->use == 0)  
-                delete m_ref;  
-            m_ref = rhs.m_ref;  
-            return *this;  
-        }  
-      
-        ~SmartPtr()  
-        {  
-            if (--m_ref->use == 0)  
-                delete m_ref;  
-        }  
-      
-    private:  
-        PtrCount<SmartPtr, DataType>* m_ref;  
-    };  
+        {
+            ++m_ref->use;
+        }
+
+        SmartPtr& operator=(const SmartPtr &rhs)
+        {
+            ++rhs.m_ref->use;
+            if (--m_ref->use == 0)
+                delete m_ref;
+            m_ref = rhs.m_ref;
+            return *this;
+        }
+
+        ~SmartPtr()
+        {
+            if (--m_ref->use == 0)
+                delete m_ref;
+        }
+
+    private:
+        PtrCount<SmartPtr, DataType>* m_ref;
+    };
 ```
 
 ```c++
@@ -7644,19 +7620,13 @@ smart_ptr<T> dynamic_pointer_cast(
 
  **解释**：auto_ptr指针在c++11标准中就被废除了，可以使用unique_ptr来替代，功能上是相同的，unique_ptr相比较auto_ptr而言，提升了安全性（没有浅拷贝），增加了特性（delete析构）和对数组的支持。
 
-
-
 >  This class template provides a limited *garbage collection* facility for pointers, by allowing pointers to have the elements they point to automatically destroyed when the *auto_ptr* object is itself destroyed.
 
  **解释**：这个类模板提供了有限度的垃圾回收机制，通过将一个指针保存在auto_ptr对象中，当auto_ptr对象析构时，这个对象所保存的指针也会被析构掉。
 
-
-
 > `auto_ptr` objects have the peculiarity of *taking ownership* of the pointers assigned to them: An `auto_ptr` object that has ownership over one element is in charge of destroying the element it points to and to deallocate the memory allocated to it when itself is destroyed. The destructor does this by calling `operator delete` automatically.
 
 **解释**：  auto_ptr 对象拥有其内部指针的所有权。这意味着auto_ptr对其内部指针的释放负责，即当自身被释放时，会在析构函数中自动的调用delete，从而释放内部指针的内存。
-
-
 
 > Therefore, no two `auto_ptr` objects should *own* the same element, since both would try to destruct them at some point. When an assignment operation takes place between two `auto_ptr` objects, *ownership* is transferred, which means that the object losing ownership is set to no longer point to the element (it is set to the *null pointer*).
 
@@ -7666,9 +7636,7 @@ smart_ptr<T> dynamic_pointer_cast(
 
 - 当**两个auto_ptr对象**之间发生**赋值**操作时，内部指针被拥有的所有权会发生转移，这意味着这个赋值的右者对象会丧失该所有权，不在指向这个内部指针（其会被设置成null指针）。
 
-
-
-到这里，我们来看一下auto_ptr的提供的接口和使用方法：
+到这里，我们来看一下auto_ptr提供的接口和使用方法：
 
 ![image-20210813002832004](.\images\image-20210813002832004.png)
 
@@ -7724,15 +7692,12 @@ void foo_release()
 	{
 		std::auto_ptr<int> aptr(pNew);
 	}
-
 }
 ```
 
 - 这里显然，当出了块作用域之后，aptr对象会自动调用析构，然后在析构中会自动的delete其内部指针，也就是出了这个作用域后，其内部指针就被释放了。
 
 - 当然上面这种写法是不推荐的，因为我们这里本质上就是希望不去管理指针的释放工作，上面的写法就又需要程序员自己操心指针的问题，也就是使用**智能指针要避免出现指针的直接使用**！
-
-
 
 在这里可以在使用前调用release，从而放弃其内部指针的使用权，但是同样这么做违背了智能指针的初衷。
 
@@ -7745,7 +7710,6 @@ void foo_release()
 		std::auto_ptr<int> aptr(pNew);
 		int* p = aptr.release();
 	}
-
 }
 ```
 
@@ -7753,18 +7717,15 @@ void foo_release()
 
   可以调用reset来重新分配指针的所有权，reset中会先释放原来的内部指针的内存，然后分配新的内部指针。
 
- 
-
-```
+```c++
 void foo_reset()
 {
 	//释放
 	int* pNew = new int(3);
-	int*p = new int(5);
+	int* p = new int(5);
 	{
 		std::auto_ptr<int> aptr(pNew);
 		aptr.reset(p);
-
 	}
 }
 ```
@@ -7782,8 +7743,6 @@ void foo_assign()
 	p2 = p1;
 }
 ```
-
-
 
 **auto_ptr存在的问题**
 
@@ -7823,7 +7782,6 @@ void foo_ary()
 	Ary.push_back(p);
 
 	printf("%d\r\n", *p);
-
 }
 ```
 
@@ -7843,8 +7801,6 @@ unique_ptr提供了以下操作：
 
  虽然这里的构造函数比较多，但是可以发现，实际上是没有类似auto_ptr的那种拷贝构造：
 
- 
-
 ```c++
 void foo_constuct()
 {
@@ -7858,7 +7814,6 @@ void foo_constuct()
     std::unique_ptr<int> p2 = p;
     std::unique_ptr<int> p3(p);
     p4 = p;
-
 }
 ```
 
@@ -7867,8 +7822,6 @@ void foo_constuct()
 **2. reset**
 
  reset的用法和auto_ptr是一致的：
-
- 
 
 ```c++
 void foo_reset()
@@ -7879,7 +7832,6 @@ void foo_reset()
     {
         std::unique_ptr<int> uptr(pNew);
         uptr.reset(p);
-
     }
 }
 ```
@@ -7887,8 +7839,6 @@ void foo_reset()
 **3.release**
 
 release与reset一样，也不会释放原来的内部指针，只是简单的将自身置空。
-
- 
 
 ```c++
 void foo_release()
@@ -7909,8 +7859,6 @@ void foo_release()
 
 但是多了个move的用法：
 
- 
-
 ```c++
 void foo_move()
 {
@@ -7918,7 +7866,6 @@ void foo_move()
     
     std::unique_ptr<int> uptr(p);
     std::unique_ptr<int> uptr2 = std::move(uptr);
-    
 }
 ```
 
@@ -7932,8 +7879,6 @@ void foo_move()
 
 直接使用仍然会报错：
 
- 
-
 ```c++
 void foo_ary()
 {
@@ -7942,15 +7887,12 @@ void foo_ary()
     Ary.push_back(p);
 
     printf("%d\r\n", *p);
-
 }
 ```
 
 ![image-20210813003526750](.\images\image-20210813003526750.png)
 
 但是可以采用move的办法，这样就编译通过了：
-
- 
 
 ```c++
 void foo_ary()
@@ -7960,7 +7902,6 @@ void foo_ary()
     Ary.push_back(std::move(uptr));
 
     printf("%d\r\n", *uptr);
-
 }
 ```
 
@@ -7970,11 +7911,8 @@ void foo_ary()
 
 所有示例代码如下：
 
- 
-
 ```c++
 // testUniqueptr.cpp : 定义控制台应用程序的入口点。
-//
 
 #include "stdafx.h"
 #include <iostream>
@@ -7993,7 +7931,6 @@ void foo_constuct()
 //  std::unique_ptr<int> p2 = p;
 //  std::unique_ptr<int> p3(p);
 //  p4 = p;
-
 }
 
 void foo_reset()
@@ -8004,7 +7941,6 @@ void foo_reset()
     {
         std::unique_ptr<int> uptr(pNew);
         uptr.reset(p);
-
     }
 }
 
@@ -8018,8 +7954,6 @@ void foo_release()
         p = uptr.release();
     }
 }
-
-
 
 void foo_move()
 {
@@ -8035,17 +7969,11 @@ void foo_ary()
     Ary.push_back(std::move(uptr));
 
     printf("%d\r\n", *uptr);
-
 }
-
 
 int _tmain(int argc, _TCHAR* argv[])
 {
-    foo_ary();
-
-
-
-
+    foo_ary();   
     return 0;
 }
 ```
@@ -8054,7 +7982,6 @@ int _tmain(int argc, _TCHAR* argv[])
 
 ```c++
 // TestC11.cpp : 定义控制台应用程序的入口点。
-//
 
 #include "stdafx.h"
 #include <iostream>
@@ -8078,9 +8005,8 @@ public:
 
 private:
     char* m_pszBuf;
-    int   m_nSex;
+    int m_nSex;
 };
-
 
 template<typename T>
 class CSmartPtr;
@@ -8113,14 +8039,13 @@ public:
 
 private:
     T* m_pObj;
-    int       m_nCount;
+    int m_nCount;
 };
 
 template<typename T>
 class CSmartPtr
 {
 public:
-
     CSmartPtr()
     {
         m_pRef = NULL;
@@ -8194,7 +8119,6 @@ class B;
 
 class A
 {
-
 public:
     A() {}
     CSmartPtr<B> m_b;
@@ -8202,12 +8126,10 @@ public:
 
 class B
 {
-
 public:
     B() {}
     CSmartPtr<A> m_a;
 };
-
 
 int main(int argc, char* argv[])
 {
@@ -8230,8 +8152,6 @@ shared_ptr是带引用计数的智能指针：
 
 其初始化多了一种写法：std::make_shared<int>
 
- 
-
 ```c++
 void foo_construct()
 {
@@ -8248,9 +8168,7 @@ void foo_construct()
 
 这里显然可以看到有引用计数的存在。
 
-通过修改上面例子种的sptr3的作用域，可以发现，出了块作用域之后，shared_ptr对应的引用计数的值减少了。
-
- 
+通过修改上面例子中的sptr3的作用域，可以发现，出了块作用域之后，shared_ptr对应的引用计数的值减少了。
 
 ```c++
 void foo_construct()
@@ -8264,7 +8182,6 @@ void foo_construct()
     }
     
     std::shared_ptr<int> sptr4 = std::make_shared<int>(5);
-
 }
 
 ```
@@ -8275,8 +8192,6 @@ void foo_construct()
 
 1. 如果用同一个指针去初始化两个shared_ptr时，则引用计数仍然会出错：
 
- 
-
 ```c++
 void foo_test()
 {
@@ -8284,7 +8199,6 @@ void foo_test()
 
     {
         std::shared_ptr<int> sptr(p);
-
         {
             std::shared_ptr<int> sptr2(p);
         }
@@ -8298,10 +8212,6 @@ void foo_test()
 
   如果两个类的原始指针的循环使用，那么会出现重复释放的问题：
 
- 
-
- 
-
 ```c++
 class CPerson;
 class CSon;
@@ -8310,7 +8220,6 @@ class Cperson
 {
 public:
     Cperson(){
-        
     }
 
     void Set(CSon* pSon){
@@ -8365,13 +8274,9 @@ int _tmain(int argc, _TCHAR* argv[])
 }
 ```
 
-  
-
 这里，delete pSon会出现循环的调用父子类的析构函数，问题很大。
 
 因此，这里考虑使用引用计数的shared_ptr来实现。
-
- 
 
 ```c++
 #pragma once
@@ -8384,7 +8289,6 @@ class Cperson
 {
 public:
     Cperson(){
-
     }
 
     void Set(std::shared_ptr<CSon> pSon){
@@ -8401,7 +8305,6 @@ class CSon
 {
 public:
     CSon(){
-
     }
 
     void Set(std::shared_ptr<Cperson> pParent){
@@ -8414,8 +8317,6 @@ public:
     std::shared_ptr<Cperson> m_pParent;
 };
 ```
-
- 
 
 ```c++
 void testShared()
@@ -8433,14 +8334,12 @@ void testShared()
         printf("pSon : use_count = %d\r\n", shared_Son.use_count());
         printf("pPer : use_count = %d\r\n", shared_Parent.use_count());
     }
-
-
 }
 ```
 
 这里在出作用域后发现，实际上两个对象均未被销毁：
 
-最后两者的引用计数均为1，原因是出了块作用域之后，两个shared_parent和shared_son均会析构，在这两个智能指针的内部，均会先去判断对应的内部指针是否-1是否为0，显然这里相互引用的情况下，引用计数初值为2，减1后值为1，所以两个指针均不会被释放。
+最后两者的引用计数均为1，原因是出了块作用域之后，两个shared_parent和shared_son均会析构，在这两个智能指针的内部，均会先去判断对应的内部指针-1后是否为0，显然这里相互引用的情况下，引用计数初值为2，减1后值为1，所以两个指针均不会被释放。
 
 这里，其实只需要一个释放了，另外一个也能跟着释放，可以采用弱指针，即人为的迫使其中一个引用计数为1，从而打破闭环。
 
@@ -8464,14 +8363,11 @@ void testShared()
 
 3. 实际上，如果不存在循环引用，就不需要使用weak_ptr了，这种做法仍然增加了程序员的负担，所以不如java c#等语言垃圾回收机制省心。
 
- 
-
 ```c++
 void testWeak()
 {
     std::shared_ptr<int> sharedPtr(new int(3));
-    std::weak_ptr<int> weakPtr(sharedPtr);
-
+    std::weak_ptr<int> weakPtr(sharedPtr); 
 
     printf("sharedPtr_Count = %d, weakPtr_Count = %d, Value = %d \r\n", sharedPtr.use_count(), weakPtr.use_count(), *sharedPtr);
     //当weakPtr为空或者对应的shared_ptr不再有内部指针时，expired返回为true.
@@ -8507,8 +8403,7 @@ int _tmain(int argc, _TCHAR* argv[])
 
     std::weak_ptr<int> wptr = sptr;
 
-    if (!wptr.expired()){
-        
+    if (!wptr.expired()){   
         std::shared_ptr<int> sptr3 = wptr.lock();
     }
 
@@ -8519,8 +8414,6 @@ int _tmain(int argc, _TCHAR* argv[])
 1. **首先**看直接看继承关系和类成员：
 
    shared_ptr与weak_ptr均继承自同一个父类  _Ptr_base
-
- 
 
 ```c++
 template<class _Ty>
@@ -8582,7 +8475,6 @@ public:
         shared_ptr(_Right).swap(*this);
         return (*this);
         }
-
 
     void reset() _NOEXCEPT
         {   // release resource and convert to empty shared_ptr object
@@ -8717,8 +8609,6 @@ public:
 ```
 
   从这里可以看出来shared_ptr和weak_ptr里面本身并没有成员变量，提供的是对外的接口。shared_ptr可以对外提供模拟内部指针的操作，而weak_ptr是用来提供获取shared_ptr的接口。
-
-  
 
   具体用来记录保存内部指针和使用次数是他们的共同父类_Ptr_base：
 
@@ -8932,8 +8822,6 @@ private:
 
    Reset  _Decref _Decwref use_count等。
 
-  
-
  再来看看类_Ref_count_base的实现：
 
 ```c++
@@ -9035,8 +8923,6 @@ public:
     };
 ```
 
- 
-
 在这个_Ref_count_base类中提供了
 
    _Atomic_counter_t _Uses;
@@ -9075,8 +8961,6 @@ private:
 
 这里_Ptr_base中的_Ref_count_base*  _Rep成员是使用的new  _Ref_count。
 
- 
-
 ```c++
 void _Resetp(_Ux *_Px)
 {   // release, take ownership of _Px
@@ -9097,9 +8981,7 @@ void _Resetp(_Ux *_Px)
 
 这个引用的次数：
 
- 
-
-```
+```c++
     _Ref_count_base()
         {   // construct
         _Init_atomic_counter(_Uses, 1);
@@ -9149,12 +9031,9 @@ void _Resetp(_Ux *_Px)
 
 那么就可以自己来模拟强弱指针，并修改成模板。
 
- 
-
 ```C++
 #include "stdafx.h"
 #include <memory>
-
 
 /*
     问题1：
@@ -9168,9 +9047,6 @@ void _Resetp(_Ux *_Px)
      
         A对象智能指针（引用次数  2）   shared_ptr_uses_count
      }
-
-
-
 
     问题2：
      强弱指针计数的用途是什么，具体的代码实现是什么？
@@ -9236,7 +9112,7 @@ int _tmain(int argc, _TCHAR* argv[])
 
 ## 22.11 再次编写智能指针
 
-经过前面的分析，我们彻底理解了智能指针的使用，因此，这里我们根据stl中的智能指针的写法，对自己版本的智能指针进行修改，从而到底彻底理解智能指针的目的。
+经过前面的分析，我们彻底理解了智能指针的使用，因此，这里我们根据stl中的智能指针的写法，对自己版本的智能指针进行修改，从而达到彻底理解智能指针的目的。
 
 ```c++
 #pragma once
@@ -10070,8 +9946,6 @@ int main() {
   return 0;
 }
 ```
-
-
 
 # 24. lambda表达式/匿名函数
 
