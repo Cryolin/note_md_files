@@ -9262,6 +9262,1002 @@ cout << hex << pd->a;		// display first 2 bytes of value
 
 然而，reinterprete_cast运算符并不支持所有的类型转换。例如，可以将指针类型转换为足以存储指针表示的整型，但不能将指针转换为更小的整型或浮点型。另一个限制是，不能将函数指针转换为数据指针，反之亦然。
 
+# 第16章 string类和标准模板库
+
+## 16.1 string类
+
+### 16.1.1 构造字符串
+
+size_type是一个依赖于实现的整型，是在头文件string中定义的。string类将string::npos定义为字符串的最大长度，通常为unsigned int的最大值。另外，表格中使用缩写NBTS（null-terminated string）来表示以空字符结束的字符串。
+
+![image-20230312202023550](D:\git\note_md_files\images\image-20230312202023550.png)
+
+![image-20230312202041049](D:\git\note_md_files\images\image-20230312202041049.png)
+
+```c++
+// str1.cpp -- introducing the string class
+#include <iostream>
+#include <string>
+// using string constructors
+
+int main()
+{
+	using namespace std;
+	string one("Lottery Winner!");     // ctor #1
+	cout << one << endl;               // overloaded <<
+	string two(20, '$');               // ctor #2
+	cout << two << endl;
+	string three(one);                 // ctor #3
+	cout << three << endl;
+	one += " Oops!";                   // overloaded +=
+	cout << one << endl;
+	two = "Sorry! That was ";
+	three[0] = 'P';
+	string four;                       // ctor #4
+	four = two + three;                // overloaded +, =
+	cout << four << endl;
+	char alls[] = "All's well that ends well";
+	string five(alls, 20);              // ctor #5
+	cout << five << "!\n";
+	string six(alls + 6, alls + 10);     // ctor #6
+	cout << six << ", ";
+	string seven(&five[6], &five[10]); // ctor #6 again
+	cout << seven << "...\n";
+	string eight(four, 7, 16);         // ctor #7
+	//将four的第八个字符(位置7)开始，将16个字符复制到eight中
+	cout << eight << " in motion!" << endl;
+	// std::cin.get();
+	return 0;
+}
+```
+
+程序清单16.1中的程序首先演示了可以将string对象初始化为常规的C-风格字符串，然后使用重载的<<运算符来显示它：
+
+```c++
+	string one("Lottery Winner!");     // ctor #1
+	cout << one << endl;               // overloaded <<
+```
+
+接下来的构造函数将string对象two初始化为由20个$字符组成的字符串：
+
+```c++
+	string two(20, '$');               // ctor #2
+```
+
+复制构造函数将string对象three初始化为string对象one：
+
+```c++
+	string three(one);                 // ctor #3
+```
+
+重载的+=运算符将字符串“Oops!”附加到字符串one的后面：
+
+```c++
+	one += " Oops!";                   // overloaded +=
+```
+
+第5个构造函数将一个C-风格字符串和一个整数作为参数，其中的整数参数表示要复制多少个字符：
+
+```c++
+	char alls[] = "All's well that ends well";
+	string five(alls, 20);              // ctor #5
+```
+
+从输出可知，这里只使用了前20个字符（“All's well that ends”）来初始化five对象。正如表16.1指出的，如果字符数超过了C-风格字符串的长度，仍将复制请求数目的字符。所以在上面的例子中，如果用40代替20，将导致15个无用字符被复制到five的结尾处（即构造函数将内存中位于字符串“All's well that ends well”后面的内容作为字符）。
+
+第6个构造函数有一个模板参数：
+
+```c++
+template<class Iter> string(Iter begin, Iter end);
+```
+
+begin和end将像指针那样，指向内存中两个位置（通常，begin和end可以是迭代器——广泛用于STL中的广义化指针）。构造函数将使用begin和end指向的位置之间的值，对string对象进行初始化。[begin,end)来自数学中，意味着包括begin，但不包括end在内的区间。也就是说，end指向被使用的最后一个值后面的一个位置。请看下面的语句：
+
+```c++
+string six(alls + 6, alls + 10);
+```
+
+由于数组名相当于指针，所以alls + 6和alls +10的类型都是char *，因此使用模板时，将用类型char *替换Iter。第一个参数指向数组alls中的第一个w，第二个参数指向第一个well后面的空格。因此，six将被初始化为字符串“well”。图16.1说明了该构造函数的工作原理。
+
+![image-20230312202503945](D:\git\note_md_files\images\image-20230312202503945.png)
+
+现在假设要用这个构造函数将对象初始化为另一个string对象（假设为five）的一部分内容，则下面的语句不管用：
+
+```c++
+string seven(five + 6, five + 10);
+```
+
+原因在于，对象名（不同于数组名）不会被看作是对象的地址，因此five不是指针，所以five + 6是没有意义的。然而，five[6]是一个char值，所以&five[6]是一个地址，因此可被用作该构造函数的一个参数。
+
+```c++
+string seven(&five[6], &five[10]);
+```
+
+第7个构造函数将一个string对象的部分内容复制到构造的对象中：
+
+```
+string eight(four, 7, 16);
+```
+
+上述语句从four的第8个字符（位置7）开始，将16个字符复制到eight中。
+
+### 16.1.3 使用字符串
+
+可以确定字符串的长度。size( )和length( )成员函数都返回字符串中的字符数：
+
+```c++
+if (snake1.length() == snake2.size())
+	cout << "Both strings have the save length.\n";
+```
+
+为什么这两个函数完成相同的任务呢？length( )成员来自较早版本的string类，而size( )则是为提供STL兼容性而添加的。
+
+### 16.1.5 字符串种类
+
+string库实际上是基于一个模板类的：
+
+```c++
+template<class charT, class traits = char_traits<charT>,
+	class Allocator = allocator<charT>>
+basic_string {...}
+```
+
+模板basic_string有4个具体化，每个具体化都有一个typedef名称：
+
+```c++
+typedef basic_string<char> string;
+typedef basic_string<wchar_t> wstring;
+typedef basic_string<char16_t> u16string;
+typedef basic_string<char32_t> u32string;
+```
+
+## 16.2 智能指针模板类
+
+### 16.2.1 使用智能指针
+
+这三个智能指针模板（auto_ptr、unique_ptr和shared_ptr）都定义了类似指针的对象，可以将new获得（直接或间接）的地址赋给这种对象。当智能指针过期时，其析构函数将使用delete来释放内存。因此，如果将new返回的地址赋给这些对象，将无需记住稍后释放这些内存：在智能指针过期时，这些内存将自动被释放。图16.2说明了auto_ptr和常规指针在行为方面的差别；share_ptr和unique_ptr的行为与auto_ptr相同。
+
+![image-20230312204335644](D:\git\note_md_files\images\image-20230312204335644.png)
+
+要创建智能指针对象，必须包含头文件memory，该文件模板定义。然后使用通常的模板语法来实例化所需类型的指针。例如，模板auto_ptr包含如下构造函数：
+
+```c++
+template<class X> class auto_ptr {
+public:
+	explicit auto_ptr(X* p = 0) throw();
+}
+```
+
+本书前面说过，throw( )意味着构造函数不会引发异常；与auto_ptr一样，throw()也被摒弃。因此，请求X类型的auto_ptr将获得一个指向X类型的auto_ptr：
+
+```c++
+auto_ptr<double> pd(new double);
+auto_ptr<string> ps(new string);
+```
+
+new double是new返回的指针，指向新分配的内存块。它是构造函数auto_ptr<double>的参数，即对应于原型中形参p的实参。同样，newstring也是构造函数的实参。其他两种智能指针使用同样的语法：
+
+```c++
+unique_ptr<double> pdu(new double);
+shared_ptr<string> pss(new string);
+```
+
+因此，要转换remodel( )函数，应按下面3个步骤进行：
+
+1. 包含头文件memory；
+2. 将指向string的指针替换为指向string的智能指针对象；
+3. 删除delete语句。
+
+下面是使用auto_ptr修改该函数的结果：
+
+```C++
+#include <memory>
+void remodel(std::string& str)
+{
+	std::auto_ptr<std::string> ps(new std::string(str));
+	...
+	if (weird_thing())
+		throw exception();
+	str = *ps;
+	// delete ps;	// NO LONGER NEEDED
+	return;
+}
+```
+
+注意到智能指针模板位于名称空间std中。程序清单16.5是一个简单的程序，演示了如何使用全部三种智能指针。要编译该程序，您的编译器必须支持C++11新增的类share_ptr和unique_ptr。每个智能指针都放在一个代码块内，这样离开代码块时，指针将过期。Report类使用方法报告对象的创建和销毁。
+
+```C++
+// smrtptrs.cpp -- using three kinds of smart pointers
+#include <iostream>
+#include <string>
+#include <memory>
+
+class Report
+{
+private:
+	std::string str;
+public:
+	Report(const std::string s) : str(s) { std::cout << "Object created!\n"; }
+	~Report() { std::cout << "Object deleted!\n"; }
+	void comment() const { std::cout << str << "\n"; }
+};
+
+int main()
+{
+	{
+		std::auto_ptr<Report> ps(new Report("using auto_ptr"));
+		ps->comment();   // use -> to invoke a member function
+	}
+	{
+		std::shared_ptr<Report> ps(new Report("using shared_ptr"));
+		ps->comment();
+	}
+	{
+		std::unique_ptr<Report> ps(new Report("using unique_ptr"));
+		ps->comment();
+	}
+	// std::cin.get();  
+	return 0;
+}
+```
+
+所有智能指针类都一个explicit构造函数，该构造函数将指针作为参数。因此不需要自动将指针转换为智能指针对象：
+
+```c++
+shared_ptr<double> pd;
+double* p_reg = new double;
+pd = p_reg;								// not allowed (implicit conversion)
+pd = shared_ptr<double>(p_reg);			// allowed (explicit conversion)
+shared_ptr<double> pshared = p_reg;		// not allowed (implicit conversion)
+shared_ptr<double> pshared(p_reg);		// allowed (explicit conversion)
+```
+
+由于智能指针模板类的定义方式，智能指针对象的很多方面都类似于常规指针。例如，如果ps是一个智能指针对象，则可以对它执行解除引用操作（* ps）、用它来访问结构成员（ps->puffIndex）、将它赋给指向相同类型的常规指针。还可以将智能指针对象赋给另一个同类型的智能指针对象，但将引起一个问题，这将在下一节进行讨论。
+
+但在此之前，先说说对全部三种智能指针都应避免的一点：
+
+```C++
+string vacation("I wandered lonely as a cloud.");
+shared_ptr<string> pvac(&vacation);		// NO
+```
+
+pvac过期时，程序将把delete运算符用于非堆内存，这是错误的。
+
+就程序清单16.5演示的情况而言，三种智能指针都能满足要求，但情况并非总是这样简单。
+
+### 16.2.2 有关智能指针的注意事项
+
+为何有三种智能指针呢？实际上有4种，但本书不讨论weak_ptr。为何摒弃auto_ptr呢？
+
+先来看下面的赋值语句：
+
+```c++
+auto_ptr<string> ps(new string("I reigned lonely as a cloud."));
+auto_ptr<string> vocation;
+vocation = ps;
+```
+
+上述赋值语句将完成什么工作呢？如果ps和vocation是常规指针，则两个指针将指向同一个string对象。这是不能接受的，因为程序将试图删除同一个对象两次——一次是ps过期时，另一次是vocation过期时。要避免这种问题，方法有多种。
+
+- 定义赋值运算符，使之执行深复制。这样两个指针将指向不同的对象，其中的一个对象是另一个对象的副本。
+- 建立所有权（ownership）概念，对于特定的对象，只能有一个智能指针可拥有它，这样只有拥有对象的智能指针的构造函数会删除该对象。然后，让赋值操作转让所有权。这就是用于auto_ptr和unique_ptr的策略，但unique_ptr的策略更严格。
+- 创建智能更高的指针，跟踪引用特定对象的智能指针数。这称为引用计数（reference counting）。例如，赋值时，计数将加1，而指针过期时，计数将减1。仅当最后一个指针过期时，才调用delete。这是shared_ptr采用的策略。
+
+当然，同样的策略也适用于复制构造函数。
+
+每种方法都有其用途。程序清单16.6是一个不适合使用auto_ptr的示例。
+
+```c++
+// fowl.cpp  -- auto_ptr a poor choice
+#include <iostream>
+#include <string>
+#include <memory>
+
+int main()
+{
+	using namespace std;
+	auto_ptr<string> films[5] =
+	{
+		auto_ptr<string>(new string("Fowl Balls")),
+		auto_ptr<string>(new string("Duck Walks")),
+		auto_ptr<string>(new string("Chicken Runs")),
+		auto_ptr<string>(new string("Turkey Errors")),
+		auto_ptr<string>(new string("Goose Eggs"))
+	};
+	auto_ptr<string> pwin;
+	pwin = films[2];   // films[2] loses ownership
+
+	cout << "The nominees for best avian baseball film are\n";
+	for (int i = 0; i < 5; i++)
+		cout << *films[i] << endl;
+	cout << "The winner is " << *pwin << "!\n";
+	// cin.get();
+	return 0;
+}
+```
+
+消息core dumped表明，错误地使用auto_ptr可能导致问题（这种代码的行为是不确定的，其行为可能随系统而异）。这里的问题在于，下面的语句将所有权从films[2]转让给pwin：
+
+```c++
+pwin = filems[2];		// films[2] loses ownership
+```
+
+这导致films[2]不再引用该字符串。在auto_ptr放弃对象的所有权后，便可能使用它来访问该对象。当程序打印films[2]指向的字符串时，却发现这是一个空指针，这显然讨厌的意外。
+
+如果在程序清单16.6中使用shared_ptr代替auto_ptr（这要求编译器支持C++11新增的shared_ptr类），则程序将正常运行。
+
+差别在于程序的如下部分：
+
+这次pwin和films[2]指向同一个对象，而引用计数从1增加到2。在程序末尾，后声明的pwin首先调用其析构函数，该析构函数将引用计数降低到1。然后，shared_ptr数组的成员被释放，对filmsp[2]调用析构函数时，将引用计数降低到0，并释放以前分配的空间。
+
+因此使用shared_ptr时，程序清单16.6运行正常；而使用auto_ptr时，该程序在运行阶段崩溃。如果使用unique_ptr，结果将如何呢？与auto_ptr一样，unique_ptr也采用所有权模型。但使用unique_ptr时，程序不会等到运行阶段崩溃，而在编译器因下述代码行出现错误：
+
+```c++
+pwin = films[2];
+```
+
+显然，该进一步探索auto_ptr和unique_ptr之间的差别。
+
+### 16.2.3 unique_ptr为何优于auto_ptr
+
+请看下面的语句：
+
+```c++
+auto_ptr<string> p1(new string("auto"));
+auto_ptr<string> p2;
+p2 = p1;
+```
+
+在语句#3中，p2接管string对象的所有权后，p1的所有权将被剥夺。前面说过，这是件好事，可防止p1和p2的析构函数试图删除同一个对象；但如果程序随后试图使用p1，这将是件坏事，因为p1不再指向有效的数据。
+
+下面来看使用unique_ptr的情况：
+
+```c++
+unique_ptr<string> p2(new string("auto"));
+unique_ptr<string> p4;
+p4 = p3;
+```
+
+编译器认为语句#6非法，避免了p3不再指向有效数据的问题。因此，unique_ptr比auto_ptr更安全（编译阶段错误比潜在的程序崩溃更安全）。
+
+但有时候，将一个智能指针赋给另一个并不会留下危险的悬挂指针。假设有如下函数定义：
+
+```c++
+unique_ptr<string> demo(const char* s)
+{
+	unique_ptr<string> temp(new string(s));
+	return temp;
+}
+```
+
+并假设编写了如下代码：
+
+```c++
+unique_ptr<string> ps;
+ps = demo("Uniquely special");
+```
+
+demo( )返回一个临时unique_ptr，然后ps接管了原本归返回的unique_ptr所有的对象，而返回的unique_ptr被销毁。这没有问题，因为ps拥有了string对象的所有权。但这里的另一个好处是，demo( )返回的临时unique_ptr很快被销毁，没有机会使用它来访问无效的数据。换句话说，没有理由禁止这种赋值。神奇的是，编译器确实允许这种赋值！
+
+总之，程序试图将一个unique_ptr赋给另一个时，如果源unique_ptr是个临时右值，编译器允许这样做；如果源unique_ptr将存在一段时间，编译器将禁止这样做：
+
+```c++
+using namespace std;
+unique_ptr<string> pu1(new string("Hi ho!"));
+unique_ptr<string> pu2;
+pu2 = pu1;						// #1 not allowed
+unique_ptr<string> pu3;
+pu3 = unique_ptr<string>(new string("Yo!"));			// #2 allowed
+```
+
+语句#1将留下悬挂的unique_ptr（pul），这可能导致危害。语句#2不会留下悬挂的unique_ptr，因为它调用unique_ptr的构造函数，该构造函数创建的临时对象在其所有权转让给pu后就会被销毁。这种随情况而异的行为表明，unique_ptr优于允许两种赋值的auto_ptr。这也是禁止（只是一种建议，编译器并不禁止）在容器对象中使用auto_ptr，但允许使用unique_ptr的原因。如果容器算法试图对包含unique_ptr的容器执行类似于语句#1的操作，将导致编译错误；如果算法试图执行类似于语句#2的操作，则不会有任何问题。而对于auto_ptr，类似于语句#1的操作可能导致不确定的行为和神秘的崩溃。
+
+当然，您可能确实想执行类似于语句#1的操作。仅当以非智能的方式使用遗弃的智能指针（如解除引用时），这种赋值才不安全。要安全地重用这种指针，可给它赋新值。C++有一个标准库函数std::move()，让您能够将一个unique_ptr赋给另一个。下面是一个使用前述demo()函数的例子，该函数返回一个unique_ptr<string>对象：
+
+```c++
+using namespace std;
+unique_ptr<string> ps1, ps2;
+ps1 = demo("Uniquely special");
+ps2 = move(ps1);
+ps1 = demo(" and more");
+cout << *ps2 << *ps1 << endl;
+```
+
+您可能会问，unique_ptr如何能够区分安全和不安全的用法呢？答案是它使用了C++11新增的移动构造函数和右值引用，这将在第18章讨论。
+
+相比于auto_ptr，unique_ptr还有另一个优点。它有一个可用于数组的变体。别忘了，必须将delete和new配对，将delete []和new [ ]配对。模板auto_ptr使用delete而不是delete [ ]，因此只能与new一起使用，而不能与new [ ]一起使用。但unique_ptr有使用new [ ]和delete [ ]的版本：
+
+```c++
+std::unique_ptr<double[]> pda(new double(5));
+```
+
+### 16.2.4 选择智能指针
+
+应使用哪种智能指针呢？如果程序要使用多个指向同一个对象的指针，应选择shared_ptr。这样的情况包括：有一个指针数组，并使用一些辅助指针来标识特定的元素，如最大的元素和最小的元素；两个对包含都指向第三个对象的指针；STL容器包含指针。很多STL算法都支持复制和赋值操作，这些操作可用于shared_ptr，但不能用于unique_ptr（编译器发出警告）和auto_ptr（行为不确定）。如果您的编译器没有提供shared_ptr，可使用Boost库提供的shared_ptr。
+
+如果程序不需要多个指向同一个对象的指针，则可使用unique_ptr。如果函数使用new分配内存，并返回指向该内存的指针，将其返回类型声明为unique_ptr是不错的选择。这样，所有权将转让给接受返回值的unique_ptr，而该智能指针将负责调用delete。可将unique_ptr存储到STL容器中，只要不调用将一个unique_ptr复制或赋给另一个的方法或算法（如sort( )）。例如，可在程序中使用类似于下面的代码段，这里假设程序包含正确的include和using语句：
+
+```c++
+unique_ptr<int> make_int(int n)
+{
+	return unique_ptr<int>(new int(n));
+}
+void show(unique_ptr<int>& pi)
+{
+	cout << *a << ' ';
+}
+int main()
+{
+...
+	vector<unique_ptr<>int> vp(size);
+	for (int i = 0; i < vp.size(); i++)
+		vp[i] = make_int(rand() % 1000);	// copy temporary unique_ptr
+	vp.push_back(make_int(rand() % 1000));	// ok because arg is tempporary
+	for_each(vp.begin(), vp.end(), show);
+...
+}
+```
+
+其中的push_back( )调用没有问题，因为它返回一个临时unique_ptr，该unique_ptr被赋给vp中的一个unique_ptr。另外，如果按值而不是按引用给show( )传递对象，for_each( )语句将非法，因为这将导致使用一个来自vp的非临时unique_ptr初始化pi，而这是不允许的。前面说过，编译器将发现错误使用unique_ptr的企图。
+
+在unique_ptr为右值时，可将其赋给shared_ptr，这与将一个unique_ptr赋给另一个需要满足的条件相同。与前面一样，在下面的代码中，make_int( )的返回类型为unique_ptr<int>：
+
+```c++
+unique_ptr<int> pup(make_int(rand() % 1000));		// ok
+shared_ptr<int> spp(pup);							// not allowed, pup an lvalue
+shared_ptr<int> spr(make_int(rand() % 1000));		// ok
+```
+
+模板shared_ptr包含一个显式构造函数，可用于将右值unique_ptr转换为shared_ptr。shared_ptr将接管原来归unique_ptr所有的对象。
+
+在满足unique_ptr要求的条件时，也可使用auto_ptr，但unique_ptr是更好的选择。如果您的编译器没有提供unique_ptr，可考虑使用BOOST库提供的scoped_ptr，它与unique_ptr类似。
+
+## 16.3 标准模板库
+
+Alex Stepanov和Meng Lee在Hewlett-Packard实验室开发了STL，并于1994年发布其实现。ISO/ANSI C++委员会投票同意将其作为C++标准的组成部分。STL不是面向对象的编程，而是一种不同的编程模式——泛型编程（generic programming）。这使得STL在功能和方法方面都很有趣。
+
+### 16.3.2 可对矢量执行的操作
+
+要为vector的double类型规范声明一个迭代器，可以这样做：
+
+```c++
+vector<double>::iterator pd;		// pd an iterator
+```
+
+假设scores是一个vector<double>对象：
+
+```c++
+vector<double> scores;
+```
+
+则可以使用迭代器pd执行这样的操作：
+
+```c++
+pd = scores.begin();		// have pd point to the first element
+*pd = 22.3;		// dereference pd and assign value to first element
+++pd;		// make pd point to the next element
+```
+
+正如您看到的，迭代器的行为就像指针。顺便说一句，还有一个C++11自动类型推断很有用的地方。例如，可以不这样做：
+
+```c++
+vector<double>::iterator pd = scores.begin();
+```
+
+而这样做：
+
+```c++
+auto pd = scores.begin();		// C++11 automatic type deduction
+```
+
+### 16.3.3 对矢量可执行的其他操作
+
+程序员通常要对数组执行很多操作，如搜索、排序、随机排序等。矢量模板类包含了执行这些常见的操作的方法吗？没有！STL从更广泛的角度定义了非成员（non-member）函数来执行这些操作，即不是为每个容器类定义find( )成员函数，而是定义了一个适用于所有容器类的非成员函数find( )。这种设计理念省去了大量重复的工作。例如，假设有8个容器类，需要支持10种操作。如果每个类都有自己的成员函数，则需要定义80（8*10）个成员函数。但采用STL方式时，只需要定
+义10个非成员函数即可。在定义新的容器类时，只要遵循正确的指导思想，则它也可以使用已有的10个非成员函数来执行查找、排序等操作。
+
+另一方面，即使有执行相同任务的非成员函数，STL有时也会定义一个成员函数。这是因为对有些操作来说，类特定算法的效率比通用算法高，因此，vector的成员函数swap( )的效率比非成员函数swap( )高，但非成员函数让您能够交换两个类型不同的容器的内容。
+
+下面来看3个具有代表性的STL函数：for_each( )、random_shuffle( )和sort( )。for_each( )函数可用于很多容器类，它接受3个参数。前两个是定义容器中区间的迭代器，最后一个是指向函数的指针（更普遍地说，最后一个参数是一个函数对象，函数对象将稍后介绍）。for_each( )函数将被指向的函数应用于容器区间中的各个元素。被指向的函数不能修改容器元素的值。可以用for_each( )函数来代替for循环。例如，可以将代码：
+
+```c++
+vector<Review>::iterator pr;
+for (pr = books.begin(); pr != books.end(); pr++)
+	ShowReview(*pr);
+```
+
+替换为：
+
+```c++
+for_each(books.begin(). books.end(), ShowReview);
+```
+
+这样可避免显式地使用迭代器变量。
+
+Random_shuffle( )函数接受两个指定区间的迭代器参数，并随机排列该区间中的元素。例如，下面的语句随机排列books矢量中所有元素：
+
+```c++
+random_shuffle(books.begin(), books.end());
+```
+
+与可用于任何容器类的for_each不同，该函数要求容器类允许随机访问，vector类可以做到这一点。
+
+sort( )函数也要求容器支持随机访问。该函数有两个版本，第一个版本接受两个定义区间的迭代器参数，并使用为存储在容器中的类型元素定义的<运算符，对区间中的元素进行操作。例如，下面的语句按升序对coolstuff的内容进行排序，排序时使用内置的<运算符对值进行比较：
+
+```c++
+vector<int> coolstuff;
+...
+sort(coolstuff.begin() ,coolstuff.end());
+```
+
+如果容器元素是用户定义的对象，则要使用sort( )，必须定义能够处理该类型对象的operator<( )函数。例如，如果为Review提供了成员或非成员函数operator<( )，则可以对包含Review对象的矢量进行排序。由于Review是一个结构，因此其成员是公有的，这样的非成员函数将为：
+
+```c++
+bool operator<(const Review& r1, const Review& r2)
+{
+	if (r1.title < r2.title)
+		return true;
+	else if (r1.title == r2.title && r1.rating < r2.rating)
+		return true;
+	else
+		return false;
+}
+```
+
+有了这样的函数后，就可以对包含Review对象（如books）的矢量进行排序了：
+
+```c++
+sort(books.begin(), books.end());
+```
+
+上述版本的operator<( )函数按title成员的字母顺序排序。如果title成员相同，则按照rating排序。然而，如果想按降序或是按rating（而不是title）排序，该如何办呢？可以使用另一种格式的sort( )。它接受3个参数，前两个参数也是指定区间的迭代器，最后一个参数是指向要使用的函数的指针（函数对象），而不是用于比较的operator<( )。返回值可转换为bool，false表示两个参数的顺序不正确。下面是一个例子：
+
+```c++
+bool WorseThan(const Review& r1, const Review& r2)
+{
+	if (r1.rating < r2.rating)
+		return true;
+	else
+		return false;
+}
+```
+
+有了这个函数后，就可以使用下面的语句将包含Review对象的books矢量按rating升序排列：
+
+```c++
+sort(books.begin(), books.end(), WorseThan);
+```
+
+### 16.3.4 基于范围的for循环（C++11）
+
+```c++
+double prices[5] = {4.99, 10.99, 6.87, 7.99, 8.49};
+for (double x : prices)
+	cout << x << std::endl;
+```
+
+不同于for_each( )，基于范围的for循环可修改容器的内容，诀窍是指定一个引用参数。例如，假设有如下函数：
+
+```c++
+void InflateReview(Review& r) {r.rating++};
+```
+
+可使用如下循环对books的每个元素执行该函数：
+
+```c++
+for (auto& x : books) InflateReview(x);
+```
+
+## 16.4 泛型编程
+
+### 16.4.1 为何使用迭代器
+
+为区分++运算符的前缀版本和后缀版本，C++将operator++作为前缀版本，将operator++（int）作为后缀版本；其中的参数永远也不会被用到，所以不必指定其名称。
+
+```c++
+class iterator
+{
+...
+	iterator& operator++()		// for ++it
+	{
+		...
+	}
+	
+	iterator operator++(int)	// for it++
+	{
+		...
+	}
+}
+```
+
+## 16.5 函数对象
+
+很多STL算法都使用函数对象——也叫函数符（functor）。函数符是可以以函数方式与( )结合使用的任意对象。这包括函数名、指向函数的指针和重载了( )运算符的类对象（即定义了函数operator( )( )的类）。例如，可以像这样定义一个类：
+
+```c++
+class Linear
+{
+private :
+	double slope;
+	double y0;
+public:
+	Linear(double s1_ = 1, double y_ = 0)
+		: slope(s1_), y0(y_) {}
+	double operator()(double x) {return y0 + slope * x}
+} 
+```
+
+这样，重载的( )运算符将使得能够像函数那样使用Linear对象：
+
+```c++
+Linear f1;
+Linear f2(2.5, 10.0);
+double y1 = f1(12.5);		// f1.operator()(12.5)
+double y2 = f2(0.4);
+```
+
+其中y1将使用表达式0 + 1 * 12.5来计算，y2将使用表达式10.0 + 2.5 * 0.4来计算。在表达式y0 + slope * x中，y0和slope的值来自对象的构造函数，而x的值来自operator( ) ( )的参数。
+
+还记得函数for_each吗？它将指定的函数用于区间中的每个成员：
+
+```c++
+for_each(books.begin(), books.end(), ShowReview);
+```
+
+通常，第3个参数可以是常规函数，也可以是函数符。实际上，这提出了一个问题：如何声明第3个参数呢？不能把它声明为函数指针，因为函数指针指定了参数类型。由于容器可以包含任意类型，所以预先无法知道应使用哪种参数类型。STL通过使用模板解决了这个问题。for_each的原型看上去就像这样：
+
+```c++
+template<class InputIterator, class Function>
+Functioni for_each(InputIterator first, InputIterator last, Function f);
+```
+
+ShowReview( )的原型如下：
+
+```c++
+void ShowFunction(const Review&);
+```
+
+这样，标识符ShowReview的类型将为void(*)(const Review &)，这也是赋给模板参数Function的类型。对于不同的函数调用，Function参数可以表示具有重载的( )运算符的类类型。最终，for_each( )代码将具有一个使用f( )的表达式。在ShowReview( )示例中，f是指向函数的指针，而f( )调用该函数。如果最后的for_each( )参数是一个对象，则f( )将是调用其重载的( )运算符的对象。
+
+### 16.5.1 函数符概念
+
+正如STL定义了容器和迭代器的概念一样，它也定义了函数符概念。
+
+- 生成器（generator）是不用参数就可以调用的函数符。
+- 一元函数（unary function）是用一个参数可以调用的函数符。
+- 二元函数（binary function）是用两个参数可以调用的函数符。
+
+例如，提供给for_each( )的函数符应当是一元函数，因为它每次用于一个容器元素。
+
+当然，这些概念都有相应的改进版：
+
+- 返回bool值的一元函数是谓词（predicate）
+- 返回bool值的二元函数是二元谓词（binary predicate）。
+
+一些STL函数需要谓词参数或二元谓词参数。例如，程序清单16.9使用了sort( )的这样一个版本，即将二元谓词作为其第3个参数：
+
+```c++
+bool WorseThan(const Review& r1, const Review& r2);
+...
+sort(books.begin(), books.end(), WorseThan);
+```
+
+list模板有一个将谓词作为参数的remove_if( )成员，该函数将谓词应用于区间中的每个元素，如果谓词返回true，则删除这些元素。例如，下面的代码删除链表three中所有大于100的元素：
+
+```c++
+bool tooBig(int n) {return n > 100;}
+list<int> scores;
+...
+scores.remove_if(tooBig);
+```
+
+最后这个例子演示了类函数符适用的地方。假设要删除另一个链表中所有大于200的值。如果能将取舍值作为第二个参数传递给tooBig()，则可以使用不同的值调用该函数，但谓词只能有一个参数。然而，如果设计一个TooBig类，则可以使用类成员而不是函数参数来传递额外的信息：
+
+```c++
+template<class T>  // functor class defines operator()()
+class TooBig
+{
+private:
+	T cutoff;
+public:
+	TooBig(const T& t) : cutoff(t) {}
+	bool operator()(const T& v) { return v > cutoff; }
+};
+```
+
+这里，一个值（V）作为函数参数传递，而第二个参数（cutoff）是由类构造函数设置的。有了该定义后，就可以将不同的TooBig对象初始化为不同的取舍值，供调用remove_if( )时使用。程序清单16.15演示了这种技术。
+
+```c++
+// functor.cpp -- using a functor
+#include <iostream>
+#include <list>
+#include <iterator>
+#include <algorithm>
+
+template<class T>  // functor class defines operator()()
+class TooBig
+{
+private:
+	T cutoff;
+public:
+	TooBig(const T& t) : cutoff(t) {}
+	bool operator()(const T& v) { return v > cutoff; }
+};
+
+void outint(int n) { std::cout << n << " "; }
+
+int main()
+{
+	using std::list;
+	using std::cout;
+	using std::endl;
+	using std::for_each;
+	using std::remove_if;
+
+	TooBig<int> f100(100); // limit = 100
+	int vals[10] = { 50, 100, 90, 180, 60, 210, 415, 88, 188, 201 };
+	list<int> yadayada(vals, vals + 10); // range constructor
+	list<int> etcetera(vals, vals + 10);
+
+	// C++0x can use the following instead
+   //  list<int> yadayada = {50, 100, 90, 180, 60, 210, 415, 88, 188, 201};
+   //  list<int> etcetera {50, 100, 90, 180, 60, 210, 415, 88, 188, 201};
+
+	cout << "Original lists:\n";
+	for_each(yadayada.begin(), yadayada.end(), outint);
+	cout << endl;
+	for_each(etcetera.begin(), etcetera.end(), outint);
+	cout << endl;
+	yadayada.remove_if(f100);               // use a named function object
+	etcetera.remove_if(TooBig<int>(200));   // construct a function object
+	cout << "Trimmed lists:\n";
+	for_each(yadayada.begin(), yadayada.end(), outint);
+	cout << endl;
+	for_each(etcetera.begin(), etcetera.end(), outint);
+	cout << endl;
+	// std::cin.get();
+	return 0;
+}
+```
+
+假设已经有了一个接受两个参数的模板函数：
+
+```c++
+template <class T>
+bool tooBig(const T& val, const T& lim)
+{
+	return val > lim;
+}
+```
+
+则可以使用类将它转换为单个参数的函数对象：
+
+```c++
+template<class T>  // functor class defines operator()()
+class TooBig2
+{
+private:
+	T cutoff;
+public:
+	TooBig2(const T& t) : cutoff(t) {}
+	bool operator()(const T& v) { return tooBig<T>(v, cutoff); }
+};
+```
+
+即可以这样做：
+
+```c++
+TooBig2<int> tB100(100);
+int x;
+cin >> x;
+if (tB100(x))	// same as if (tooBig(x, 100))
+...
+```
+
+因此，调用tB100(x)相当于调用tooBig(x, 100)，但两个参数的函数被转换为单参数的函数对象，其中第二个参数被用于构建函数对象。简而言之，类函数符TooBig2是一个函数适配器，使函数能够满足不同的接口。
+
+### 16.5.2 预定义的函数符
+
+STL定义了多个基本函数符，它们执行诸如将两个值相加、比较两个值是否相等操作。提供这些函数对象是为了支持将函数作为参数的STL函数。例如，考虑函数transform( )。它有两个版本。第一个版本接受4个参数，前两个参数是指定容器区间的迭代器（现在您应该已熟悉了这种方法），第3个参数是指定将结果复制到哪里的迭代器，最后一个参数是一个函数符，它被应用于区间中的每个元素，生成结果中的新元素。例如，请看下面的代码：
+
+```c++
+const int LIM = 5;
+double arr1[LIM] = {36, 39, 42, 45, 48};
+vector<double> gr8(arr1, arr1 + LIM);
+ostream_iterator<double, char> out(cout, " ");
+transform(gr8.begin(), gr8.end(), out, sqrt);
+```
+
+上述代码计算每个元素的平方根，并将结果发送到输出流。目标迭代器可以位于原始区间中。例如，将上述示例中的out替换为gr8.begin( )后，新值将覆盖原来的值。很明显，使用的函数符必须是接受单个参数的函数符。
+
+第2种版本使用一个接受两个参数的函数，并将该函数用于两个区间中元素。它用另一个参数（即第3个）标识第二个区间的起始位置。例如，如果m8是另一个vector<double>对象，mean（double，double）返回两个值的平均值，则下面的的代码将输出来自gr8和m8的值的平均值：
+
+```c++
+transform(gr8.begin(), gr8.end(), m8.begin(), out, mean);
+```
+
+现在假设要将两个数组相加。不能将+作为参数，因为对于类型double来说，+是内置的运算符，而不是函数。可以定义一个将两个数相加的函数，然后使用它：
+
+```c++
+double add(double x, double y) {return x + y;}
+...
+transform(gr8.begin(), gr8.end(), m8.begin(), out, add);
+```
+
+然而，这样必须为每种类型单独定义一个函数。更好的办法是定义一个模板（除非STL已经有一个模板了，这样就不必定义）。头文件functional（以前为function.h）定义了多个模板类函数对象，其中包括plus< >( )。
+
+可以用plus< >类来完成常规的相加运算：
+
+```c++
+#include <functional>
+...
+plus<double> add;		// create a plus<double> object
+double y = add(2.2, 3.4);	// using plus<double>::operator()()
+```
+
+它使得将函数对象作为参数很方便：
+
+```c++
+transform(gr8.begin(), gr8.end(), m8.begin(), out, plus<double>());
+```
+
+这里，代码没有创建命名的对象，而是用plus<double>构造函数构造了一个函数符，以完成相加运算（括号表示调用默认的构造函数，传递给transform( )的是构造出来的函数对象）。
+
+对于所有内置的算术运算符、关系运算符和逻辑运算符，STL都提供了等价的函数符。表16.12列出了这些函数符的名称。它们可以用于处理C++内置类型或任何用户定义类型（如果重载了相应的运算符）。
+
+### 16.5.3 自适应函数符和函数适配器
+
+表16.12列出的预定义函数符都是自适应的。实际上STL有5个相关的概念：自适应生成器（adaptable generator）、自适应一元函数（adaptable unary function）、自适应二元函数（adaptable binary function）、自适应谓词（adaptable predicate）和自适应二元谓词（adaptable binary predicate）。
+
+使函数符成为自适应的原因是，它携带了标识参数类型和返回类型的typedef成员。这些成员分别是result_type、first_argument_type和second_argument_type，它们的作用是不言自明的。例如，plus<int>对象的返回类型被标识为plus<int>::result_type，这是int的typedef。
+
+函数符自适应性的意义在于：函数适配器对象可以使用函数对象，并认为存在这些typedef成员。例如，接受一个自适应函数符参数的函数可以使用result_type成员来声明一个与函数的返回类型匹配的变量。
+
+STL提供了使用这些工具的函数适配器类。例如，假设要将矢量gr8的每个元素都增加2.5倍，则需要使用接受一个一元函数参数的transform( )版本，就像前面的例子那样：
+
+```c++
+transform(gr8.begin(), gr8.end(), out, sqrt);
+```
+
+multiplies( )函数符可以执行乘法运行，但它是二元函数。因此需要一个函数适配器，将接受两个参数的函数符转换为接受1个参数的函数符。前面的TooBig2示例提供了一种方法，但STL使用binder1st和binder2nd类自动完成这一过程，它们将自适应二元函数转换为自适应一元函数。
+
+来看binder1st。假设有一个自适应二元函数对象f2( )，则可以创建一个binder1st对象，该对象与一个将被用作f2( )的第一个参数的特定值（val）相关联：
+
+```c++
+binder1st(f2, val) f1;
+```
+
+这样，使用单个参数调用f1(x)时，返回的值与将val作为第一参数、将f1( )的参数作为第二参数调用f2( )返回的值相同。即f1(x)等价于f2(val, x)，只是前者是一元函数，而不是二元函数。f2( )函数被适配。同样，仅当f2( )是一个自适应函数时，这才能实现。
+
+看上去有点麻烦。然而，STL提供了函数bind1st( )，以简化binder1st类的使用。可以问其提供用于构建binder1st对象的函数名称和值，它将返回一个这种类型的对象。例如，要将二元函数multiplies( )转换为将参数乘以2.5的一元函数，则可以这样做：
+
+```c++
+bind1st(multiplies<double>(), 2.5);
+```
+
+因此，将gr8中的每个元素与2.5相乘，并显示结果的代码如下：
+
+```c++
+transform(gr8.begin(), gr8.end(), out,
+	bind1st(multiplies<double>(), 2.5));
+```
+
+binder2nd类与此类似，只是将常数赋给第二个参数，而不是第一个参数。它有一个名为bind2nd的助手函数，该函数的工作方式类似于bind1st。
+
+## 16.7 其他库
+
+### 16.7.1 vector、valarray和array
+
+您可能会问，C++为何提供三个数组模板：vector、valarray和array。这些类是由不同的小组开发的，用于不同的目的。vector模板类是一个容器类和算法系统的一部分，它支持面向容器的操作，如排序、插入、重新排列、搜索、将数据转移到其他容器中等。而valarray类模板是面向数值计算的，不是STL的一部分。例如，它没有push_back( )和insert( )方法，但为很多数学运算提供了一个简单、直观的接口。最后，array是为替代内置数组而设计的，它通过提供更好、更安全的接口，让数组更紧凑，效率更高。Array表示长度固定的数组，因此不支持push_back( )和insert( )，但提供了多个STL方法，包括begin( )、end( )、rbegin( )和rend( )，这使得很容易将STL算法用于array对象。
+
+### 16.7.2 模板initializer_list（C++11）
+
+模板initializer_list是C++11新增的。您可使用初始化列表语法将STL容器初始化为一系列值：
+
+```c++
+std::vector<double> payments {45.99, 39.23, 19.95, 89.01};
+```
+
+这将创建一个包含4个元素的容器，并使用列表中的4个值来初始化这些元素。这之所以可行，是因为容器类现在包含将
+initializer_list<T>作为参数的构造函数。例如，vector<double>包含一个将initializer_list<double>作为参数的构造函数，因此上述声明与下面的代码等价：
+
+```c++
+std::vector<double> payments({45.99, 39.23, 19.95, 89.01});
+```
+
+这里显式地将列表指定为构造函数参数。
+
+通常，考虑到C++11新增的通用初始化语法，可使用表示法{}而不是()来调用类构造函数：
+
+```c++
+shared_ptr<double> pd {new double};	// ok to use {} instead of ()
+```
+
+但如果类也有接受initializer_list作为参数的构造函数，这将带来问题：
+
+```c++
+std::vector<int> vi{10};	// ?
+```
+
+这将调用哪个构造函数呢？
+
+```c++
+std::vector<int> vi(10);
+std::vector<int> vi({10});
+```
+
+答案是，如果类有接受initializer_list作为参数的构造函数，则使用语法{}将调用该构造函数。因此在这个示例中，对应的是情形B。
+
+### 16.7.3 使用initializer_list
+
+要在代码中使用initializer_list对象，必须包含头文件initializer_list。这个模板类包含成员函数begin( )和end( )，您可
+使用这些函数来访问列表元素。它还包含成员函数size( )，该函数返回元素数。程序清单16.22是一个简单的initializer_list使用示例，它要求编译器支持C++11新增的initializer_list。
+
+```c++
+// ilist.cpp  -- use initializer_list
+#include <iostream>
+#include <initializer_list>
+
+double sum(std::initializer_list<double> il);
+double average(const std::initializer_list<double>& ril);
+
+int main()
+{
+	using std::cout;
+
+	cout << "List 1: sum = " << sum({ 2,3,4 })
+		<< ", ave = " << average({ 2,3,4 }) << '\n';
+	std::initializer_list<double> dl = { 1.1, 2.2, 3.3, 4.4, 5.5 };
+	cout << "List 2: sum = " << sum(dl)
+		<< ", ave = " << average(dl) << '\n';
+	dl = { 16.0, 25.0, 36.0, 40.0, 64.0 };
+	cout << "List 3: sum = " << sum(dl)
+		<< ", ave = " << average(dl) << '\n';
+	// std::cin.get();
+	return 0;
+}
+
+double sum(std::initializer_list<double> il)
+{
+	double tot = 0;
+	for (auto p = il.begin(); p != il.end(); p++)
+		tot += *p;
+	return tot;
+}
+
+double average(const std::initializer_list<double>& ril)
+{
+	double tot = 0;
+	int n = ril.size();
+	double ave = 0.0;
+
+	if (n > 0)
+	{
+		for (auto p = ril.begin(); p != ril.end(); p++)
+			tot += *p;
+		ave = tot / n;
+	}
+	return ave;
+}
+```
+
+可按值传递initializer_list对象，也可按引用传递，如sum()和average()所示。这种对象本身很小，通常是两个指针（一个指向开头，一个指向末尾的下一个元素），也可能是一个指针和一个表示元素数的整数，因此采用的传递方式不会带来重大的性能影响。STL按值传递它们。
+
+函数参数可以是initializer_list字面量，如{2, 3, 4}，也可以是initializer_list变量，如dl。
+
+initializer_list的迭代器类型为const，因此您不能修改initializer_list中的值：
+
+```c++
+*dl.begin() = 2011.6;		// not allowed
+```
+
+但正如程序清单16.22演示的，可以将一个initializer_list赋给另一个initializer_list：
+
+```c++
+dl = { 16.0, 25.0, 36.0, 40.0, 64.0 };
+```
+
+然而，提供initializer_list类的初衷旨在让您能够将一系列值传递给构造函数或其他函数。
+
 
 
 
