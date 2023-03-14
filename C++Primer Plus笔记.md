@@ -9304,7 +9304,7 @@ int main()
 	string seven(&five[6], &five[10]); // ctor #6 again
 	cout << seven << "...\n";
 	string eight(four, 7, 16);         // ctor #7
-	//将four的第八个字符(位置7)开始，将16个字符复制到eight中
+	// 将four的第八个字符(位置7)开始，将16个字符复制到eight中
 	cout << eight << " in motion!" << endl;
 	// std::cin.get();
 	return 0;
@@ -9415,7 +9415,7 @@ typedef basic_string<char32_t> u32string;
 
 ### 16.2.1 使用智能指针
 
-这三个智能指针模板（auto_ptr、unique_ptr和shared_ptr）都定义了类似指针的对象，可以将new获得（直接或间接）的地址赋给这种对象。当智能指针过期时，其析构函数将使用delete来释放内存。因此，如果将new返回的地址赋给这些对象，将无需记住稍后释放这些内存：在智能指针过期时，这些内存将自动被释放。图16.2说明了auto_ptr和常规指针在行为方面的差别；share_ptr和unique_ptr的行为与auto_ptr相同。
+这三个智能指针模板（auto_ptr、unique_ptr和shared_ptr）都定义了类似指针的对象，可以将new获得（直接或间接）的地址赋给这种对象。当智能指针过期时，其析构函数将使用delete来释放内存。因此，如果将new返回的地址赋给这些对象，将无需记住稍后释放这些内存：在智能指针过期时，这些内存将自动被释放。图16.2说明了auto_ptr和常规指针在行为方面的差别；shared_ptr和unique_ptr的行为与auto_ptr相同。
 
 ![image-20230312204335644](D:\git\note_md_files\images\image-20230312204335644.png)
 
@@ -9435,7 +9435,7 @@ auto_ptr<double> pd(new double);
 auto_ptr<string> ps(new string);
 ```
 
-new double是new返回的指针，指向新分配的内存块。它是构造函数auto_ptr<double>的参数，即对应于原型中形参p的实参。同样，newstring也是构造函数的实参。其他两种智能指针使用同样的语法：
+new double是new返回的指针，指向新分配的内存块。它是构造函数auto_ptr<double>的参数，即对应于原型中形参p的实参。同样，new string也是构造函数的实参。其他两种智能指针使用同样的语法：
 
 ```c++
 unique_ptr<double> pdu(new double);
@@ -9464,7 +9464,7 @@ void remodel(std::string& str)
 }
 ```
 
-注意到智能指针模板位于名称空间std中。程序清单16.5是一个简单的程序，演示了如何使用全部三种智能指针。要编译该程序，您的编译器必须支持C++11新增的类share_ptr和unique_ptr。每个智能指针都放在一个代码块内，这样离开代码块时，指针将过期。Report类使用方法报告对象的创建和销毁。
+注意到智能指针模板位于名称空间std中。程序清单16.5是一个简单的程序，演示了如何使用全部三种智能指针。要编译该程序，您的编译器必须支持C++11新增的类shared_ptr和unique_ptr。每个智能指针都放在一个代码块内，这样离开代码块时，指针将过期。Report类使用方法报告对象的创建和销毁。
 
 ```C++
 // smrtptrs.cpp -- using three kinds of smart pointers
@@ -10147,7 +10147,7 @@ binder2nd类与此类似，只是将常数赋给第二个参数，而不是第�
 
 ### 16.7.1 vector、valarray和array
 
-您可能会问，C++为何提供三个数组模板：vector、valarray和array。这些类是由不同的小组开发的，用于不同的目的。vector模板类是一个容器类和算法系统的一部分，它支持面向容器的操作，如排序、插入、重新排列、搜索、将数据转移到其他容器中等。而valarray类模板是面向数值计算的，不是STL的一部分。例如，它没有push_back( )和insert( )方法，但为很多数学运算提供了一个简单、直观的接口。最后，array是为替代内置数组而设计的，它通过提供更好、更安全的接口，让数组更紧凑，效率更高。Array表示长度固定的数组，因此不支持push_back( )和insert( )，但提供了多个STL方法，包括begin( )、end( )、rbegin( )和rend( )，这使得很容易将STL算法用于array对象。
+您可能会问，C++为何提供三个数组模板：vector、valarray和array。这些类是由不同的小组开发的，用于不同的目的。vector模板类是一个容器类和算法系统的一部分，它支持面向容器的操作，如排序、插入、重新排列、搜索、将数据转移到其他容器中等。而valarray类模板是面向数值计算的，不是STL的一部分。例如，它没有push_back( )和insert( )方法，但为很多数学运算提供了一个简单、直观的接口。最后，array是为替代内置数组而设计的，它通过提供更好、更安全的接口，让数组更紧凑，效率更高。array表示长度固定的数组，因此不支持push_back( )和insert( )，但提供了多个STL方法，包括begin( )、end( )、rbegin( )和rend( )，这使得很容易将STL算法用于array对象。
 
 ### 16.7.2 模板initializer_list（C++11）
 
