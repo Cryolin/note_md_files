@@ -10345,21 +10345,372 @@ cin.get(line, 50);
 
 cin.get( )函数将在到达第49个字符或遇到换行符（默认情况）后停止将输入读取到数组中。get( )和getline( )之间的主要区别在于，get()将换行符留在输入流中，这样接下来的输入操作首先看到是将是换行符，而gerline( )抽取并丢弃输入流中的换行符。
 
+# 第18章 探讨C++新标准
+
+## 18.1 复习前面介绍过的C++11功能
+
+### 18.1.9 右值引用
+
+传统的C++引用（现在称为左值引用）使得标识符关联到左值。左值是一个表示数据的表达式（如变量名或解除引用的指针），程序可获取其地址。最初，左值可出现在赋值语句的左边，但修饰符const的出现使得可以声明这样的标识符，即不能给它赋值，但可获取其地址：
+
+```c++
+int n;
+int* pt = new int;
+const int b = 101;	// can't assign to b, but &b is valid
+int& rn = n;	// n identifies datum at address &n
+int& rt = *pt;	// *pt identifies datum at address pt
+const int& rb = b;	// b identifies const datum at address &b
+```
+
+C++11新增了右值引用（这在第8章讨论过），这是使用&&表示的。右值引用可关联到右值，即可出现在赋值表达式右边，但不能对其应用地址运算符的值。右值包括字面常量（C-风格字符串除外，它表示地址）、诸如x + y等表达式以及返回值的函数（条件是该函数返回的不是引用）：
+
+```c++
+int x = 10;
+int y = 23;
+int&& r1 = 13;
+int&& r2 = x + y;
+double&& r3 = std::sqrt(2.0);
+```
+
+注意，r2关联到的是当时计算x + y得到的结果。也就是说，r2关联到的是33，即使以后修改了x或y，也不会影响到r2。
+
+有趣的是，将右值关联到右值引用导致该右值被存储到特定的位置，且可以获取该位置的地址。也就是说，虽然不能将运算符&用于13，但可将其用于r1。通过将数据与特定的地址关联，使得可以通过右值引用来访问该数据。
+
+如下是一个简短的示例，演示了上述有关右值引用的要点。
+
+```c++
+#include <iostream>
+
+inline double f(double tf) {return 5.0*(tf-32.0)/9.0;};
+int main()
+{
+	using namespace std;
+	double tc = 21.5;
+	double&& rd1 = 7.07;
+	double&& rd2 = 1.8 * tc + 32.0;
+	double&& rd3 = f(rd2);
+	cout << " tc value and address: " << tc << " , " << &tc << endl;
+	cout << " rd1 value and address: " << rd1 << " , " << &rd1 << endl;
+	cout << " rd2 value and address: " << rd2 << " , " << &rd2 << endl;
+	cout << " rd3 value and address: " << rd3 << " , " << &rd3 << endl;
+}
+```
+
+该程序的输出如下：
+
+```
+tc value and address : 21.5, 002FF744
+rd1 value and address : 7.07, 002FF728
+rd2 value and address : 70.7, 002FF70C
+rd3 value and address : 21.5, 002FF6
+```
+
+## 18.2 移动语义和右值引用
+
+现在介绍本书前面未讨论的主题。C++11支持移动语义，这就提出了一些问题：什么是移动语义？C++11如何支持它？为何需要移动语义？下面首先讨论第一个问题。
+
+### 18.2.1 为何需要移动语义
+
+先来看C++11之前的复制过程。假设有如下代码：
+
+```c++
+vector<string> vstr;
+// build up a vector of 20,000 strings, each of 1000 characters
+...
+vector<string> vstr copy1(vstr);	// make vstr copy1 a copy of vstr
+```
+
+vector和string类都使用动态内存分配，因此它们必须定义使用某种new版本的复制构造函数。为初始化对象vstr_copy1，复制构造函数vector<string>将使用new给20000个string对象分配内存，而每个string对象又将调用string的复制构造函数，该构造函数使用new为1000个字符分配内存。接下来，全部20000000个字符都将从vstr控制的内存中复制到vstr_copy1控制的内存中。这里的工作量很大，但只要妥当就行。
+
+但这确实妥当吗？有时候答案是否定的。例如，假设有一个函数，它返回一个vector<string>对象：
+
+```c++
+vector<string> allcaps(const vector<string>& vs)
+{
+	vector<string> temp;
+	// code that stores an all-uppercase version of vs in temp
+	return temp;
+}
+```
+
+接下来，假设以下面这种方式使用它：
+
+```c++
+vector<string> vstr;
+// build up a vector of 20,000 string, each of 1000 characters
+vector<string> vstr_copy1(vstr);				// #1
+vector<string> vstr_copy2(allcaps(vstr));		// #2
+```
+
+从表面上看，语句#1和#2类似，它们都使用一个现有的对象初始化一个vector<string>对象。如果深入探索这些代码，将发现allcaps( )创建了对象temp，该对象管理着20000000个字符；vector和string的复制构造函数创建这20000000个字符的副本，然后程序删除allcaps( )返回的临时对象（迟钝的编译器甚至可能将temp复制给一个临时返回对象，删除temp，再删除临时返回对象）。这里的要点是，做了大量的无用功。考虑到临时对象被删除了，如果编译器将对数据的所有权直接转让给vstr_copy2，不是更好吗？也就是说，不将20000000个字符复制到新地方，再删除原来的字符，而将字符留在原来的地方，并将vstr_copy2与之相关联。这类似于在计算机中移动文件的情形：实际文件还留在原来的地方，而只修改记录。这种方法被称为移动语义（move semantics）。有点悖论的是，移动语义实际上避免了移动原始数据，而只是修改了记录。
+
+要实现移动语义，需要采取某种方式，让编译器知道什么时候需要复制，什么时候不需要。这就是右值引用发挥作用的地方。可定义两个构造函数。其中一个是常规复制构造函数，它使用const左值引用作为参数，这个引用关联到左值实参，如语句#1中的vstr；另一个是移动构造函数，它使用右值引用作为参数，该引用关联到右值实参，如语句#2中allcaps(vstr)的返回值。复制构造函数可执行深复制，而移动构造函数只调整记录。在将所有权转移给新对象的过程中，移动构造函数可能修改其实参，这意味着右值引用参数不应是const。
+
+### 18.2.2 一个移动示例
+
+下面通过一个示例演示移动语义和右值引用的工作原理。程序清单18.2定义并使用了Useless类，这个类动态分配内存，并包含常规复制构造函数和移动构造函数，其中移动构造函数使用了移动语义和右值引用。为演示流程，构造函数和析构函数都比较啰嗦，同时Useless类还使用了一个静态变量来跟踪对象数量。另外，省略了一些重要的方法，如赋值运算符。
+
+```c++
+#include <iostream>
+using namespace std;
+
+class Useless
+{
+private:
+    int n;
+    char* pc;
+    static int ct;
+    void ShowObject() const;
+public:
+    Useless();
+    explicit Useless(int k);
+    Useless(int k, char ch);
+    Useless(const Useless& f);
+    Useless(Useless&& f);
+    ~Useless();
+    Useless ShowData() const;
+}
 
 
+// 仅看复制构造函数和移动构造函数
+Useless::Useless(const Useless& f) : n(f.n)
+{
+    ++ct;
+    pc = new char[n];
+    for (int i = 0; i < n; i++)
+    	pc[i] = f.pc[i];
+}
+    
+Useless::Useless(Useless&& f) : n(f.n)
+{
+    ++ct;
+    cout << "move constructor called; number of objects: " << ct << endl;
+    pc = f.pc;				// steal address
+    f.pc = nullptr;			// give old object nothing in return
+    f.n = 0;
+    ShowObject();
+}
+```
 
+复制构造函数执行了深度复制。移动构造函数让pc指向现有的数据，以获取这些数据的所有权。此时，pc和f.pc指向相同的数据，调用析构函数时这将带来麻烦，因为程序不能对同一个地址调用delete [ ]两次。为避免这种问题，该构造函数随后将原来的指针设置为空指针，因为对空指针执行delete [ ]没有问题。这种夺取所有权的方式常被称为窃取（pilfering）。上述代码还将原始对象的元素数设置为零，这并非必不可少的，但让这个示例的输出更一致。注意，由于修改了f对象，这要求不能在参数声明中使用const。
 
+在下面的语句中，将使用移动构造函数：
 
+```c++
+Useless four(one + three);		// calls move constructor
+```
 
+表达式one + three调用Useless::operator+()，而右值引用f将关联到该方法返回的临时对象。
 
+### 18.2.5 强制移动
 
+移动构造函数和移动赋值运算符使用右值。如果要让它们使用左值，该如何办呢？例如，程序可能分析一个包含候选对象的数组，选择其中一个对象供以后使用，并丢弃数组。如果可以使用移动构造函数或移动赋值运算符来保留选定的对象，那该多好啊。然而，假设您试图像下面这样做：
 
+```c++
+Useless choices[10];
+Useless best;
+int pick;
+... // select one object, set pick to index
+best = choices[pick];
+```
 
+由于choices[pick]是左值，因此上述赋值语句将使用复制赋值运算符，而不是移动赋值运算符。但如果能让choices[pick]看起来像右值，便将使用移动赋值运算符。为此，可使用运算符static_cast<>将对象的类型强制转换为Useless &&，但C++11提供了一种更简单的方式—使用头文件utility中声明的函数std::move( )。程序清单18.3演示了这种技术，它在Useless类中添加了啰嗦的赋值运算符，并让以前啰嗦的构造函数和析构函数保持沉默。
 
+```c++
+int main()
+{
+	Useless four;
+	four = one + two;		// 移动构造函数
+	
+	four = std::move(one);	// 强制移动，执行下面的移动构造函数，one被移动后n==0，pc为空指针
+	return 0;
+}
 
+Useless::Useless(Useless&& f) : n(f.n)
+{
+    ++ct;
+    cout << "move constructor called; number of objects: " << ct << endl;
+    pc = f.pc;				// steal address
+    f.pc = nullptr;			// give old object nothing in return
+    f.n = 0;
+    ShowObject();
+}
+```
 
+## 18.3 新的类功能
 
+### 18.3.1 特殊的成员函数
 
+除了之前提过的默认构造函数、默认复制构造函数、默认赋值运算符、默认析构函数外。C++11新增了默认移动构造函数和默认移动赋值运算符。
 
+如果您提供了析构函数、复制构造函数或复制赋值运算符，编译器将不会自动提供移动构造函数和移动赋值运算符；如果您提供了移动构造函数或移动赋值运算符，编译器将不会自动提供复制构造函数和复制赋值运算符。
 
+### 18.3.2 默认的方法和禁用的方法
+
+C++11让您能够更好地控制要使用的方法。假定您要使用某个默认的函数，而这个函数由于某种原因不会自动创建。例如，您提供了移动构造函数，因此编译器不会自动创建默认的构造函数、复制构造函数和复制赋值构造函数。在这些情况下，您可使用关键字default显式地声明这些方法的默认版本：
+
+```c++
+class Someclass
+{
+public:
+	Someclass(Someclass&&);
+	Someclass() = default;
+	Someclass(const Someclass&) = default;
+	Someclass& operator=(const Someclass&) = default;
+}
+```
+
+编译器将创建在您没有提供移动构造函数的情况下将自动提供的构造函数。
+
+另一方面，关键字delete可用于禁止编译器使用特定方法。例如，要禁止复制对象，可禁用复制构造函数和复制赋值运算符：
+
+```c++
+class Someclass
+{
+public:
+	Someclass() = default;
+	Someclass(const Someclass&) = delete;
+	Someclass& operator=(const Someclass&) = delete;
+	Someclass(Someclass&&) = default;
+	Someclass& operator=(Someclass&&) = default;
+}
+```
+
+第12章说过，要禁止复制，可将复制构造函数和赋值运算符放在类定义的private部分，但使用delete也能达到这个目的，且更不容易犯错、更容易理解。
+
+### 18.3.3 委托构造函数
+
+如果给类提供了多个构造函数，您可能重复编写相同的代码。也就是说，有些构造函数可能需要包含其他构造函数中已有的代码。为让编码工作更简单、更可靠，C++11允许您在一个构造函数的定义中使用另一个构造函数。这被称为委托，因为构造函数暂时将创建对象的工作委托给另一个构造函数。委托使用成员初始化列表语法的变种：
+
+```c++
+class Notes {
+	int k;
+	double x;
+	std::string st;
+public:
+	Notes();
+	Notes(int);
+	Notes(int, double);
+	Notes(int, double, std::string);
+}
+Notes::Notes(int kk, double xx, std::string stt) : k(kk),
+	x(xx), st(tt) {}
+Notes::Notes() : Notes(0, 0.01, "Oh") {}
+Notes::Notes(int kk) : Notes(kk, 0.01, "Ah") {}
+Notes::Notes(int kk, double xx) : Notes(kk, xx, "Uh") {}
+```
+
+### 18.3.4 继承构造函数
+
+为进一步简化编码工作，C++11提供了一种让派生类能够继承基类构造函数的机制。C++98提供了一种让名称空间中函数可用的语法：
+
+```c++
+namespace Box
+{
+	int fn(int) {...}
+	int fn(double) {...}
+	int fn(const char*) {...}
+}
+using Box::fn;
+```
+
+这让函数fn的所有重载版本都可用。也可使用这种方法让基类的所有非特殊成员函数对派生类可用。例如，请看下面的代码：
+
+```c++
+class C1
+{
+...
+public:
+...
+	int fn(int j) {...}
+	double fn(double w) {...}
+	void fn(const char* s) {...}
+};
+class C2 : public C1
+{
+...
+public:
+...
+	using C1::fn;
+	double fn(double) {...}
+};
+...
+C2 c2;
+int k = c2.fn(3);			// using C1::fn(int)
+double z = c2.fn(2.4);		// using C2::fn(double)
+```
+
+C2中的using声明让C2对象可使用C1的三个fn( ) 方法，但将选择C2而不是C1定义的方法fn(double)。
+
+C++11将这种方法用于构造函数。这让派生类继承基类的所有构造函数（默认构造函数、复制构造函数和移动构造函数除外），但不会使用与派生类构造函数的特征标匹配的构造函数：
+
+```c++
+class BS
+{
+    int q;
+    double w;
+public:
+    BS() : q(0), w(0) {}
+    BS(int k) : q(k), w(100) {}
+    BS(double x) : q(-1), w(x) {}
+    BS(int k,double x) : q(k), w(x) {}
+}
+
+class DR:public BS
+{
+    short j;
+public:
+    using BS:BS;
+    DR() : j(-100) {}; //#1
+    DR(double x) : BS(2*X), j(int(x)) {};//#2
+    Dr(int i) : j(-1), BS(i,0.5*j) {};//#3
+}
+
+int main()
+{
+    DR O1;				//使用#1
+    DR O2(18.81);		//使用#2，而不是BS的构造函数
+    DR O3(10, 1.8);		//使用BS 
+}
+```
+
+### 18.3.5 管理虚方法：override和final
+
+虚方法对实现多态类层次结构很重要，让基类引用或指针能够根据指向的对象类型调用相应的方法，但虚方法也带来了一些编程陷阱。例如，假设基类声明了一个虚方法，而您决定在派生类中提供不同的版本，这将覆盖旧版本。但正如第13章讨论的，如果特征标不匹配，将隐藏而不是覆盖旧版本：
+
+```c++
+class Action
+{
+	int a;
+public:
+	Action(int i = 0) : a(i) {}
+	int val() const {return a;}
+	virtual void f(char ch) const { std::cout << val() << ch << "\n";}
+};
+class Bingo : public Action
+{
+public:
+	Bingo(int i = 0) : Action(i) {}
+	virtual void f(char* ch) const { std::cout << val() << ch << "!\n";}
+};
+```
+
+由于类Bingo定义的是f(char * ch)而不是f(char ch)，将对Bingo对象隐藏f(char ch)，这导致程序不能使用类似于下面的代码：
+
+```c++
+Bingo b(10);
+b.f('@');		// works for Action object, fails for Bingo object
+```
+
+在C++11中，可使用虚说明符override指出您要覆盖一个虚函数：将其放在参数列表后面。如果声明与基类方法不匹配，编译器将视为错误。因此，下面的Bingo::f( )版本将生成一条编译错误消息：
+
+```c++
+virtual void f(char* ch) const override {std::cout << val() << ch << "!\n";}
+```
+
+说明符final解决了另一个问题。您可能想禁止派生类覆盖特定的虚方法，为此可在参数列表后面加上final。例如，下面的代码禁止Action的派生类重新定义函数f( )：
+
+```c++
+virtual void f(char ch) const final { std::cout << val() << ch << "\n";}
+```
 
