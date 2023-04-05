@@ -10714,3 +10714,393 @@ virtual void f(char* ch) const override {std::cout << val() << ch << "!\n";}
 virtual void f(char ch) const final { std::cout << val() << ch << "\n";}
 ```
 
+## 18.4 Lambda函数
+
+### 18.4.1 比较函数指针、函数符和Lambda函数
+
+来看一个示例，它使用三种方法给STL算法传递信息：函数指针、函数符和lambda。出于方便的考虑，将这三种形式通称为函数对象，以免不断地重复“函数指针、函数符或lambda”。假设您要生成一个随机整数列表，并判断其中多少个整数可被3整除，多个少整数可被13整除。
+
+生成这样的列表很简单。一种方案是，使用vector<int>存储数字，并使用STL算法generate( ) 在其中填充随机数：
+
+```c++
+#include <vector>
+#include <algorithm>
+#include <cmath>
+...
+std::vector<int> numbers(1000);
+std::generate(vector.begin(), vector.end(), std::rand);
+```
+
+函数generate( )接受一个区间（由前两个参数指定），并将每个元素设置为第三个参数返回的值，而第三个参数是一个不接受任何参数的函数对象。在上述示例中，该函数对象是一个指向标准函数rand()的指针。
+
+通过使用算法count_if( )，很容易计算出有多少个元素可被3整除。与函数generate( )一样，前两个参数应指定区间，而第三个参数应是一个返回true或false的函数对象。函数count_if( )计算这样的元素数，即它使得指定的函数对象返回true。为判断元素能否被3整除，可使用下面的函数定义：
+
+```c++
+bool f3(int x) {return x % 3 == 0;}
+```
+
+同样，为判断元素能否被13整除，可使用下面的函数定义：
+
+```c++
+bool f3(int x) {return x % 13 == 0;}
+```
+
+定义上述函数后，便可计算复合条件的元素数了，如下所示：
+
+```c++
+int count3 = std::count_if(numbers.begin(), numbers.end(), f3);
+cout << "Count of numbers divisible by 3: " <<  count3 << '\n';
+int count3 = std::count_if(numbers.begin(), numbers.end(), f13);
+cout << "Count of numbers divisible by 13: " <<  count13 << '\n';
+```
+
+下面复习一下如何使用函数符来完成这个任务。第16章介绍过，函数符是一个类对象，并非只能像函数名那样使用它，这要归功于类方法operator( ) ( )。就这个示例而言，函数符的优点之一是，可使用同一个函数符来完成这两项计数任务。下面是一种可能的定义：
+
+```c++
+class f_mod
+{
+private:
+	int dv;
+public:
+	f_mod(int d = 1) : dv(d) {}
+	bool operator()(int x) {return x % dv == 0;}
+}
+```
+
+这为何可行呢？因为可使用构造函数创建存储特定整数值的f_mod对象：
+
+```c++
+f_mod obj(3);	// f_mod.dv set to 3
+```
+
+而这个对象可使用方法operator( )来返回一个bool值：
+
+```c++
+bool is_div_by_3 = obj(7);		// same as obj.operator()(7)
+```
+
+构造函数本身可用作诸如count_if( )等函数的参数：
+
+```c++
+count3 = std::count_if(numbers.begin(), numbers.end(), f_mod(3));
+```
+
+参数f_mod(3)创建一个对象，它存储了值3；而count_if( )使用该对象来调用operator( ) ( )，并将参数x设置为numbers的一个元素。要计算有多少个数字可被13（而不是3）整除，只需将第三个参数设置为f_mod(3)。
+
+最后，来看看使用lambda的情况。名称lambda来自lambdacalculus（λ演算）—一种定义和应用函数的数学系统。这个系统让您能够使用匿名函数—即无需给函数命名。在C++11中，对于接受函数指针或函数符的函数，可使用匿名函数定义（lambda）作为其参数。与前述函数f3( )对应的lambda如下：
+
+```c++
+[](int x) {return x % 3 == 0;}
+```
+
+这与f3( )的函数定义很像：
+
+```c++
+bool f3(int x) {return x % 3 == 0;}
+```
+
+差别有两个：使用[]替代了函数名（这就是匿名的由来）；没有声明返回类型。返回类型相当于使用decltyp根据返回值推断得到的，这里为bool。如果lambda不包含返回语句，推断出的返回类型将为void。就这个示例而言，您将以如下方式使用该lambda：
+
+```c++
+count3 = std::count_if(numbers.begin(), numbers.end(),
+	[](int x){return x % 3 == 0;});
+```
+
+也就是说，使用使用整个lambda表达式替换函数指针或函数符构造函数。
+
+仅当lambda表达式完全由一条返回语句组成时，自动类型推断才管用；否则，需要使用新增的返回类型后置语法：
+
+```c++
+[](double x) -> double {int y = x; return x - y;}	// return type is double
+```
+
+### 18.4.2 为何使用lambda
+
+从简洁的角度看，函数符代码比函数和lambda代码更繁琐。函数和lambda的简洁程度相当，一个显而易见的例外是，需要使用同一个lambda两次：
+
+```c++
+count1 = std::count_if(n1.begin(), n1.end(),
+	[](int x) {return x % 3 == 0;});
+count2 = std::count_if(n2.begin(), n2.end(),
+	[](int x) {return x % 3 == 0;});
+```
+
+但并非必须编写lambda两次，而可给lambda指定一个名称，并使用该名称两次：
+
+```c++
+auto mod3 = [](int x){return x % 3 == 0;}	// mod3 the name for lambda
+count1 = std::count_if(n1.begin(), n1.end(), mod3);
+count2 = std::count_if(n2.begin(), n2.end(), mod3);
+```
+
+您甚至可以像使用常规函数那样使用有名称的lambda：
+
+```c++
+bool result = mod3(z);		// result is true if z % 3 == 0
+```
+
+lambda有一些额外的功能。具体地说，lambad可访问作用域内的任何动态变量；要捕获要使用的变量，可将其名称放在中括号内。如果只指定了变量名，如[z]，将按值访问变量；如果在名称前加上&，如[&count]，将按引用访问变量。[&]让您能够按引用访问所有动态变量，而[=]让您能够按值访问所有动态变量。还可混合使用这两种方式，例如，[ted, &ed]让您能够按值访问ted以及按引用访问ed，[&, ted]让您能够按值访问ted以及按引用访问其他所有动态变量，[=, &ed]让您能够按引用访问ed以及按值访问其他所有动态变量。在程序清单18.4中，可将下述代码：
+
+```c++
+int count13;
+...
+count13 = std::count_if(numbers.begin(), numbers.end(),
+	[](int x){return x % 13 == 0;});
+```
+
+替换为如下代码：
+
+```c++
+int count13;
+std::for_each(numbers.begin(), numbers.end(),
+	[&count13](int x){count13 += x % 13 == 0;});
+```
+
+[&count13]让lambda能够在其代码中使用count13。由于count13是按引用捕获的，因此在lambda对count13所做的任何修改都将影响原始count13。如果x能被13整除，则表达式x % 13 == 0将为true，添加到count13中时，true将被转换为1。同样，false将被转换为0。因此，for_each( )将lambda应用于numbers的每个元素后，count13将为能被13整除的元素数。
+
+通过利用这种技术，可使用一个lambda表达式计算可被3整除的元素数和可被13整除的元素数：
+
+```c++
+int count3 = 0;
+int count13 = 0;
+std::for_each(numbers.begin(), numbers.end(),
+	[&](int x){count3 += x % 3 == 0; count13 += x % 13 == 0;});
+```
+
+在这里，[&]让您能够在lambad表达式中使用所有的自动变量，包括count3和count13。
+
+## 18.5 包装器
+
+### 18.5.1 包装器function及模板的低效性
+
+请看下面的代码行：
+
+```c++
+answer = ef(q);
+```
+
+ef是什么呢？它可以是函数名、函数指针、函数对象或有名称的lambda表达式。所有这些都是可调用的类型（callable type）。鉴于可调用的类型如此丰富，这可能导致模板的效率极低。为明白这一点，来看一个简单的案例。
+
+首先， 在头文件中定义一些模板， 如程序清单18.6所示。
+
+```c++
+#include <iostream>
+
+using namespace std;
+template<typename T,typename F>
+T use_f(T v,F f){
+    static int count =0;
+    count++;
+    cout<< " use_f count = "<<count
+        <<" ,& count = "<<&count<<endl;
+    return f(v);
+}
+class Fp{
+private:
+    double z_;
+
+public:
+    Fp(double z=1.0):z_(z){
+    }
+    double operator()(double p){ return z_*p;}
+
+};
+class Fq{
+private:
+    double z_;
+public:
+    Fq(double z=1.0):z_(z){
+    }
+    double operator()(double q){ return z_+q;}
+};
+```
+
+模板use_f使用参数f表示调用类型：
+
+```c++
+return f(v);
+```
+
+接下来，程序清单18.7所示的程序调用模板函数use_f( )6次。
+
+```c++
+//callable.cpp -- callable types and templates
+#include <iostream>
+#include"somedefs.h"
+#include<functional>
+
+double dub(double x){return 2.0*x;}
+double square(double x){return x*x;}
+int main()
+{
+    double y=1.21;
+    cout<<"Function pointer dub:\n";
+    cout<<" "<<use_f(y,dub)<<endl;
+
+    cout<<"Function pointer square:\n";
+    cout<<" "<<use_f(y,square)<<endl;
+
+    cout<<"Function object Fp:\n";
+    cout<<" "<<use_f(y,Fp(5.0))<<endl;
+
+    cout<<"Function object Fq:\n";
+    cout<<" "<<use_f(y,Fq(5.0))<<endl;
+
+    cout<<"Lambda expression 1:\n";
+    cout<<" "<<use_f(y,[](double u){return u*u;})<<endl;
+
+    cout<<"Lambda expression 2:\n";
+    cout<<" "<<use_f(y,[](double u){return u+u/2.0;})<<endl;
+    return 0;
+}
+```
+
+在每次调用中，模板参数T都被设置为类型double。模板参数F呢？每次调用时，F都接受一个double值并返回一个double值，因此在6次use_of( ) 调用中，好像F的类型都相同，因此只会实例化模板一次。但正如下面的输出表明的，这种想法太天真了：
+
+![image-20230405104703465](D:\git\note_md_files\images\image-20230405104703465.png)
+
+模板函数use_f( )有一个静态成员count，可根据它的地址确定模板实例化了多少次。有5个不同的地址，这表明模板use_f( )有5个不同的实例化。
+
+为了解其中的原因，请考虑编译器如何判断模板参数F的类型。首先，来看下面的调用：
+
+```c++
+use_f(y, dub);
+```
+
+其中的dub是一个函数的名称，该函数接受一个double参数并返回一个double值。函数名是指针，因此参数F的类型为double(*)(double)：一个指向这样的函数的指针，即它接受一个double参数并返回一个double值。
+
+下一个调用如下：
+
+```c++
+use_f(y, square);
+```
+
+第二个参数的类型也是double(*) (double)，因此该调用使用的use_f( )实例化与第一个调用相同。
+
+在接下来的两个use_f( )调用中，第二个参数为对象，F的类型分别为Fp和Fq，因为将为这些F值实例化use_f( )模板两次。最后，最后两个调用将F的类型设置为编译器为lambda表达式使用的类型。
+
+### 18.5.2 修复问题
+
+包装器function让您能够重写上述程序，使其只使用use_f( )的一个实例而不是5个。注意到程序清单18.7中的函数指针、函数对象和lambda表达式有一个相同的地方，它们都接受一个double参数并返回一个double值。可以说它们的调用特征标（call signature）相同。调用特征标是有返回类型以及用括号括起并用头号分隔的参数类型列表定义的，因此，这六个实例的调用特征标都是double (double)。
+
+模板function是在头文件functional中声明的，它从调用特征标的角度定义了一个对象，可用于包装调用特征标相同的函数指针、函数对象或lambda表达式。例如，下面的声明创建一个名为fdci的function对象，它接受一个char参数和一个int参数，并返回一个double值：
+
+```c++
+std::function<double(char, int)> fdci;
+```
+
+然后，可以将接受一个char参数和一个int参数，并返回一个double值的任何函数指针、函数对象或lambda表达式赋给它。
+
+在程序清单18.7中，所有可调用参数的调用特征标都相同：double (double)。要修复程序清单18.7以减少实例化次数，可使用function<double(double)>创建六个包装器，用于表示6个函数、函数符和lambda。这样，在对use_f( )的全部6次调用中，让F的类型都相同（function<double(double)>），因此只实例化一次。据此修改后的程序如程序清单18.8所示。
+
+```c++
+//wrapped.cpp --- using a function wrapper as an argument
+#include <iostream>
+#include"somedefs.h"//
+#include<functional>
+using namespace std;
+
+double dub(double x){return 2.0*x;}
+double square(double x){return x*x;}
+
+int main()
+{
+    double y=1.21;
+    function<double(double)> ef1=dub;
+    function<double(double)> ef2=square;
+    function<double(double)> ef3=Fq(10.0);
+    function<double(double)> ef4=Fp(10.0);
+    function<double(double)> ef5=[](double u){return u*u;} ;
+    function<double(double)> ef6=[](double u){return u+u/2.0;};
+
+    cout<<"Function pointer dub:\n";
+    cout<<" "<<use_f(y,ef1)<<endl;
+
+    cout<<"Function pointer square:\n";
+    cout<<" "<<use_f(y,ef2)<<endl;
+
+    cout<<"Function object Fp:\n";
+    cout<<" "<<use_f(y,ef3)<<endl;
+
+    cout<<"Function object Fq:\n";
+    cout<<" "<<use_f(y,ef4)<<endl;
+
+    cout<<"Lambda expression 1:\n";
+    cout<<" "<<use_f(y,ef5)<<endl;
+
+    cout<<"Lambda expression 2:\n";
+    cout<<" "<<use_f(y,ef6)<<endl;
+
+    return 0;
+}
+```
+
+下面是该程序的示例输出：
+
+![image-20230405105035612](D:\git\note_md_files\images\image-20230405105035612.png)
+
+![image-20230405105039791](D:\git\note_md_files\images\image-20230405105039791.png)
+
+从上述输出可知，count的地址都相同，而count的值表明，use_f( ) 被调用了6次。这表明只有一个实例，并调用了该实例6次，这缩小了可执行代码的规模。
+
+### 18.5.3 其他方式
+
+下面介绍使用function可完成的其他两项任务。首先，在程序清单18.8中，不用声明6个function<double (double)>对象，而只使用一个临时function<double (double)>对象，将其用作函数use_f( )的参数：
+
+```c++
+typedef function<double(double)> fdd;		// simplify the type declaration
+cout << use_f(y, fdd(dub)) << endl;		// create and initialize object to dub
+cout << use_f(y, fdd(square)) << endl;
+...
+```
+
+其次，程序清单18.8让use_f( )的第二个实参与形参f匹配，但另一种方法是让形参f的类型与原始实参匹配。为此，可在模板use_f( )的定义中，将第二个参数声明为function包装器对象，如下所示：
+
+```c++
+#include <functional>
+template <typename T>
+T use_f(T v, std::function<T(T)> f)
+{
+	static int count = 0;
+	count++;
+	std::cout << " use_f count = " << count
+		<< ", &count = " << &count << std::endl;
+	return f(v);
+}
+```
+
+这样函数调用将如下：
+
+```c++
+cout << "  " << use_f<double>(y, dub) << endl;
+...
+cout << "  " << use_f<double>(y, Fp(5.0)) << endl;
+...
+cout << "  " << use_f<double>(y, [](double u){return u*u;}) << endl;
+```
+
+参数dub、Fp(5.0)等本身的类型并不是function<double(double)>，因此在use_f后面使用了<double>来指出所需的具体化。这样，T被设置为double，而std::function<T(T)>变成了std::function<double(double)>。
+
+## 18.6 可变参数模板
+
+### 18.6.1 模板和函数参数包
+
+C++11提供了一个用省略号表示的元运算符（meta-operator）让您能够声明表示模板参数包的标识符，模板参数包基本上是一个类型列表。同样，它还让您能够声明表示函数参数包的标识符，而函数参数包基本上是一个值列表。其语法如下：
+
+```c++
+template<typename... Args>
+void show_list1(Args.. args)
+{
+...
+}
+```
+
+可变参数模板show_list1( )与下面的函数调用都匹配：
+
+```c++
+show_list1();
+show_list1(99);
+show_list1(88.5, "cat");
+show_list1(2,4,6,8,"who do we",std::string("appreciate"));
+```
+
