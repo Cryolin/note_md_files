@@ -10417,7 +10417,7 @@ rd3 value and address : 21.5, 002FF6
 vector<string> vstr;
 // build up a vector of 20,000 strings, each of 1000 characters
 ...
-vector<string> vstr copy1(vstr);	// make vstr copy1 a copy of vstr
+vector<string> vstr_copy1(vstr);	// make vstr copy1 a copy of vstr
 ```
 
 vector和string类都使用动态内存分配，因此它们必须定义使用某种new版本的复制构造函数。为初始化对象vstr_copy1，复制构造函数vector<string>将使用new给20000个string对象分配内存，而每个string对象又将调用string的复制构造函数，该构造函数使用new为1000个字符分配内存。接下来，全部20000000个字符都将从vstr控制的内存中复制到vstr_copy1控制的内存中。这里的工作量很大，但只要妥当就行。
@@ -10471,7 +10471,6 @@ public:
     Useless ShowData() const;
 }
 
-
 // 仅看复制构造函数和移动构造函数
 Useless::Useless(const Useless& f) : n(f.n)
 {
@@ -10521,7 +10520,6 @@ int main()
 {
 	Useless four;
 	four = one + two;		// 移动构造函数
-	
 	four = std::move(one);	// 强制移动，执行下面的移动构造函数，one被移动后n==0，pc为空指针
 	return 0;
 }
@@ -10562,7 +10560,7 @@ public:
 
 编译器将创建在您没有提供移动构造函数的情况下将自动提供的构造函数。
 
-另一方面，关键字delete可用于禁止编译器使用特定方法。例如，要禁止复制对象，可禁用复制构造函数和复制赋值运算符：
+另一方面，关键字delete可用于禁止编译器使用特定方法。例如，要禁止复制`，可禁用复制构造函数和复制赋值运算符：
 
 ```c++
 class Someclass
@@ -10718,7 +10716,7 @@ virtual void f(char ch) const final { std::cout << val() << ch << "\n";}
 
 ### 18.4.1 比较函数指针、函数符和Lambda函数
 
-来看一个示例，它使用三种方法给STL算法传递信息：函数指针、函数符和lambda。出于方便的考虑，将这三种形式通称为函数对象，以免不断地重复“函数指针、函数符或lambda”。假设您要生成一个随机整数列表，并判断其中多少个整数可被3整除，多个少整数可被13整除。
+来看一个示例，它使用三种方法给STL算法传递信息：函数指针、函数符和lambda。出于方便的考虑，将这三种形式通称为函数对象，以免不断地重复“函数指针、函数符或lambda”。假设您要生成一个随机整数列表，并判断其中多少个整数可被3整除，多少个整数可被13整除。
 
 生成这样的列表很简单。一种方案是，使用vector<int>存储数字，并使用STL算法generate( ) 在其中填充随机数：
 
@@ -10806,7 +10804,7 @@ count3 = std::count_if(numbers.begin(), numbers.end(),
 	[](int x){return x % 3 == 0;});
 ```
 
-也就是说，使用使用整个lambda表达式替换函数指针或函数符构造函数。
+也就是说，使用整个lambda表达式替换函数指针或函数符构造函数。
 
 仅当lambda表达式完全由一条返回语句组成时，自动类型推断才管用；否则，需要使用新增的返回类型后置语法：
 
@@ -10839,7 +10837,7 @@ count2 = std::count_if(n2.begin(), n2.end(), mod3);
 bool result = mod3(z);		// result is true if z % 3 == 0
 ```
 
-lambda有一些额外的功能。具体地说，lambad可访问作用域内的任何动态变量；要捕获要使用的变量，可将其名称放在中括号内。如果只指定了变量名，如[z]，将按值访问变量；如果在名称前加上&，如[&count]，将按引用访问变量。[&]让您能够按引用访问所有动态变量，而[=]让您能够按值访问所有动态变量。还可混合使用这两种方式，例如，[ted, &ed]让您能够按值访问ted以及按引用访问ed，[&, ted]让您能够按值访问ted以及按引用访问其他所有动态变量，[=, &ed]让您能够按引用访问ed以及按值访问其他所有动态变量。在程序清单18.4中，可将下述代码：
+lambda有一些额外的功能。具体地说，lambda可访问作用域内的任何动态变量；要捕获要使用的变量，可将其名称放在中括号内。如果只指定了变量名，如[z]，将按值访问变量；如果在名称前加上&，如[&count]，将按引用访问变量。[&]让您能够按引用访问所有动态变量，而[=]让您能够按值访问所有动态变量。还可混合使用这两种方式，例如，[ted, &ed]让您能够按值访问ted以及按引用访问ed，[&, ted]让您能够按值访问ted以及按引用访问其他所有动态变量，[=, &ed]让您能够按引用访问ed以及按值访问其他所有动态变量。在程序清单18.4中，可将下述代码：
 
 ```c++
 int count13;
@@ -10977,7 +10975,7 @@ use_f(y, square);
 
 第二个参数的类型也是double(*) (double)，因此该调用使用的use_f( )实例化与第一个调用相同。
 
-在接下来的两个use_f( )调用中，第二个参数为对象，F的类型分别为Fp和Fq，因为将为这些F值实例化use_f( )模板两次。最后，最后两个调用将F的类型设置为编译器为lambda表达式使用的类型。
+在接下来的两个use_f( )调用中，第二个参数为对象，F的类型分别为Fp和Fq，因为将为这些F值实例化use_f( )模板两次。最后两个调用将F的类型设置为编译器为lambda表达式使用的类型。
 
 ### 18.5.2 修复问题
 
@@ -10996,7 +10994,7 @@ std::function<double(char, int)> fdci;
 ```c++
 //wrapped.cpp --- using a function wrapper as an argument
 #include <iostream>
-#include"somedefs.h"//
+#include"somedefs.h"
 #include<functional>
 using namespace std;
 
