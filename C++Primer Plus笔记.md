@@ -1003,7 +1003,7 @@ method3(&arr3);		// array需通过&传地址
 
 ### 5.1.1 for循环的组成部分
 
-在C++中，每个表达式都由值。
+在C++中，每个表达式都有值。
 
 有时值不这么明显，例如，下面是一个表达式，因为它由两个值和一个赋值运算符组成：
 
@@ -1863,7 +1863,7 @@ auto pc = *pc;      //oops! used *pa instead of &pa
 除`auto`外，C++ 还提供了其他简化声明的工具。关键字`typedef`可以创建类型别名：
 
 ```C++
-typedef const real;     // makes real another name for double
+typedef double real;     // makes real another name for double
 ```
 
 这里采用的方法是，将别名当做标识符进行声明，并在开关使用关键字`typedef`。因此，可将`p_fun`声明为函数指针类型的别名：
@@ -2417,7 +2417,7 @@ blot ink = {25, "spots"};
 recycle(&ink);
 ```
 
-recycle(&ink)调用与#1模板匹配，匹配时将Type解释为blot *。recycle（&ink）函数调用也与#2模板匹配，这次Type被解释为ink。因此将两个隐式实例——recycle<blot *>(blot *)和recycle <blot>(blot *)发送到可行函数池中。
+recycle(&ink)调用与#1模板匹配，匹配时将Type解释为blot *。recycle（&ink）函数调用也与#2模板匹配，这次Type被解释为blot。因此将两个隐式实例——recycle<blot *>(blot *)和recycle <blot>(blot *)发送到可行函数池中。
 
 在这两个模板函数中，recycle<blot >(blot *)被认为是更具体的，因为在生成过程中，它需要进行的转换更少。也就是说，#2模板已经显式指出，函数参数是指向Type的指针，因此可以直接用blot标识Type；而#1模板将Type作为函数参数，因此Type必须被解释为指向blot的指针。也就是说，在#2模板中，Type已经被具体化为指针，因此说它“更具体”。
 
@@ -2723,7 +2723,7 @@ void func2(int q)
 
 一方面，在每个使用外部变量的文件中，都必须声明它；另一方面，C++有“单定义规则”（One Definition Rule，ODR），该规则指出，变量只能有一次定义。为满足这种需求，C++提供了两种变量声明。一种是定义声明（defining declaration）或简称为定义（definition），它给变量分配存储空间；另一种是引用声明（referencing declaration）或简称为声明（declaration），它不给变量分配存储空间，因为它引用已有的变量。
 
-引用声明使用关键字extern，且不进行初始化；否则，声明为定义，导致分配存储空间：、
+引用声明使用关键字extern，且不进行初始化；否则，声明为定义，导致分配存储空间：
 
 ```C++
 double up;		// definition, up is 0
@@ -3283,7 +3283,7 @@ namespace elements
 }
 ```
 
-这里，flame指的是element[::]fire::flame。同样，可以使用下面的using编译指令使内部的名称可用：
+这里，flame指的是element:: fire::flame。同样，可以使用下面的using编译指令使内部的名称可用：
 
 ```c++
 using namespace elements::fire;
