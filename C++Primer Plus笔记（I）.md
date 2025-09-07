@@ -2470,7 +2470,7 @@ void ft(T1 x, T2 y)
 }
 ```
 
-deltype结合C++11新增对auto的用法，明确返回值：
+decltype结合C++11新增对auto的用法，明确返回值：
 
 ```C++
 auto h(int x, float y) -> double
