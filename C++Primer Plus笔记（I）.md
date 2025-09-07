@@ -1853,7 +1853,7 @@ const double * (*(*pc)[3])(const double *, int) = &pa; // C++98, do it yourself
 存在一个潜在的缺点。自动类型推断确保变量的类型与赋给它的初值类型一致，但您提供的初值的类型可能不对：
 
 ```C++
-auto pc = *pc;      //oops! used *pa instead of &pa
+auto pc = *pa;      //oops! used *pa instead of &pa
 ```
 
 上述声明导致`pc`的类型与`*pa`一致，后面使用它时假定其类型与`&pa`相同，这将导致编译错误。
