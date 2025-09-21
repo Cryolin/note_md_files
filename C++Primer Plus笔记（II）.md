@@ -349,7 +349,7 @@ int Frodo = int(t_shirt::Small);		// Frodo set to 0
 operatorop(argument-list)
 ```
 
-例如，operator +( )重载+运算符。op必须是有效的C++运算符，不能虚构一个新的符号。例如，不能有operator@( )这样的函数，因为C++中没有@运算符。然而，operator 函数将重载[ ]运算符，因为[ ]是数组索引运算符。例如，假设有一个Salesperson类，并为它定义了一个operator +( )成员函数，以重载+运算符，以便能够将两个Saleperson对象的销售额相加，则如果district2、sid和sara都是Salesperson类对象，便可以编写这样的等式：
+例如，operator +( )重载+运算符。op必须是有效的C++运算符，不能虚构一个新的符号。例如，不能有operator@( )这样的函数，因为C++中没有@运算符。然而，operator 函数将重载[ ]运算符，因为[ ]是数组索引运算符。例如，假设有一个Salesperson类，并为它定义了一个operator +( )成员函数，以重载+运算符，以便能够将两个Salesperson对象的销售额相加，则如果district2、sid和sara都是Salesperson类对象，便可以编写这样的等式：
 
 ```c++
 district2 = sid + sara;
